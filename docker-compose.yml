@@ -1,0 +1,46 @@
+name: dbpulse
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dbpulse
+      POSTGRES_USER: dbpulse
+      POSTGRES_PASSWORD: ${DBPULSE_POSTGRES_PASSWORD:?DBPULSE_POSTGRES_PASSWORD must be set in .env}
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - dbpulse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbpulse -d dbpulse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DBPULSE_BIND_ADDRESS: 0.0.0.0
+      DBPULSE_API_PORT: 8081
+      DBPULSE_META_JDBC_URL: jdbc:postgresql://postgres:5432/dbpulse
+      DBPULSE_META_USERNAME: dbpulse
+      DBPULSE_META_PASSWORD: ${DBPULSE_POSTGRES_PASSWORD:?DBPULSE_POSTGRES_PASSWORD must be set in .env}
+      DBPULSE_MSSQL_ENABLED: ${DBPULSE_MSSQL_ENABLED:-false}
+      DBPULSE_MSSQL_HOST: ${DBPULSE_MSSQL_HOST:-host.docker.internal}
+      DBPULSE_MSSQL_PORT: ${DBPULSE_MSSQL_PORT:-1433}
+      DBPULSE_MSSQL_DATABASE: ${DBPULSE_MSSQL_DATABASE:-DBPulseLab}
+      DBPULSE_MSSQL_USERNAME: ${DBPULSE_MSSQL_USERNAME:-}
+      DBPULSE_MSSQL_PASSWORD: ${DBPULSE_MSSQL_PASSWORD:-}
+      DBPULSE_MSSQL_TRUST_SERVER_CERTIFICATE: ${DBPULSE_MSSQL_TRUST_SERVER_CERTIFICATE:-false}
+      DBPULSE_COLLECT_INTERVAL_MS: 5000
+    ports:
+      - "127.0.0.1:18081:8081"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  dbpulse_pgdata:

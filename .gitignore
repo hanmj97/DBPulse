@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/dist/
+**/target/
+**/.idea/
+**/.vscode/
+*.log
+.DS_Store
+**/.venv/
+**/__pycache__/
+*.bak
+*.pem
+*.key
+*.pfx
+*.p12

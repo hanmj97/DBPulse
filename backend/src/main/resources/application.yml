@@ -1,0 +1,36 @@
+server:
+  address: ${DBPULSE_BIND_ADDRESS:127.0.0.1}
+  port: ${DBPULSE_API_PORT:8081}
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: dbpulse-api
+  datasource:
+    url: ${DBPULSE_META_JDBC_URL:jdbc:postgresql://localhost:5544/dbpulse}
+    username: ${DBPULSE_META_USERNAME:dbpulse}
+    password: ${DBPULSE_META_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 3000
+  sql:
+    init:
+      mode: always
+  jackson:
+    time-zone: UTC
+dbpulse:
+  collector:
+    interval-ms: ${DBPULSE_COLLECT_INTERVAL_MS:5000}
+    slow-threshold-ms: ${DBPULSE_SLOW_THRESHOLD_MS:1000}
+  mssql:
+    enabled: ${DBPULSE_MSSQL_ENABLED:false}
+    id: local-mssql
+    name: Local SQL Server
+    host: ${DBPULSE_MSSQL_HOST:localhost}
+    port: ${DBPULSE_MSSQL_PORT:1433}
+    database: ${DBPULSE_MSSQL_DATABASE:DBPulseLab}
+    username: ${DBPULSE_MSSQL_USERNAME:}
+    password: ${DBPULSE_MSSQL_PASSWORD:}
+    trust-server-certificate: ${DBPULSE_MSSQL_TRUST_SERVER_CERTIFICATE:false}

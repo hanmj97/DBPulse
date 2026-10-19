@@ -1,0 +1,182 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+  Activity, AlertCircle, ArrowUpRight, BellRing, CircleCheck, Clock3,
+  Database, Gauge, Layers3, LockKeyhole, Radio, RefreshCw, Server,
+  ShieldAlert, Sparkles, Terminal, WifiOff,
+} from 'lucide-react';
+import './style.css';
+
+const fmt = (n) => (n == null ? '—' : new Intl.NumberFormat('ko-KR').format(n));
+const timeFmt = (iso) => iso ? new Date(iso).toLocaleTimeString('ko-KR', {hour12: false}) : '—';
+const STATUS = {
+  ONLINE: { label: '수집 정상', tone: 'success' },
+  OFFLINE: { label: '연결 오류', tone: 'error' },
+  NOT_CONFIGURED: { label: '설정 필요', tone: 'neutral' },
+  INITIALIZING: { label: '연결 확인 중', tone: 'neutral' },
+};
+
+function Metric({ label, value, unit, Icon, note, tone }) {
+  return <article className="metric card">
+    <div className="metric-title"><span>{label}</span><Icon size={18} /></div>
+    <div className={`metric-value ${tone || ''}`}>{fmt(value)}<small>{value == null ? '' : unit}</small></div>
+    <div className="metric-note">{note}</div>
+  </article>;
+}
+
+function MiniChart({ items, field, emptyText, tone = 'blue' }) {
+  const maxValue = Math.max(1, ...items.map(x => x[field] || 0));
+  return <div className={`chart chart-${tone}`} role="img" aria-label={`${field} 최근 수집 데이터`}> 
+    {items.length ? items.map((item, index) => <div key={`${item.collectedAt}-${index}`} className="chart-column"
+      title={`${timeFmt(item.collectedAt)} | ${field}: ${item[field]}`}> 
+      <div className="chart-bar" style={{ height: `${item[field] ? Math.max(2, (item[field] / maxValue) * 100) : 0}%` }} />
+    </div>) : <div className="chart-empty">{emptyText}</div>}
+  </div>;
+}
+
+function App() {
+  const [target, setTarget] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [error, setError] = useState('');
+  const [updated, setUpdated] = useState(null);
+  const [queryAnalysis, setQueryAnalysis] = useState([]);
+  const [queryState, setQueryState] = useState(null);
+  const [queryError, setQueryError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const targetsResponse = await fetch('/api/v1/targets');
+        if (!targetsResponse.ok) throw new Error('targets API error');
+        const targets = await targetsResponse.json();
+        const next = targets[0];
+        if (!next) throw new Error('target missing');
+        const historyResponse = await fetch(`/api/v1/targets/${encodeURIComponent(next.id)}/metrics?limit=60`);
+        if (!historyResponse.ok) throw new Error('metrics API error');
+        const rows = await historyResponse.json();
+        if (!active) return;
+        setTarget(next);
+        setHistory(rows);
+        setUpdated(new Date());
+        setError('');
+      } catch {
+        if (active) setError('API 연결 실패 — Docker 백엔드가 실행 중인지 확인해 주세요.');
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 3000);
+    return () => { active = false; clearInterval(timer); };
+  }, []);
+
+  // Query Store is a separate service with a slower cadence than the DMV collector.
+  useEffect(() => {
+    if (!target?.id) return undefined;
+    let active = true;
+    const fetchAnalysis = async () => {
+      try {
+        const base = `/api/v1/targets/${encodeURIComponent(target.id)}/query-performance`;
+        const [statusRes, rowsRes] = await Promise.all([
+          fetch(`${base}/status`), fetch(`${base}?limit=20`)
+        ]);
+        if (!statusRes.ok || !rowsRes.ok) throw new Error('query performance API error');
+        const [status, rows] = await Promise.all([statusRes.json(), rowsRes.json()]);
+        if (!active) return;
+        setQueryState(status);
+        setQueryAnalysis(rows);
+        setQueryError('');
+      } catch {
+        if (active) setQueryError('Query Store 분석 API에 접근할 수 없습니다. 백엔드 빌드 상태를 확인하세요.');
+      }
+    };
+    fetchAnalysis();
+    const timer = setInterval(fetchAnalysis, 15000);
+    return () => { active = false; clearInterval(timer); };
+  }, [target?.id]);
+
+  const DIAGNOSIS = {
+    SLOW_HIGH_READS: ['읽기량과 실행 시간 증가', '기존 인덱스·실행계획을 확인할 후보'],
+    SLOW_HIGH_CPU: ['CPU와 실행 시간 증가', '실행계획·연산 및 대기시간을 확인할 후보'],
+    SLOW_AVERAGE: ['평균 실행 시간 증가', '대기·Blocking·실행계획을 확인할 후보'],
+    HIGH_READS: ['논리 읽기량 높음', '필터 조건과 인덱스 효율을 확인할 후보'],
+    HIGH_CPU: ['CPU 사용량 높음', '연산·정렬 및 쿼리 형태를 확인할 후보'],
+    OBSERVE: ['관찰 대상', '현재 임계값 기준 문제를 확정할 수 없음'],
+  };
+
+  const latest = history.at(-1);
+  const hasData = !!latest && target?.collectorStatus === 'ONLINE';
+  const status = STATUS[target?.collectorStatus] || STATUS.INITIALIZING;
+  const events = useMemo(() => history.filter((row) => row.blockedRequests > 0 || row.longRunningRequests > 0).slice(-4).reverse(), [history]);
+
+  return <div className="layout">
+    <aside className="sidebar">
+      <div className="brand"><div className="brand-icon"><Activity size={22} strokeWidth={3} /></div><span>DBPulse<sup>alpha</sup></span></div>
+      <div className="nav-caption">WORKSPACE</div>
+      <div className="nav-item active"><Gauge size={19} />Overview</div>
+      <div className="nav-item disabled"><Database size={19} />Databases <span>예정</span></div>
+      <div className="nav-item disabled"><ShieldAlert size={19} />Incidents <span>예정</span></div>
+      <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
+      <div className="nav-caption second">SYSTEM</div>
+      <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 2 · Local Development</div><div>v0.2.0 — Query Store analysis</div></div>
+    </aside>
+    <main className="main">
+      <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
+      <div className="content">
+        <div className="title-row"><div><div className="eyebrow">DATABASE OBSERVABILITY</div><h1>Overview</h1><p>연결된 SQL Server의 현재 요청과 대기 상태를 확인합니다.</p></div><div className="updated"><RefreshCw size={15}/> 마지막 화면 갱신 {updated ? timeFmt(updated.toISOString()) : '—'}</div></div>
+        {error && <div className="banner error"><AlertCircle size={18}/>{error}</div>}
+        <section className="target-bar card">
+          <div className="server-icon"><Server size={23}/></div>
+          <div className="target-info"><strong>{target?.name || 'Local SQL Server'}</strong><span>MSSQL · {target?.databaseName || 'DBPulseLab'} · 전용 수집기</span></div>
+          <div className={`status status-${status.tone}`}><span className="status-dot"/>{status.label}</div>
+        </section>
+        {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info"><Terminal size={18}/>MSSQL 수집을 시작하려면 프로젝트의 <code>.env</code>에서 연결 값을 설정하고 백엔드를 재시작하세요.</div>}
+        {target?.collectorStatus === 'OFFLINE' && <div className="banner error"><WifiOff size={18}/>연결 또는 수집에 실패했어요. MSSQL 계정, TCP 포트, DMV 조회 권한을 확인하세요. ({target.errorCode || 'UNKNOWN'})</div>}
+        <div className="metrics-grid">
+          <Metric label="Active requests" value={hasData ? latest.activeRequests : null} unit="건" Icon={Activity} note="현재 실행 중인 요청 수" />
+          <Metric label="Blocked requests" value={hasData ? latest.blockedRequests : null} unit="건" Icon={LockKeyhole} note="다른 세션에 의해 대기 중" tone={latest?.blockedRequests ? 'red' : ''} />
+          <Metric label="Long-running" value={hasData ? latest.longRunningRequests : null} unit="건" Icon={Clock3} note="실행 1,000ms 이상" tone={latest?.longRunningRequests ? 'amber' : ''} />
+          <Metric label="Max elapsed" value={hasData ? latest.maxElapsedMs : null} unit="ms" Icon={Gauge} note="현재 요청의 최장 실행 시간" />
+        </div>
+        <div className="charts-grid">
+          <article className="card graph"><div className="section-heading"><div><h2>Active request trend</h2><p>최근 최대 60개 샘플 · 실제 DMV 조회 결과</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="activeRequests" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
+          <article className="card graph"><div className="section-heading"><div><h2>Blocking trend</h2><p>다른 트랜잭션으로 인해 차단된 요청 수</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="blockedRequests" tone="orange" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
+        </div>
+        <section className="card activity-panel"><div className="section-heading"><div><h2>Recent performance signals</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
+          {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
+        </section>
+        <section id="query-performance" className="card query-panel">
+          <div className="section-heading">
+            <div><h2>Query Performance Analyzer</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
+            <span className="small-pill">30s collect</span>
+          </div>
+          <div className="query-state">
+            분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
+            {queryState?.lastCollectedAt && <span>마지막 분석 {timeFmt(queryState.lastCollectedAt)}</span>}
+          </div>
+          {queryError && <div className="banner error"><AlertCircle size={16}/>{queryError}</div>}
+          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>DBPulseLab에서 Query Store를 활성화해야 완료된 쿼리 통계를 분석할 수 있어요.</div>}
+          <div className="query-table-scroll"><table className="query-table"><thead><tr>
+            <th>Query ID / Plan</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>논리 읽기</th><th>분석 신호</th>
+          </tr></thead><tbody>
+          {queryAnalysis.length ? queryAnalysis.map(row => {
+            const [label, suggestion] = DIAGNOSIS[row.diagnosisCode] || DIAGNOSIS.OBSERVE;
+            return <tr key={`${row.queryId}-${row.planId}-${row.collectedAt}`}>
+              <td><strong>#{row.queryId}</strong><small>plan {row.planId}</small></td>
+              <td>{fmt(row.executionCount)}</td>
+              <td>{Number(row.avgDurationMs).toFixed(2)} ms</td>
+              <td>{Number(row.avgCpuMs).toFixed(2)} ms</td>
+              <td>{Number(row.avgLogicalReadsPages).toFixed(1)} pages</td>
+              <td><span className={row.diagnosisCode === 'OBSERVE' ? 'hint hint-neutral' : 'hint'}>{label}</span><small>{suggestion}</small></td>
+            </tr>;
+          }) : <tr><td className="query-empty" colSpan="6">아직 분석할 쿼리가 없습니다. Query Store 설정과 테스트 쿼리 실행 여부를 확인하세요.</td></tr>}
+          </tbody></table></div>
+          <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 30초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문·파라미터는 수집하지 않습니다.</p>
+        </section>
+        <div className="disclaimer"><Radio size={14}/> 수집 값은 SQL Server의 해당 DB에서 관찰된 실행 중 요청의 시점별 스냅샷입니다. 전체 처리량이나 완료된 쿼리 건수를 의미하지 않습니다.</div>
+      </div>
+    </main>
+  </div>;
+}
+
+createRoot(document.getElementById('root')).render(<App/>);

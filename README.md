@@ -1,0 +1,143 @@
+# DBPulse — Real-time Database Monitoring, Recovery & Optimization Platform
+
+> **실제 DB 운영 서비스**를 목표로 개발하는 프로젝트. MSSQL 우선 구현 후 다른 DBMS 지원 확장.
+
+## 제품 핵심 목표
+
+1. **장애 감지·원인 파악·안전한 자동복구** — Blocking/Deadlock/연결 장애 등, 위험 조치는 승인 후 실행
+2. **쿼리·트랜잭션 성능 분석** — 실시간/누적 통계, 실행계획, Wait, Lock, 성능 변화
+3. **저성능 SQL 진단·튜닝 추천** — 쿼리 자동 수집, 원인 분석, 개선안 및 검증
+
+[불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
+
+## 이번 제공 버전: v0.1.0 / Phase 1
+
+작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
+
+- MSSQL에서 `sys.dm_exec_requests`를 읽어 현재 활성 요청, Blocking, 장시간 실행을 매 5초 집계.
+- 실제 데이터만 PostgreSQL `metric_snapshots` 테이블에 저장.
+- 대시보드에 3초 간격으로 마지막 상태와 최근 샘플을 표시.
+- 설정 누락/연결 실패 시 `NOT_CONFIGURED` / `OFFLINE` 표시. 가짜 성능 값 없음.
+- **현재 미구현**: 회원가입, 고객 DB UI 등록, 다중 사용자, 자동복구, 튜닝 추천, Query Store 통합. 메뉴의 '예정' 표기가 그 뜻.
+
+> ⚠️ **현재 버전은 로컬 개발용으로만 실행하세요.** 사용자 인증과 외부 접근 통제가 아직 없으며 공개 서비스용 보안 구성이 아닙니다. 외부 고객 DB 연결은 추후 별도 보안 설계 이후 지원합니다.
+
+## 요구사항
+
+- Windows 10/11 + Docker Desktop (WSL2 실행)
+- Node.js 20.19+ 또는 22.12+ (프론트엔드 개발 서버)
+- SSMS / SQL Server Developer 설치(선택: 초기 화면은 SQL Server 없이도 열림)
+- 로컬 SQL Server의 TCP/IP 활성화 및 정확한 TCP 포트 확인 (기본 1433이라고 단정하지 않음)
+- 첫 Docker 이미지 빌드에는 인터넷이 필요 (Maven 의존성 다운로드)
+
+Java/Maven을 Windows에 설치하지 않아도 백엔드는 Docker에서 빌드한다.
+
+## Windows PowerShell 실행 가이드
+
+### 1. 압축 해제 후 `dbpulse-platform` 폴더에서 실행
+
+```powershell
+# 프로젝트 루트로 이동: 실제 압축 해제 경로에 맞게 수정
+cd D:\Projects\dbpulse-platform
+
+# 로컬 전용 환경 변수 파일 생성 (.env는 git에서 제외)
+Copy-Item .env.example .env
+
+# 환경 변수를 확인하고 변경: PostgreSQL 비밀번호, MSSQL 서버/포트/계정 등
+notepad .env
+
+# 프로젝트 백엔드와 별도 PostgreSQL 데이터 저장소 실행
+# --build : Dockerfile로 Spring Boot JAR 빌드
+# -d : 컨테이너를 백그라운드에서 실행
+docker compose up --build -d
+
+# 정상 실행 및 오류 확인: backend, postgres 두 서비스
+docker compose ps
+
+docker compose logs --tail=100 backend
+
+# Spring Boot API가 응답하는지 확인
+Invoke-RestMethod http://127.0.0.1:8081/api/v1/health
+
+# 아직 MSSQL 연결값이 비활성인 초기 상태 확인
+Invoke-RestMethod http://127.0.0.1:8081/api/v1/targets
+```
+
+### 2. 웹 대시보드 실행
+
+```powershell
+# React 프론트엔드 폴더로 이동
+cd .\frontend
+
+# package.json에 지정한 라이브러리 설치
+npm install
+
+# Vite 개발 서버 시작 (이 창은 열린 상태로 유지)
+npm run dev
+```
+
+브라우저에서 **http://127.0.0.1:5173** 열기. 초기엔 '설정 필요'가 정상이다.
+
+### 3. 로컬 MSSQL 연결 설정
+
+1. SSMS에서 `sql/01_create_lab.sql` 실행 → **`DBPulseLab` DB만 생성**, 기존 `Dataops_mssql` 및 `dataops` 데이터는 변경하지 않음.
+2. SSMS에서 SQL 인증 로그인 `dbpulse_monitor`를 직접 생성. 데이터베이스 조회/성능 모니터에 필요한 권한 외 부여하지 않는다.
+3. SQL Server 2022 이상이면 `sql/02_monitor_permissions_SQL2022_plus.sql`을 관리자 권한으로 검토 후 실행. 2019 이하의 DMV 권한은 `VIEW SERVER STATE`이므로 해당 스크립트를 그대로 실행하지 말 것.
+4. TCP 포트를 SSMS/SQL Server Configuration Manager에서 확인한다. 예전 프로젝트에서 1434를 사용했더라도 **이번 서버의 현재 포트를 직접 확인**한다.
+5. 루트 `.env`를 편집하여 `DBPULSE_MSSQL_ENABLED=true`, `DBPULSE_MSSQL_PORT=실제포트`, `DBPULSE_MSSQL_USERNAME=dbpulse_monitor`, `DBPULSE_MSSQL_PASSWORD=실제비밀번호`로 변경.
+6. Docker Desktop에서 SQL Server에 접근할 때 `host.docker.internal`을 사용한다. 자체 서명 인증서를 사용하는 로컬 개발에서만 `DBPULSE_MSSQL_TRUST_SERVER_CERTIFICATE=true`를 허용한다.
+
+```powershell
+# 프로젝트 루트에서 실행 (frontend 폴더에 있다면 .. 으로 이동)
+cd ..
+
+# 변경된 환경변수를 적용하여 백엔드 컨테이너 다시 생성
+docker compose up -d --force-recreate backend
+
+# DB 연결 에러나 권한 문제를 확인
+docker compose logs --tail=100 backend
+
+# 실제 수집 상태 및 샘플 이력 조회
+Invoke-RestMethod http://127.0.0.1:8081/api/v1/targets
+Invoke-RestMethod http://127.0.0.1:8081/api/v1/targets/local-mssql/metrics?limit=10
+```
+
+`collectorStatus=ONLINE`이 되면 `metric_snapshots` 저장과 UI 갱신까지 완료된 것. 수집 이후 값이 모두 0인 경우, 요청들이 매우 빨리 끝나 5초 간격 DMV 스냅샷에 잡히지 않은 것일 수도 있다. 이를 오류나 QPS 0으로 오해하지 말 것.
+
+### 4. PostgreSQL 데이터 보존/종료
+
+```powershell
+# 실행 중인 컨테이너 종료; named volume은 보존
+docker compose down
+
+# 컨테이너 재시작 시 기존 수집 이력이 그대로 유지됨
+docker compose up -d
+
+# 경고: 아래 명령의 --volumes는 DBPulse 메트릭 데이터를 완전히 삭제하므로 일반적으로 실행하지 말 것
+# docker compose down --volumes
+```
+
+## API (v0.1.0)
+
+| HTTP | 주소 | 설명 |
+|---|---|---|
+| GET | `/api/v1/health` | 백엔드 생존 확인. SQL Server 가용성 보증 아님 |
+| GET | `/api/v1/targets` | 로컬 1개 MSSQL 타깃의 상태/설정 공개 정보 |
+| GET | `/api/v1/targets/local-mssql/metrics?limit=60` | 최근 60개 실제 DMV 집계 스냅샷 (1~360개 지원) |
+
+## 버전 격리 및 기존 프로젝트 보호
+
+- 별도 PostgreSQL DB/Volume: `dbpulse`, `dbpulse_pgdata`, 호스트 포트 `5544`. 기존 DataOps PostgreSQL `dataops`/`5433`와 별개.
+- 별도 MSSQL 대상 DB: `DBPulseLab`. 기존 `Dataops_mssql`을 생성/수정/삭제하지 않음.
+- 개발용 .env, 비밀번호, 테스트 데이터는 GitHub에 올리지 않음.
+- 모니터링 수집은 SELECT 문만 실행하고, 사용자 DB에 DDL/DML을 실행하지 않음.
+
+## 로컬 트래픽 검증 도구
+
+직접 요청한 **10초당 1,000~2,000개의 SQL/동시 트랜잭션 재현**은 제품 검증 항목으로 보존했다. Phase 1에서도 `tools/loadtest/`에 격리된 테스트용 부하 발생기를 제공한다. 실제 대량 테스트 진행 전에 MSSQL 포트/성능 모니터 수집부터 확인한다.
+
+[부하 테스트 도구 사용 가이드](tools/loadtest/README.md). 절대 운영 DB에서 사용하지 않는다.
+
+## 다음 작업 (Phase 2)
+
+완료 쿼리 Query Store 통계, 실제 SQL 텍스트의 안전한 익명화, 세션/Wait/Blocking 원인 계층 수집, 장애/이상 탐지 이벤트 저장부터 제품 기능을 확장한다. 그 후 인증 및 사용자별 DB 등록 기능을 구현한다. 별도 부하 발생기는 제품 **검증 도구**에만 속한다.
