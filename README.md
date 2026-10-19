@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.5.0-alpha / Phase 5 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.6.0-alpha / Phase 6 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -183,3 +183,10 @@ docker compose up -d
 - API: `/api/v1/targets/local-mssql/deadlocks/status` 및 `/deadlocks?limit=20`.
 - [구현·권한·제한 사항 및 로컬 검증 가이드](docs/PHASE5_DEADLOCK_EVENTS.md).
 - 코드는 개발 브랜치에 있으며 로컬 DB 통합 검증 전; v0.4.0 main은 보존됨.
+
+## Phase 6 — Incident Investigation Engine (개발 중)
+- 사건의 **원인 분석 근거 보기**를 선택해 저장된 메트릭·Blocking Chain·Deadlock을 시간대로 연관 조회.
+- 확정된 원인과 단순 관측 사실을 혼동하지 않도록 OBSERVED/LIMITATION 라벨 사용.
+- `GET /api/v1/targets/local-mssql/incidents/{incidentId}/investigation`
+- [v0.6 검증 안내](docs/PHASE6_INCIDENT_INVESTIGATION.md)
+- v0.6은 로컬 MSSQL 통합 검증 전이며, 기존 v0.5.0은 main에 보존됨.
