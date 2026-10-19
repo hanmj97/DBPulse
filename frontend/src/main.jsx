@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import './style.css';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
+import WaitDiagnostics from './WaitDiagnostics.jsx';
 
 const fmt = (n) => (n == null ? '—' : new Intl.NumberFormat('ko-KR').format(n));
 const timeFmt = (iso) => iso ? new Date(iso).toLocaleTimeString('ko-KR', {hour12: false}) : '—';
@@ -320,11 +321,12 @@ function App() {
       <div className="nav-item disabled"><Database size={19} />Databases <span>예정</span></div>
       <a className="nav-item" href="#incidents"><ShieldAlert size={19} />Incidents <span>beta</span></a>
       <a className="nav-item" href="#blocking-chains"><Network size={19} />Blocking Chains <span>beta</span></a>
+      <a className="nav-item" href="#wait-diagnostics"><Clock3 size={19} />Wait Diagnostics <span>beta</span></a>
       <a className="nav-item" href="#deadlocks"><ShieldAlert size={19} />Deadlocks <span>beta</span></a>
       <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
       <div className="nav-caption second">SYSTEM</div>
       <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 6 · Local Development</div><div>v0.6.0 alpha — Incident investigation</div></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 7 · Local Development</div><div>v0.7.0 alpha — Wait diagnostics</div></div>
     </aside>
     <main className="main">
       <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
@@ -352,6 +354,7 @@ function App() {
           {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
         </section>
         <BlockingChainsPanel targetId={target?.id} />
+        <WaitDiagnostics targetId={target?.id} />
         <DeadlockHistoryPanel targetId={target?.id} />
         <section id="incidents" className="card incident-panel">
           <div className="section-heading">
