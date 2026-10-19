@@ -14,6 +14,7 @@ class IncidentSignalTrackerTest {
         assertThat(detector.observe(Type.BLOCKING, true)).isEqualTo(Action.OPEN);
         assertThat(detector.observe(Type.BLOCKING, false)).isEqualTo(Action.NONE);
         assertThat(detector.observe(Type.BLOCKING, false)).isEqualTo(Action.RESOLVE);
+        assertThat(detector.observe(Type.BLOCKING, false)).isEqualTo(Action.NONE);
         assertThat(detector.observe(Type.BLOCKING, true)).isEqualTo(Action.NONE);
         assertThat(detector.observe(Type.BLOCKING, true)).isEqualTo(Action.OPEN);
     }
