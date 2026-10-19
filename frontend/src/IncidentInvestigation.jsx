@@ -35,7 +35,7 @@ export default function IncidentInvestigation({ targetId, incidentId, onClose })
   return <section id="incident-investigation" className="card incident-investigation">
     <div className="section-heading">
       <div><h2>Incident Investigation <small>#{incidentId}</small></h2>
-        <p>사건 당시의 성능 지표·Blocking 관계·Deadlock 이벤트를 함께 조회합니다.</p></div>
+        <p>사건 당시의 성능 지표·Blocking·Wait·Deadlock의 저장된 관측값을 함께 조회합니다.</p></div>
       <button type="button" className="investigation-close" onClick={onClose}>닫기</button>
     </div>
     {loading && !report && <p className="investigation-empty">관련 증거 조회 중...</p>}
@@ -72,6 +72,35 @@ export default function IncidentInvestigation({ targetId, incidentId, onClose })
             </div>)}
         </div>
         : <div className="investigation-empty">저장된 세션별 Blocking 근거가 없습니다.</div>}
+      <h3 className="investigation-subtitle">Wait 관측 근거
+        <small> 수집 시점 {fmt(report.waitEvidence?.sampleCount)}개 · 반복 관측 {fmt(report.waitEvidence?.sampledWaitCount)}건</small>
+      </h3>
+      {report.waitEvidence?.truncatedSampleCount > 0 &&
+        <div className="banner info">
+          Wait 요청 최대 100건 수집 제한에 도달한 시점이 {fmt(report.waitEvidence.truncatedSampleCount)}회 있습니다.
+          아래 내용은 전체 대기 통계가 아닙니다.
+        </div>}
+      {(report.waitEvidence?.categories || []).length
+        ? <div className="investigation-wait-categories">
+          {report.waitEvidence.categories.map(category =>
+            <div className="investigation-wait-category" key={category.category}>
+              <strong>{category.category}</strong>
+              <span>{fmt(category.sampledCount)}개 표본 관측</span>
+              <small>최대 {fmt(category.peakWaitMs)}ms</small>
+            </div>)}
+        </div>
+        : <div className="investigation-empty">해당 시간대에 저장된 Wait 관측이 없습니다. 수집 공백과 대기 미발생은 서로 다른 상태입니다.</div>}
+      {(report.waitEvidence?.recent || []).length > 0 &&
+        <div className="investigation-observations investigation-wait-observations">
+          {report.waitEvidence.recent.map((wait, i) =>
+            <div className="investigation-observation" key={wait.collectedAt + '-' + wait.sessionId + '-' + i}>
+              <strong>세션 #{wait.sessionId} · {wait.waitType}</strong>
+              <span>{wait.waitCategory} · {wait.resourceKind} · {fmt(wait.waitMs)}ms
+                {wait.blockingSessionId == null ? '' : ` · 차단 세션 #${wait.blockingSessionId}`}</span>
+              <small>{time(wait.collectedAt)}</small>
+            </div>)}
+        </div>}
+      <p className="investigation-wait-disclaimer">동일 요청이 여러 수집 시점에 반복 관측될 수 있어 합계를 실제 고유 대기 횟수나 전체 발생 건수로 해석하면 안 됩니다.</p>
       <h3 className="investigation-subtitle">인접한 Deadlock 이벤트 <small>{report.deadlocks.length}건</small></h3>
       {report.deadlocks.length
         ? <div className="investigation-observations">

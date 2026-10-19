@@ -326,7 +326,7 @@ function App() {
       <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
       <div className="nav-caption second">SYSTEM</div>
       <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 7 · Local Development</div><div>v0.7.0 alpha — Wait diagnostics</div></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 8 · Local Development</div><div>v0.8.0 alpha — Incident wait correlation</div></div>
     </aside>
     <main className="main">
       <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
