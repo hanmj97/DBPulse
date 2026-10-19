@@ -74,3 +74,24 @@ CREATE TABLE IF NOT EXISTS blocking_chain_edges (
 );
 CREATE INDEX IF NOT EXISTS idx_blocking_chain_edges_sample
     ON blocking_chain_edges (sample_id);
+
+-- Phase 5: per-database filtered system_health deadlock summaries.
+-- Never store raw XE XML, SQL input buffers, server-side XEL file paths, logins or passwords.
+CREATE TABLE IF NOT EXISTS deadlock_events (
+    id BIGSERIAL PRIMARY KEY,
+    target_id VARCHAR(100) NOT NULL,
+    event_key CHAR(64) NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    local_participant_count INTEGER NOT NULL,
+    victim_session_id INTEGER,
+    UNIQUE (target_id, event_key)
+);
+CREATE INDEX IF NOT EXISTS idx_deadlock_events_target_time
+    ON deadlock_events (target_id, occurred_at DESC);
+CREATE TABLE IF NOT EXISTS deadlock_participants (
+    deadlock_event_id BIGINT NOT NULL REFERENCES deadlock_events(id) ON DELETE CASCADE,
+    session_id INTEGER NOT NULL,
+    was_victim BOOLEAN NOT NULL,
+    PRIMARY KEY (deadlock_event_id, session_id)
+);
