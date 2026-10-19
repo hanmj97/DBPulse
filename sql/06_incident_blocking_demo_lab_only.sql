@@ -1,0 +1,31 @@
+-- DBPulseLab ONLY. NEVER run on an actual customer or production database.
+-- Prerequisite: run sql/05_query_store_demo_lab_only.sql to create dbo.QueryPerfDemo.
+--
+-- Use two independent SSMS windows, both connected to DBPulseLab.
+-- Execute session A first; while A holds an X lock, start session B.
+--
+-- SESSION A:
+-- USE DBPulseLab;
+-- BEGIN TRAN;
+-- UPDATE dbo.QueryPerfDemo SET Payload = Payload WHERE Id = 1;
+-- WAITFOR DELAY '00:00:35';
+-- ROLLBACK;
+--
+-- SESSION B:
+-- USE DBPulseLab;
+-- SET LOCK_TIMEOUT 25000;
+-- BEGIN TRY
+--     BEGIN TRAN;
+--     UPDATE dbo.QueryPerfDemo SET Payload = Payload WHERE Id = 1;
+--     ROLLBACK;
+-- END TRY
+-- BEGIN CATCH
+--     IF @@TRANCOUNT > 0 ROLLBACK;
+--     SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage;
+-- END CATCH;
+-- SET LOCK_TIMEOUT -1;
+--
+-- DBPulse polls every 5 seconds. Two consecutive blocked-request snapshots
+-- should OPEN an incident; two clean polls should RESOLVE it.
+-- Blocking lasting less than two polls may be missed.
+SELECT N'Run the commented SESSION A and SESSION B scripts in two SSMS tabs (DBPulseLab only).' AS Instruction;

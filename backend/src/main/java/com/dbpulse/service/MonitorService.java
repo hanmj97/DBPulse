@@ -17,14 +17,16 @@ public class MonitorService {
     private final MssqlTargetProperties target;
     private final MssqlCollector collector;
     private final MetricRepository metrics;
+    private final IncidentService incidents;
     private final AtomicReference<CollectorState> state =
         new AtomicReference<>(new CollectorState("NOT_CONFIGURED", null, "MSSQL_NOT_CONFIGURED"));
 
     public MonitorService(MssqlTargetProperties target, MssqlCollector collector,
-                          MetricRepository metrics) {
+                          MetricRepository metrics, IncidentService incidents) {
         this.target = target;
         this.collector = collector;
         this.metrics = metrics;
+        this.incidents = incidents;
         if (target.isEnabled()) {
             state.set(new CollectorState("INITIALIZING", null, null));
         }
@@ -41,12 +43,20 @@ public class MonitorService {
             MetricSnapshot snapshot = collector.collect();
             metrics.save(target.getId(), snapshot);
             state.set(new CollectorState("ONLINE", snapshot.collectedAt(), null));
+            try { incidents.onSample(target.getId(), snapshot); }
+            catch (Exception incidentError) {
+                log.warn("Incident persistence failed ({})", incidentError.getClass().getSimpleName());
+            }
         } catch (Exception ex) {
             // Expose only a stable error code in the API; details stay in local server logs.
             String category = ex instanceof IllegalStateException
                 ? "CONFIGURATION_ERROR"
                 : "COLLECTION_FAILED";
             state.set(new CollectorState("OFFLINE", state.get().lastCollectedAt(), category));
+            try { incidents.onCollectionError(target.getId(), Instant.now()); }
+            catch (Exception incidentError) {
+                log.warn("Incident persistence failed ({})", incidentError.getClass().getSimpleName());
+            }
 
             if (ex instanceof java.sql.SQLException sqlEx) {
                 log.warn(

@@ -3,3 +3,21 @@
 
 /* Phase 2 Query Store analyzer */
 a.nav-item{text-decoration:none}.query-panel{padding:24px;margin-top:20px;scroll-margin-top:20px}.query-state{display:flex;gap:8px;align-items:center;color:#8ea4c4;font-size:12px;margin:-9px 0 16px}.query-state strong{color:#d8e6ff}.query-state span{margin-left:auto;color:#7188ae}.query-table-scroll{overflow-x:auto}.query-table{width:100%;border-collapse:collapse;min-width:770px;text-align:left;font-size:12px}.query-table th{padding:12px 10px;background:#1a2944;color:#95acd4;font-size:11px}.query-table td{padding:15px 10px;border-bottom:1px solid #26344b;vertical-align:top;color:#d2ddf1}.query-table td strong{font-weight:700}.query-table td small{display:block;margin-top:5px;font-size:10px;color:#7b92b4;line-height:1.5}.hint{display:inline-block;color:#ffbe84;background:#4a342d;border:1px solid #66503c;padding:4px 7px;border-radius:5px;font-size:11px}.hint-neutral{background:#21354a;border-color:#304864;color:#a2bee7}.query-empty{text-align:center;color:#8098b6 !important;padding:26px !important}.query-note{color:#7489a8;font-size:11px;line-height:1.75;margin-top:14px}
+
+/* v0.3 incident history, using existing dark dashboard tokens. */
+.incident-panel{padding:24px;margin-top:20px;scroll-margin-top:20px}
+.incident-legend{display:flex;gap:14px;flex-wrap:wrap;color:#859dc1;font-size:11px;margin:-5px 0 15px}
+.incident-entry{border-top:1px solid #273752;padding:15px 0;display:flex;gap:13px;align-items:flex-start}
+.incident-indicator{border-radius:9px;display:grid;place-items:center;width:38px;height:38px;flex-shrink:0}
+.incident-indicator.open{background:#50313b;color:#ffb6ac}
+.incident-indicator.resolved{background:#173a35;color:#76dbb1}
+.incident-details{flex:1;min-width:0}
+.incident-entry-header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.incident-entry-header strong{font-size:13px}
+.incident-details p{color:#a4b9d6;font-size:12px;line-height:1.6}
+.incident-details small{display:block;color:#7089ac;font-size:11px;margin-top:7px}
+.incident-state{font-size:9px;border:1px solid;padding:4px 7px;border-radius:5px;font-weight:800}
+.incident-state.open{background:#4f2e3b;border-color:#774056;color:#ffb1b8}
+.incident-state.resolved{background:#213b33;border-color:#365d4a;color:#8bdeb8}
+.incident-empty{padding:28px 12px;text-align:center;font-size:12px;color:#8098b6;border-top:1px solid #273752}
+.incident-note{font-size:11px;line-height:1.65;color:#758eae;margin-top:14px}
