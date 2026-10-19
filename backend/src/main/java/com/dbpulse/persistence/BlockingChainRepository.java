@@ -74,6 +74,33 @@ public class BlockingChainRepository {
             ), sampleId, targetId);
     }
 
+    /** Prior observed waiting edges, even if current status is healthy. */
+    public List<BlockingHistoryEntry> history(String targetId, int limit) {
+        return jdbc.query("""
+            SELECT s.collected_at,
+                   e.blocked_session_id, e.blocking_session_id,
+                   e.wait_type, e.wait_ms, e.elapsed_ms, e.blocked_status,
+                   e.blocker_status, e.blocker_open_transactions,
+                   e.root_candidate_session_id, e.chain_depth, e.cycle_detected
+              FROM blocking_chain_edges e
+              JOIN blocking_chain_samples s ON s.id = e.sample_id
+             WHERE s.target_id = ?
+             ORDER BY s.collected_at DESC, e.wait_ms DESC
+             LIMIT ?
+            """, (rs, i) -> new BlockingHistoryEntry(
+                rs.getTimestamp("collected_at").toInstant(),
+                new BlockingEdge(
+                    rs.getInt("blocked_session_id"), rs.getInt("blocking_session_id"),
+                    rs.getString("wait_type"), rs.getLong("wait_ms"),
+                    rs.getLong("elapsed_ms"), rs.getString("blocked_status"),
+                    rs.getString("blocker_status"), rs.getInt("blocker_open_transactions"),
+                    (Integer) rs.getObject("root_candidate_session_id"),
+                    rs.getInt("chain_depth"), rs.getBoolean("cycle_detected"))
+                ), targetId, limit);
+    }
+
+    public record BlockingHistoryEntry(java.time.Instant collectedAt, BlockingEdge edge) {}
+
     public int deleteOldSamples() {
         // Child rows cascade-delete automatically.
         return jdbc.update("""
