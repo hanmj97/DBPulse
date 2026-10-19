@@ -6,6 +6,7 @@ import {
   ShieldAlert, Sparkles, Terminal, WifiOff, Network,
 } from 'lucide-react';
 import './style.css';
+import IncidentInvestigation from './IncidentInvestigation.jsx';
 
 const fmt = (n) => (n == null ? '—' : new Intl.NumberFormat('ko-KR').format(n));
 const timeFmt = (iso) => iso ? new Date(iso).toLocaleTimeString('ko-KR', {hour12: false}) : '—';
@@ -219,6 +220,7 @@ function App() {
   const [queryError, setQueryError] = useState('');
   const [incidents, setIncidents] = useState([]);
   const [incidentError, setIncidentError] = useState('');
+  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -322,7 +324,7 @@ function App() {
       <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
       <div className="nav-caption second">SYSTEM</div>
       <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 5 · Local Development</div><div>v0.5.0 alpha — Deadlock event analysis</div></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 6 · Local Development</div><div>v0.6.0 alpha — Incident investigation</div></div>
     </aside>
     <main className="main">
       <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
@@ -380,11 +382,18 @@ function App() {
                   : `관측된 최장 실행 시간: ${fmt(item.observedValue)}ms`}</p>
                 <small>최초 감지 {timeFmt(item.startedAt)} · 최근 관측 {timeFmt(item.lastObservedAt)}
                   {item.resolvedAt ? ` · 해결 {timeFmt(item.resolvedAt)}` : ''}</small>
+                <button type="button" className="investigation-open"
+                  aria-pressed={selectedIncidentId === item.id}
+                  onClick={() => setSelectedIncidentId(item.id)}>
+                  {selectedIncidentId === item.id ? '조사 보고서 표시 중' : '원인 분석 근거 보기 →'}
+                </button>
               </div>
             </div>
           )) : <div className="incident-empty">기록된 장애 이벤트가 없습니다. 실제 수집 중 이상 신호가 지속되면 이곳에 표시됩니다.</div>}
-          <p className="incident-note">두 번 연속 이상 신호 시 OPEN, 두 번 연속 정상 관측 시 RESOLVED. 근본 원인 분석과 Deadlock 이벤트 추적, 자동복구는 다음 개발 단계입니다.</p>
+          <p className="incident-note">두 번 연속 이상 신호 시 OPEN, 두 번 연속 정상 관측 시 RESOLVED. 사건의 분석 버튼에서 당시의 수집 근거와 한계를 확인할 수 있습니다. 자동복구는 아직 제공하지 않습니다.</p>
         </section>
+                <IncidentInvestigation targetId={target?.id} incidentId={selectedIncidentId}
+          onClose={() => setSelectedIncidentId(null)} />
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
             <div><h2>Query Performance Analyzer</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>

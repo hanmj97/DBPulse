@@ -4,6 +4,7 @@ import com.dbpulse.domain.IncidentRecord;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -29,6 +30,23 @@ public class IncidentRepository {
             UPDATE incidents SET status = 'RESOLVED', resolved_at = ?
             WHERE target_id = ? AND type = ? AND status = 'OPEN'
             """, Timestamp.from(at), target, type);
+    }
+
+    public Optional<IncidentRecord> byId(String target, long id) {
+        List<IncidentRecord> rows = jdbc.query("""
+            SELECT id, target_id, type, severity, status, started_at, last_observed_at,
+                   resolved_at, observed_value, summary
+              FROM incidents WHERE target_id = ? AND id = ?
+            """, (rs, i) -> {
+                Timestamp resolved = rs.getTimestamp("resolved_at");
+                return new IncidentRecord(rs.getLong("id"), rs.getString("target_id"),
+                    rs.getString("type"), rs.getString("severity"), rs.getString("status"),
+                    rs.getTimestamp("started_at").toInstant(),
+                    rs.getTimestamp("last_observed_at").toInstant(),
+                    resolved == null ? null : resolved.toInstant(),
+                    rs.getLong("observed_value"), rs.getString("summary"));
+            }, target, id);
+        return rows.stream().findFirst();
     }
 
     public List<IncidentRecord> latest(String target, int limit) {
