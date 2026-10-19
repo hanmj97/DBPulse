@@ -26,7 +26,7 @@ public class IncidentController {
         this.repository = repository;
         this.investigation = investigation;
     }
-    @GetMapping("/{incidentId}/investigation")
+    @GetMapping(value = "/{incidentId}/investigation", produces = "application/json;charset=UTF-8")
     public IncidentInvestigationService.Investigation investigate(
             @PathVariable String id, @PathVariable long incidentId) {
         requireTarget(id);

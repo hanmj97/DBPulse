@@ -81,3 +81,30 @@ Open the Incidents section of local React dashboard at
 Next: enriched Wait/lock diagnostics and traceable resolution playbooks with
 explicit approvals. Public SaaS requires authentication, tenant isolation,
 credential management and a security review.
+
+## Korean JSON text on Windows PowerShell 5.1
+
+The investigation JSON response explicitly declares
+`Content-Type: application/json;charset=UTF-8`. This preserves
+UTF-8 Korean findings for older clients that otherwise decode an
+unspecified JSON response with their legacy character encoding.
+Other clients should already decode UTF-8 JSON correctly.
+
+After rebuilding the backend, test the response header:
+```powershell
+# Choose an actual existing numeric ID (example 86 is not universal)
+$base = "http://127.0.0.1:18081/api/v1/targets/local-mssql"
+$incidentId = 86
+
+# Confirm the server announces UTF-8, not merely that bytes are valid UTF-8
+(Invoke-WebRequest "$base/incidents/$incidentId/investigation" -UseBasicParsing).Headers["Content-Type"]
+
+# Try the normal API client again
+(Invoke-RestMethod "$base/incidents/$incidentId/investigation").findings |
+    Format-Table code, title, detail -Wrap
+```
+
+If the local PowerShell host still garbles characters, decode the
+raw response stream explicitly with `[System.Text.Encoding]::UTF8`
+before `ConvertFrom-Json`. This is a client-side fallback and does not
+rewrite stored SQL Server or PostgreSQL content.
