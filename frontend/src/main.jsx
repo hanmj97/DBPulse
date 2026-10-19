@@ -232,6 +232,8 @@ function App() {
   })[window.location.hash] || 'overview';
   const [page, setPage] = useState(fromHash);
   const [search, setSearch] = useState('');
+  const [incidentFilter, setIncidentFilter] = useState('ALL');
+  const [showAllIncidents, setShowAllIncidents] = useState(false);
   const [sampleLimit, setSampleLimit] = useState(60);
   useEffect(() => {
     const sync = () => setPage(fromHash());
@@ -345,11 +347,34 @@ function App() {
   const status = STATUS[target?.collectorStatus] || STATUS.INITIALIZING;
   const events = useMemo(() => history.filter((row) => row.blockedRequests > 0 || row.longRunningRequests > 0).slice(-4).reverse(), [history]);
   const filteredIncidents = useMemo(() => incidents.filter(i =>
-    !search.trim() || String(i.id).includes(search.trim()) ||
+    (incidentFilter === 'ALL' || i.status === incidentFilter) &&
+    (!search.trim() || String(i.id).includes(search.trim()) ||
     i.type.toLowerCase().includes(search.trim().toLowerCase()) ||
-    (i.summary || '').toLowerCase().includes(search.trim().toLowerCase())
-  ), [incidents, search]);
+    (i.summary || '').toLowerCase().includes(search.trim().toLowerCase()))
+  ), [incidents, search, incidentFilter]);
+  const shownIncidents = showAllIncidents || search.trim()
+    ? filteredIncidents : filteredIncidents.slice(0, 10);
 
+
+
+  const DETAIL_DESCRIPTIONS = {
+    incidents:'감지된 장애를 상태별로 조회하고 해당 시점의 관측 근거를 확인합니다.',
+    investigation:'저장된 사건의 관측 근거를 검토합니다. 동시간대의 신호가 확정 원인은 아닙니다.',
+    blocking:'실시간 차단 세션과 과거 차단 관계를 확인합니다.',
+    waits:'실행 요청의 Wait Type과 리소스 종류를 분석합니다.',
+    deadlocks:'system_health에서 수집한 데드락 이벤트를 조회합니다.',
+    performance:'실제 DMV 요청 지표와 시점별 변화 추이를 확인합니다.',
+    queries:'Query Store의 쿼리·실행계획별 집계 통계를 확인합니다.'
+  };
+  const detailIntro = pageKey => <div className="rev-detail-intro">
+    <div><span className="rev-detail-overline">ANALYSIS WORKSPACE</span>
+      <p>{DETAIL_DESCRIPTIONS[pageKey]}</p>
+    </div>
+    <button type="button" className="rev-back-overview"
+      onClick={()=>{window.location.hash='#overview';setPage('overview');}}>
+      <ArrowUpRight size={15}/> 개요로 돌아가기
+    </button>
+  </div>;
 
   return <DashboardShell page={page} target={target}
     incidentCount={incidentError ? 0 : incidents.filter(i => i.status === 'OPEN').length}
@@ -362,21 +387,33 @@ function App() {
       onNavigate={setPage} onInvestigate={investigate}/>}
     {(page === 'incidents' || page === 'investigation') &&
       <div id={page === 'incidents' ? 'incidents' : 'investigation'} className="rev-detail-content">
+        {detailIntro(page)}
         {selectedIncidentId && <IncidentInvestigation targetId={target?.id} incidentId={selectedIncidentId}
           onClose={() => setSelectedIncidentId(null)} />}
         <div className="rev-detail-help">인시던트를 선택하면 해당 사건 발생 당시 저장된
           Blocking·Wait·Deadlock 관측 근거를 조사할 수 있습니다.</div>
         <section id="incident-list" className="card incident-panel">
           <div className="section-heading">
-            <div><h2>Incident History</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>
+            <div><h2>인시던트 이력</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>
             <span className="small-pill">5s collect</span>
           </div>
           {incidentError && <div className="banner error"><AlertCircle size={17}/>{incidentError}</div>}
-          <div className="incident-legend">
-            <span>진행 중 {incidents.filter(row => row.status === 'OPEN').length}건</span>
-            <span>조회된 이력 {incidents.length}건</span>
+          <div className="rev-incident-toolbar">
+            <div className="rev-incident-tabs" role="group" aria-label="인시던트 상태 필터">
+              {[
+                ['ALL','전체', incidents.length],
+                ['OPEN','진행 중',incidents.filter(row=>row.status==='OPEN').length],
+                ['RESOLVED','해결됨',incidents.filter(row=>row.status==='RESOLVED').length]
+              ].map(([key,label,count]) =>
+                <button key={key} type="button" aria-pressed={incidentFilter===key}
+                  className={'rev-filter-button '+(incidentFilter===key?'active':'')}
+                  onClick={()=>{setIncidentFilter(key);setShowAllIncidents(false);}}>
+                  {label}<span>{count}</span>
+                </button>)}
+            </div>
+            <span className="rev-incident-count">검색 결과 {filteredIncidents.length}건</span>
           </div>
-          {filteredIncidents.length ? filteredIncidents.map(item => (
+          {shownIncidents.length ? shownIncidents.map(item => (
             <div className="incident-entry" key={item.id}>
               <div className={`incident-indicator ${item.status === 'OPEN' ? 'open' : 'resolved'}`}>
                 {item.status === 'OPEN' ? <ShieldAlert size={18}/> : <CircleCheck size={18}/>}
@@ -410,36 +447,43 @@ function App() {
               </div>
             </div>
           )) : <div className="incident-empty">{search ? '검색 조건과 일치하는 사건이 없습니다.' : '기록된 장애 이벤트가 없습니다. 실제 수집 중 이상 신호가 지속되면 이곳에 표시됩니다.'}</div>}
+          {filteredIncidents.length > shownIncidents.length &&
+            <button type="button" className="rev-load-more"
+              onClick={()=>setShowAllIncidents(true)}>
+              나머지 {filteredIncidents.length - shownIncidents.length}건 더 보기
+            </button>}
           <p className="incident-note">두 번 연속 이상 신호 시 OPEN, 두 번 연속 정상 관측 시 RESOLVED. 사건의 분석 버튼에서 당시의 수집 근거와 한계를 확인할 수 있습니다. 자동복구는 아직 제공하지 않습니다.</p>
         </section>
                 
 
       </div>}
-    {page === 'blocking' && <div className="rev-detail-content"><BlockingChainsPanel targetId={target?.id}/></div>}
-    {page === 'waits' && <div className="rev-detail-content"><WaitDiagnostics targetId={target?.id}/></div>}
-    {page === 'deadlocks' && <div className="rev-detail-content"><DeadlockHistoryPanel targetId={target?.id}/></div>}
+    {page === 'blocking' && <div className="rev-detail-content">{detailIntro('blocking')}<BlockingChainsPanel targetId={target?.id}/></div>}
+    {page === 'waits' && <div className="rev-detail-content">{detailIntro('waits')}<WaitDiagnostics targetId={target?.id}/></div>}
+    {page === 'deadlocks' && <div className="rev-detail-content">{detailIntro('deadlocks')}<DeadlockHistoryPanel targetId={target?.id}/></div>}
     {page === 'performance' && <div id="performance" className="rev-detail-content">
+      {detailIntro('performance')}
       <div className="rev-detail-help">DMV에서 수집한 최신 요청 상태와 관측 추이입니다.
         전체 처리량이나 SQL Server의 CPU 점유율을 나타내지 않습니다.</div>
         <div className="metrics-grid">
-          <Metric label="Active requests" value={hasData ? latest.activeRequests : null} unit="건" Icon={Activity} note="현재 실행 중인 요청 수" />
-          <Metric label="Blocked requests" value={hasData ? latest.blockedRequests : null} unit="건" Icon={LockKeyhole} note="다른 세션에 의해 대기 중" tone={latest?.blockedRequests ? 'red' : ''} />
-          <Metric label="Long-running" value={hasData ? latest.longRunningRequests : null} unit="건" Icon={Clock3} note="실행 1,000ms 이상" tone={latest?.longRunningRequests ? 'amber' : ''} />
-          <Metric label="Max elapsed" value={hasData ? latest.maxElapsedMs : null} unit="ms" Icon={Gauge} note="현재 요청의 최장 실행 시간" />
+          <Metric label="활성 요청" value={hasData ? latest.activeRequests : null} unit="건" Icon={Activity} note="현재 실행 중인 요청 수" />
+          <Metric label="차단된 요청" value={hasData ? latest.blockedRequests : null} unit="건" Icon={LockKeyhole} note="다른 세션에 의해 대기 중" tone={latest?.blockedRequests ? 'red' : ''} />
+          <Metric label="장시간 실행 요청" value={hasData ? latest.longRunningRequests : null} unit="건" Icon={Clock3} note="실행 1,000ms 이상" tone={latest?.longRunningRequests ? 'amber' : ''} />
+          <Metric label="최장 실행 시간" value={hasData ? latest.maxElapsedMs : null} unit="ms" Icon={Gauge} note="현재 요청의 최장 실행 시간" />
         </div>
         <div className="charts-grid">
-          <article className="card graph"><div className="section-heading"><div><h2>Active request trend</h2><p>최근 최대 60개 샘플 · 실제 DMV 조회 결과</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="activeRequests" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
-          <article className="card graph"><div className="section-heading"><div><h2>Blocking trend</h2><p>다른 트랜잭션으로 인해 차단된 요청 수</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="blockedRequests" tone="orange" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
+          <article className="card graph"><div className="section-heading"><div><h2>활성 요청 추이</h2><p>최근 최대 60개 샘플 · 실제 DMV 조회 결과</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="activeRequests" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
+          <article className="card graph"><div className="section-heading"><div><h2>Blocking 추이</h2><p>다른 트랜잭션으로 인해 차단된 요청 수</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="blockedRequests" tone="orange" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
         </div>
-        <section className="card activity-panel"><div className="section-heading"><div><h2>Recent performance signals</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
+        <section className="card activity-panel"><div className="section-heading"><div><h2>최근 성능 이상 신호</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
           {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
         </section>
 
     </div>}
     {page === 'queries' && <div className="rev-detail-content">
+      {detailIntro('queries')}
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
-            <div><h2>Query Performance Analyzer</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
+            <div><h2>쿼리 성능 분석</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
             <span className="small-pill">30s collect</span>
           </div>
           <div className="query-state">
