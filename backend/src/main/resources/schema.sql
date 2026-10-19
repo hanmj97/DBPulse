@@ -46,3 +46,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_one_open
     ON incidents (target_id, type) WHERE status = 'OPEN';
 CREATE INDEX IF NOT EXISTS idx_incidents_target_recent
     ON incidents (target_id, last_observed_at DESC);
+
+-- Phase 4: one snapshot per poll including zero-blocking samples, plus bounded edge detail.
+-- Later production deployment will migrate this schema to versioned Flyway scripts.
+CREATE TABLE IF NOT EXISTS blocking_chain_samples (
+    id BIGSERIAL PRIMARY KEY,
+    target_id VARCHAR(100) NOT NULL,
+    collected_at TIMESTAMPTZ NOT NULL,
+    edge_count INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_blocking_chain_sample_target_time
+    ON blocking_chain_samples (target_id, collected_at DESC);
+CREATE TABLE IF NOT EXISTS blocking_chain_edges (
+    id BIGSERIAL PRIMARY KEY,
+    sample_id BIGINT NOT NULL REFERENCES blocking_chain_samples(id) ON DELETE CASCADE,
+    blocked_session_id INTEGER NOT NULL,
+    blocking_session_id INTEGER NOT NULL,
+    wait_type VARCHAR(128) NOT NULL,
+    wait_ms BIGINT NOT NULL,
+    elapsed_ms BIGINT NOT NULL,
+    blocked_status VARCHAR(40) NOT NULL,
+    blocker_status VARCHAR(40) NOT NULL,
+    blocker_open_transactions INTEGER NOT NULL,
+    root_candidate_session_id INTEGER,
+    chain_depth INTEGER NOT NULL,
+    cycle_detected BOOLEAN NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_blocking_chain_edges_sample
+    ON blocking_chain_edges (sample_id);
