@@ -21,3 +21,35 @@ a.nav-item{text-decoration:none}.query-panel{padding:24px;margin-top:20px;scroll
 .incident-state.resolved{background:#213b33;border-color:#365d4a;color:#8bdeb8}
 .incident-empty{padding:28px 12px;text-align:center;font-size:12px;color:#8098b6;border-top:1px solid #273752}
 .incident-note{font-size:11px;line-height:1.65;color:#758eae;margin-top:14px}
+
+/* v0.4 Blocking Chain Analyzer */
+.blocking-chain-panel{padding:24px;margin-top:20px;scroll-margin-top:20px}
+.blocking-chain-overview{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;font-size:12px;color:#8ba1c1;margin:-8px 0 20px}
+.blocking-chain-overview strong{font-weight:800;color:#d7e7ff}
+.blocking-chain-indicator{font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px}
+.blocking-chain-indicator.good{color:#7eddb4;background:#173b35;border:1px solid #2d6552}
+.blocking-chain-indicator.muted{color:#a5b4cc;background:#29374c;border:1px solid #3d4a62}
+.blocking-chain-list{display:grid;gap:12px}
+.blocking-chain-item{background:#16233a;border:1px solid #2b4160;border-radius:10px;padding:15px}
+.blocking-chain-flow{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.blocking-session{display:grid;gap:4px;padding:10px 16px;border-radius:8px;min-width:120px;border:1px solid}
+.blocking-session small{font-size:10px;color:#acb9cd}
+.blocking-session strong{font:700 17px 'IBM Plex Mono',monospace}
+.blocking-session.blocker{border-color:#86505d;background:#49313b;color:#ffd0c5}
+.blocking-session.waiter{border-color:#466c9e;background:#243e60;color:#c1dbff}
+.blocking-flow-arrow{display:flex;align-items:center;gap:6px;color:#ffab9e;font-size:11px}
+.blocking-wait-type{font:600 11px 'IBM Plex Mono',monospace;background:#2c3851;color:#b9c9e6;border-radius:7px;padding:8px 10px}
+.blocking-chain-details{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:13px;color:#8499b8;font-size:11px}
+.blocking-chain-details strong{color:#e0edff}
+.blocking-chain-root{margin-top:12px;padding-top:11px;border-top:1px solid #34435b;color:#adc0de;font-size:11px}
+.blocking-chain-empty{padding:28px 12px;display:flex;gap:10px;align-items:center;justify-content:center;color:#8fc6ad;font-size:12px}
+.blocking-history-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#d7e4fc;font-weight:700;font-size:12px;margin:22px 0 12px}
+.blocking-history-head small{font-size:10px;color:#778eae}
+.blocking-history-list{display:grid;border:1px solid #283954;border-radius:8px;overflow:hidden}
+.blocking-history-row{display:grid;grid-template-columns:1fr 1.4fr 1fr .8fr;gap:12px;padding:11px 13px;border-bottom:1px solid #263651;color:#8aa1c2;font-size:11px}
+.blocking-history-row:last-child{border-bottom:0}
+.blocking-history-row strong{color:#b8cfff;text-align:right}
+.blocking-history-empty{padding:18px;color:#758cac;text-align:center;font-size:11px}
+.blocking-chain-note{margin-top:16px;color:#758eae;font-size:11px;line-height:1.7}
+@media(max-width:730px){.blocking-history-row{grid-template-columns:1fr 1fr;gap:5px}.blocking-history-row strong{text-align:left}}
+@media(max-width:470px){.blocking-chain-panel{padding:17px}.blocking-session{min-width:90px;padding:10px}.blocking-chain-flow{gap:9px}.blocking-chain-details{gap:7px}}

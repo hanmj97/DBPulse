@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Activity, AlertCircle, ArrowUpRight, BellRing, CircleCheck, Clock3,
   Database, Gauge, Layers3, LockKeyhole, Radio, RefreshCw, Server,
-  ShieldAlert, Sparkles, Terminal, WifiOff,
+  ShieldAlert, Sparkles, Terminal, WifiOff, Network,
 } from 'lucide-react';
 import './style.css';
 
@@ -32,6 +32,95 @@ function MiniChart({ items, field, emptyText, tone = 'blue' }) {
       <div className="chart-bar" style={{ height: `${item[field] ? Math.max(2, (item[field] / maxValue) * 100) : 0}%` }} />
     </div>) : <div className="chart-empty">{emptyText}</div>}
   </div>;
+}
+
+
+function BlockingChainsPanel({ targetId }) {
+  const [current, setCurrent] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!targetId) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const base = `/api/v1/targets/${encodeURIComponent(targetId)}/blocking-chains`;
+        const [currentRes, historyRes] = await Promise.all([
+          fetch(base), fetch(`${base}/history?limit=8`)
+        ]);
+        if (!currentRes.ok || !historyRes.ok) throw new Error('blocking API error');
+        const [now, past] = await Promise.all([currentRes.json(), historyRes.json()]);
+        if (active) { setCurrent(now); setHistory(past); setError(''); }
+      } catch {
+        if (active) { setError('Blocking Chain API 연결에 실패했습니다.'); setCurrent(null); }
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [targetId]);
+
+  const online = current?.status === 'ONLINE';
+  const edges = online ? (current?.edges || []) : [];
+  return <section id="blocking-chains" className="card blocking-chain-panel">
+    <div className="section-heading">
+      <div><h2>Blocking Chain Analyzer</h2>
+        <p>대기 세션 → 차단 세션 관계 · 실시간 DMV 관측 및 PostgreSQL 이력</p></div>
+      <span className="small-pill">5s collect</span>
+    </div>
+    {error && <div className="banner error"><AlertCircle size={16}/>{error}</div>}
+    <div className="blocking-chain-overview">
+      <span className={`blocking-chain-indicator ${online ? 'good' : 'muted'}`}>
+        {online ? '수집 정상' : (current?.status || '확인 중')}
+      </span>
+      <span>현재 대기 관계 <strong>{online ? edges.length : '—'}</strong>건</span>
+      <span>마지막 수집 {timeFmt(current?.collectedAt)}</span>
+    </div>
+    {current && !online && <div className="banner error"><AlertCircle size={16}/>수집이 일시 중단되었거나 데이터가 오래됐습니다. 마지막 상태를 현재 Blocking으로 표시하지 않습니다.</div>}
+    {online && !edges.length && <div className="blocking-chain-empty">
+      <CircleCheck size={19}/>현재 관측된 Blocking 관계가 없습니다.
+    </div>}
+    {edges.length > 0 && <div className="blocking-chain-list">
+      {edges.map((edge, index) => <div className="blocking-chain-item"
+          key={`${current.collectedAt}-${edge.blockedSessionId}-${index}`}>
+        <div className="blocking-chain-flow">
+          <div className="blocking-session blocker">
+            <small>차단 세션</small><strong>#{edge.blockingSessionId}</strong>
+          </div>
+          <div className="blocking-flow-arrow"><Network size={16}/><span>차단</span></div>
+          <div className="blocking-session waiter">
+            <small>대기 세션</small><strong>#{edge.blockedSessionId}</strong>
+          </div>
+          <span className="blocking-wait-type">{edge.waitType}</span>
+        </div>
+        <div className="blocking-chain-details">
+          <span>대기 <strong>{fmt(edge.waitMs)} ms</strong></span>
+          <span>요청 경과 {fmt(edge.elapsedMs)} ms</span>
+          <span>차단 세션 상태 {edge.blockerStatus}</span>
+          <span>열린 트랜잭션 {fmt(edge.blockerOpenTransactions)}건</span>
+        </div>
+        <div className="blocking-chain-root">
+          {edge.cycleDetected
+            ? '관측된 관계에서 순환 감지 — 최상위 세션 특정 불가'
+            : edge.rootCandidateSessionId != null
+              ? `관측 범위의 최상위 차단 후보 #${edge.rootCandidateSessionId} · 관계 깊이 ${edge.chainDepth}`
+              : '최상위 차단 후보를 특정할 수 없습니다.'}
+        </div>
+      </div>)}
+    </div>}
+    <div className="blocking-history-head">최근 Blocking 관측 이력 <small>최대 8개 · 수집 시점별 기록</small></div>
+    {history.length ? <div className="blocking-history-list">
+      {history.map((item, i) =>
+        <div key={`${item.collectedAt}-${item.edge.blockedSessionId}-${i}`} className="blocking-history-row">
+          <span>{timeFmt(item.collectedAt)}</span>
+          <span>#{item.edge.blockingSessionId} → #{item.edge.blockedSessionId}</span>
+          <span>{item.edge.waitType}</span>
+          <strong>{fmt(item.edge.waitMs)} ms</strong>
+        </div>)}
+    </div> : <div className="blocking-history-empty">저장된 Blocking 이력이 없습니다.</div>}
+    <p className="blocking-chain-note">최상위 차단 세션은 현재 수집된 최대 100개 관계에서 계산한 후보이며 근본 원인을 확정하지 않습니다. 차단 세션의 트랜잭션 수가 0이 아니더라도 해당 트랜잭션이 직접적인 원인인지는 별도 확인이 필요합니다. SQL 원문 및 파라미터는 수집하지 않습니다.</p>
+  </section>;
 }
 
 function App() {
@@ -142,10 +231,11 @@ function App() {
       <div className="nav-item active"><Gauge size={19} />Overview</div>
       <div className="nav-item disabled"><Database size={19} />Databases <span>예정</span></div>
       <a className="nav-item" href="#incidents"><ShieldAlert size={19} />Incidents <span>beta</span></a>
+      <a className="nav-item" href="#blocking-chains"><Network size={19} />Blocking Chains <span>beta</span></a>
       <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
       <div className="nav-caption second">SYSTEM</div>
       <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 2 · Local Development</div><div>v0.3.0 alpha — Incident detection</div></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 4 · Local Development</div><div>v0.4.0 alpha — Blocking chain analyzer</div></div>
     </aside>
     <main className="main">
       <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
@@ -172,6 +262,7 @@ function App() {
         <section className="card activity-panel"><div className="section-heading"><div><h2>Recent performance signals</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
           {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
         </section>
+        <BlockingChainsPanel targetId={target?.id} />
         <section id="incidents" className="card incident-panel">
           <div className="section-heading">
             <div><h2>Incident History</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>

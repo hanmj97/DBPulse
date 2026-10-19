@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.3.0-alpha / Phase 3 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.4.0-alpha / Phase 4 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -162,3 +162,15 @@ docker compose up -d
 - React의 Incidents 화면에 사건 이력 표시 (실제 검증 전)
 - 자동복구, Deadlock 상세 원인 분석, SQL 튜닝 제안은 아직 **미구현**
 - [세부 설계 및 로컬 검증 순서](docs/PHASE3_INCIDENT_DETECTION.md)
+
+## Phase 4 — Blocking Chain Analyzer (개발 중)
+
+- 별도 읽기 전용 SQL Server DMV 수집기: `sys.dm_exec_requests` + `sys.dm_exec_sessions`.
+- 수집 항목: 대기/차단 세션 ID, Wait Type, 대기/요청 경과, 차단 세션 상태 및 열린 트랜잭션 건수.
+- 관계 체인 분석: 최상위 차단 세션 **후보**, 체인 깊이, 관측된 순환 여부. 최대 100개 관계만 조회.
+- PostgreSQL 저장: Blocking이 0인 정상 시점도 저장하며, 7일 보존.
+- API: `GET /api/v1/targets/local-mssql/blocking-chains`
+- API: `GET /api/v1/targets/local-mssql/blocking-chains/history?limit=20`
+- React: **Blocking Chains** 실시간 목록과 과거 Blocking 이력.
+- [상세 설계와 검증 절차](docs/PHASE4_BLOCKING_CHAIN_ANALYZER.md)
+- **실행 전 주의:** 별도 개발 브랜치 코드이며 로컬 Maven/SQL Server 통합 검증 전. 기존 정상 동작하는 v0.3 main은 유지됨.
