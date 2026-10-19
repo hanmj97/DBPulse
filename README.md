@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 이번 제공 버전: v0.1.0 / Phase 1
+## 현재 개발 버전: v0.2.0 / Phase 2 (로컬 개발 · 검증 진행 중)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -18,7 +18,8 @@
 - 실제 데이터만 PostgreSQL `metric_snapshots` 테이블에 저장.
 - 대시보드에 3초 간격으로 마지막 상태와 최근 샘플을 표시.
 - 설정 누락/연결 실패 시 `NOT_CONFIGURED` / `OFFLINE` 표시. 가짜 성능 값 없음.
-- **현재 미구현**: 회원가입, 고객 DB UI 등록, 다중 사용자, 자동복구, 튜닝 추천, Query Store 통합. 메뉴의 '예정' 표기가 그 뜻.
+- **Phase 2 구현 코드**: SQL Server Query Store의 최근 15분간 실행계획별 요약 통계를 30초마다 수집해 PostgreSQL에 기록, React에서 조회. SQL 원문·파라미터는 저장하지 않음. 운영 수준의 튜닝 추천이 아니라 수치 기반 점검 후보를 보여줌. 로컬 환경의 통합 검증은 진행 중.
+- **아직 미구현**: 회원가입, 외부 고객 DB 등록, 다중 사용자, Deadlock 이벤트 상세 수집, 자동복구, 실제 SQL 튜닝 추천. UI에 '예정'으로 구분.
 
 > ⚠️ **현재 버전은 로컬 개발용으로만 실행하세요.** 사용자 인증과 외부 접근 통제가 아직 없으며 공개 서비스용 보안 구성이 아닙니다. 외부 고객 DB 연결은 추후 별도 보안 설계 이후 지원합니다.
 
@@ -57,10 +58,10 @@ docker compose ps
 docker compose logs --tail=100 backend
 
 # Spring Boot API가 응답하는지 확인
-Invoke-RestMethod http://127.0.0.1:8081/api/v1/health
+Invoke-RestMethod http://127.0.0.1:18081/api/v1/health
 
 # 아직 MSSQL 연결값이 비활성인 초기 상태 확인
-Invoke-RestMethod http://127.0.0.1:8081/api/v1/targets
+Invoke-RestMethod http://127.0.0.1:18081/api/v1/targets
 ```
 
 ### 2. 웹 대시보드 실행
@@ -76,7 +77,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 **http://127.0.0.1:5173** 열기. 초기엔 '설정 필요'가 정상이다.
+브라우저에서 **http://127.0.0.1:5174** 열기. 로컬 Vite 프록시는 `18081`의 Spring Boot API를 호출한다. MSSQL을 아직 연결하지 않았다면 '설정 필요'가 정상이다.
 
 ### 3. 로컬 MSSQL 연결 설정
 
@@ -98,8 +99,8 @@ docker compose up -d --force-recreate backend
 docker compose logs --tail=100 backend
 
 # 실제 수집 상태 및 샘플 이력 조회
-Invoke-RestMethod http://127.0.0.1:8081/api/v1/targets
-Invoke-RestMethod http://127.0.0.1:8081/api/v1/targets/local-mssql/metrics?limit=10
+Invoke-RestMethod http://127.0.0.1:18081/api/v1/targets
+Invoke-RestMethod http://127.0.0.1:18081/api/v1/targets/local-mssql/metrics?limit=10
 ```
 
 `collectorStatus=ONLINE`이 되면 `metric_snapshots` 저장과 UI 갱신까지 완료된 것. 수집 이후 값이 모두 0인 경우, 요청들이 매우 빨리 끝나 5초 간격 DMV 스냅샷에 잡히지 않은 것일 수도 있다. 이를 오류나 QPS 0으로 오해하지 말 것.
@@ -117,13 +118,15 @@ docker compose up -d
 # docker compose down --volumes
 ```
 
-## API (v0.1.0)
+## API (v0.2.0)
 
 | HTTP | 주소 | 설명 |
 |---|---|---|
 | GET | `/api/v1/health` | 백엔드 생존 확인. SQL Server 가용성 보증 아님 |
 | GET | `/api/v1/targets` | 로컬 1개 MSSQL 타깃의 상태/설정 공개 정보 |
 | GET | `/api/v1/targets/local-mssql/metrics?limit=60` | 최근 60개 실제 DMV 집계 스냅샷 (1~360개 지원) |
+| GET | `/api/v1/targets/local-mssql/query-performance/status` | Query Store 수집 상태 (DMV 수집 상태와 독립) |
+| GET | `/api/v1/targets/local-mssql/query-performance?limit=20` | 최근 Query Store 실행계획별 지표 (1~20개 지원) |
 
 ## 버전 격리 및 기존 프로젝트 보호
 
@@ -138,6 +141,16 @@ docker compose up -d
 
 [부하 테스트 도구 사용 가이드](tools/loadtest/README.md). 절대 운영 DB에서 사용하지 않는다.
 
-## 다음 작업 (Phase 2)
+## Phase 2: Query Performance Analyzer 검증
 
-완료 쿼리 Query Store 통계, 실제 SQL 텍스트의 안전한 익명화, 세션/Wait/Blocking 원인 계층 수집, 장애/이상 탐지 이벤트 저장부터 제품 기능을 확장한다. 그 후 인증 및 사용자별 DB 등록 기능을 구현한다. 별도 부하 발생기는 제품 **검증 도구**에만 속한다.
+1. 관리자 SSMS에서 **전용 로컬 DBPulseLab만** 대상으로 `sql/04_enable_query_store_lab.sql`을 검토·실행. Query Store가 `READ_WRITE` 상태인지 확인.
+2. `docker compose up -d --build --force-recreate backend`로 빌드. `backend/pom.xml`은 `<finalName>dbpulse-api</finalName>`을 사용하며 Dockerfile은 `dbpulse-api.jar`을 복사하도록 되어 있음.
+3. `Invoke-RestMethod http://127.0.0.1:18081/api/v1/targets`와 `Invoke-RestMethod http://127.0.0.1:18081/api/v1/targets/local-mssql/query-performance/status`로 두 수집기 상태를 각각 검증.
+4. SSMS에서 `sql/05_query_store_demo_lab_only.sql`을 실행해 테스트 쿼리 통계를 발생시킨 뒤, Query Store의 비동기 반영을 기다려 API와 React 테이블을 확인.
+5. 상세 설계·지표의 의미·주의사항은 [Phase 2 설계 문서](docs/PHASE2_QUERY_PERFORMANCE.md) 참고.
+
+**주의:** Query Store의 `executionCount`는 집계값이며 현재 초당 처리량(QPS)이 아니다. DMV 5초 스냅샷도 아주 짧은 쿼리를 놓칠 수 있다.
+
+## 다음 제품 개발
+
+실시간/누적 성능 분석의 로컬 통합 테스트 후 Blocking·Deadlock 원인 분석과 장애 이벤트 이력, 안전한 복구 정책, 검증 가능한 SQL 튜닝 추천, 사용자별 DB 연결 보안으로 확장한다. 부하 테스트는 제품 신뢰성 검증을 위한 독립 도구로 유지한다. 별도 부하 발생기는 제품 **검증 도구**에만 속한다.
