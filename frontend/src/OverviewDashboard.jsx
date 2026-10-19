@@ -8,6 +8,14 @@ const num = value => value == null ? '—' : new Intl.NumberFormat('ko-KR').form
 const clock = value => value ? new Date(value).toLocaleTimeString('ko-KR', {hour12:false}) : '—';
 const dateTime = value => value ? new Date(value).toLocaleString('ko-KR') : '—';
 const KINDS = {BLOCKING:'Blocking', LONG_RUNNING:'장시간 요청', COLLECTION_FAILURE:'수집 오류'};
+// Map only known internal collector summaries. Unknown messages remain unchanged
+// rather than fabricating an incident description.
+const INCIDENT_SUMMARIES = {
+  'Long-running requests persisted across samples.': '장시간 실행 요청이 연속된 수집 시점에서 감지됐습니다.',
+  'Blocked requests persisted across samples.': '차단된 요청이 연속된 수집 시점에서 감지됐습니다.'
+};
+const summary = item => INCIDENT_SUMMARIES[item.summary] || item.summary ||
+  ((KINDS[item.type] || item.type) + ' 인시던트가 기록됐습니다.');
 const TONES = {blocking:'teal', incidents:'red', deadlock:'pink', long:'violet', waits:'blue', targets:'blue'};
 const INITIAL_FEED = {waits:null, deadlocks:null, deadlockStatus:null, waitError:false, deadlockError:false};
 
@@ -27,6 +35,10 @@ function TrendChart({history, sampleLimit}) {
     {name:'장시간 요청',key:'longRunningRequests',color:'#ae83ff'}
   ];
   const peak = Math.max(1, ...rows.flatMap(r => lines.map(l=>Number(r[l.key]) || 0)));
+  // Integer request counts: do not round fractional tick positions into duplicate labels.
+  const tickIntervals = Math.min(4, Math.max(1, Math.floor(peak)));
+  const yTicks = [...new Set(Array.from({length:tickIntervals + 1}, (_, i) =>
+    Math.round(peak * i / tickIntervals)))].reverse();
   const sx = index => 35 + index * (690 / Math.max(1,rows.length - 1));
   const sy = val => 185 - ((Number(val)||0) / peak)*150;
   const path = key => rows.map((row,index) => (index === 0 ? 'M':'L') +
@@ -43,9 +55,9 @@ function TrendChart({history, sampleLimit}) {
     {rows.length ? <div className="rev-chart-area">
       <svg viewBox="0 0 760 208" preserveAspectRatio="none" role="img"
         aria-label={'최근 수집된 활성 요청, Blocking, 장시간 요청 추이. 최대 관측 요청 ' + peak + '건'}>
-        {[0,1,2,3,4].map(i=> <g key={i}>
-          <line x1="35" x2="725" y1={35+i*37.5} y2={35+i*37.5} stroke="#2a3b58" strokeWidth="0.8"/>
-          <text x="28" y={39+i*37.5} fill="#7991b3" fontSize="11" textAnchor="end">{Math.round(peak*(4-i)/4)}</text>
+        {yTicks.map(value => <g key={value}>
+          <line x1="35" x2="725" y1={sy(value)} y2={sy(value)} stroke="#2a3b58" strokeWidth="0.8"/>
+          <text x="28" y={sy(value)+4} fill="#92adcd" fontSize="11" textAnchor="end">{value}</text>
         </g>)}
         {[0,1,2,3,4,5].map(i=>
           <line key={i} x1={35+i*138} x2={35+i*138} y1="35" y2="185"
@@ -111,7 +123,7 @@ export default function OverviewDashboard({
   };
   const alerts = [
     ...open.slice(0,3).map(i=>({key:'incident-'+i.id, kind:KINDS[i.type]||i.type,
-      title:i.summary||KINDS[i.type]||'관측된 인시던트',
+      title:summary(i),
       note:'진행 중 · '+dateTime(i.startedAt),level:'alert',action:()=>onInvestigate(i.id)})),
     ...(online&&latest.blockedRequests>0?[{key:'blocking',kind:'Blocking',title:'현재 차단 요청 '+num(latest.blockedRequests)+'건',
       note:'DMV 최신 스냅샷',level:'warning',action:()=>nav('blocking')}]:[]),
@@ -204,7 +216,7 @@ export default function OverviewDashboard({
           <tr key={item.id}>
             <td>{dateTime(item.startedAt)}</td>
             <td>{KINDS[item.type]||item.type}</td>
-            <td>{item.summary||('관측값 '+num(item.observedValue))}</td>
+            <td>{summary(item)}</td>
             <td><span className={'rev-table-badge '+(item.status==='OPEN'?'open':'resolved')}>
               {item.status==='OPEN'?'진행 중':'해결됨'}</span></td>
             <td><button className="rev-table-action" onClick={()=>onInvestigate(item.id)}>분석 <ArrowRight size={13}/></button></td>
