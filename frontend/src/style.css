@@ -110,3 +110,31 @@ a.nav-item{text-decoration:none}.query-panel{padding:24px;margin-top:20px;scroll
 .investigation-disclaimer{font-size:11px;line-height:1.8;color:#879ab4;margin-top:20px}
 @media(max-width:720px){.investigation-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.investigation-observation{grid-template-columns:1fr 1fr}.investigation-observation small{text-align:left}}
 @media(max-width:470px){.incident-investigation{padding:16px}.investigation-finding{flex-direction:column;gap:6px}}
+
+/* Phase 7: SQL Server Wait Diagnostics */
+.wait-panel{padding:24px;margin-top:20px;scroll-margin-top:20px}
+.wait-statusline{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;color:#8da3c4;font-size:11px;margin:-6px 0 19px}
+.wait-statusline strong{color:#d4e5ff}
+.wait-state{font-size:11px;font-weight:750;border-radius:7px;padding:6px 10px}
+.wait-state.online{background:#194039;border:1px solid #36795f;color:#a4e1c9}
+.wait-state.offline{background:#403036;border:1px solid #79505d;color:#f9bdc3}
+.wait-empty{font-size:12px;text-align:center;color:#8a9eb9;padding:21px;border:1px solid #2f3c55;border-radius:8px;background:#17263c}
+.wait-category-list{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:13px}
+.wait-category-pill{display:flex;align-items:center;gap:8px;background:#213a53;border:1px solid #355775;border-radius:8px;padding:8px 10px;color:#c5dbf1;font-size:11px}
+.wait-category-pill strong{color:#b8e7dc}
+.wait-table-scroller{overflow-x:auto;border:1px solid #2f4160;border-radius:9px}
+.wait-table{width:100%;border-collapse:collapse;font-size:11px;min-width:620px}
+.wait-table th,.wait-table td{padding:12px 11px;text-align:left;border-bottom:1px solid #2c3d56}
+.wait-table th{font-weight:650;color:#9bb5d1;background:#1c2b43}
+.wait-table td{color:#c1d2e8}
+.wait-table td strong{color:#dce8fd}
+.wait-table tr:last-child td{border-bottom:0}
+.wait-history-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:21px 0 10px}
+.wait-history-head strong{font-size:12px;color:#d4e6ff}
+.wait-history-head small{font-size:10px;color:#8299ba}
+.wait-history-list{border:1px solid #2d4160;border-radius:8px;overflow:hidden}
+.wait-history-item{display:grid;grid-template-columns:.8fr .5fr 1.4fr .6fr;gap:10px;padding:11px 13px;border-bottom:1px solid #2a3e58;color:#95accb;font-size:11px}
+.wait-history-item strong{color:#cde3ff}
+.wait-history-item:last-child{border-bottom:0}
+.wait-footnote{font-size:11px;color:#8599b5;line-height:1.8;margin-top:17px}
+@media(max-width:700px){.wait-panel{padding:16px}.wait-history-item{grid-template-columns:1fr 1fr}}

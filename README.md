@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.6.0-alpha / Phase 6 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.7.0-alpha / Phase 7 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -190,3 +190,12 @@ docker compose up -d
 - `GET /api/v1/targets/local-mssql/incidents/{incidentId}/investigation`
 - [v0.6 검증 안내](docs/PHASE6_INCIDENT_INVESTIGATION.md)
 - v0.6은 로컬 MSSQL 통합 검증 전이며, 기존 v0.5.0은 main에 보존됨.
+
+## Phase 7 — Wait Diagnostics (개발 중)
+
+- DBPulse Wait Diagnostics: MSSQL `sys.dm_exec_requests`에서 최대 100개의 실제 대기 요청을 5초마다 수집.
+- Wait Type, 안전하게 분류된 Resource Kind, 대기 시간, 차단 세션 ID를 PostgreSQL 7일 보존.
+- `GET /api/v1/targets/local-mssql/waits`, `/waits/history?limit=20`.
+- React: **Wait Diagnostics** 현재 상태·Wait 종류·관측 이력.
+- [설계·개발 제한과 로컬 검증 절차](docs/PHASE7_WAIT_DIAGNOSTICS.md).
+- 별도 개발 브랜치에서 로컬 MSSQL 통합 검증 대기. `main`은 v0.6.0 유지.

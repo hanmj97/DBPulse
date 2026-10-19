@@ -95,3 +95,30 @@ CREATE TABLE IF NOT EXISTS deadlock_participants (
     was_victim BOOLEAN NOT NULL,
     PRIMARY KEY (deadlock_event_id, session_id)
 );
+
+-- Phase 7: bounded, sanitized wait observations per configured target database.
+-- The unredacted wait_resource is classified inside MSSQL and is never transferred.
+CREATE TABLE IF NOT EXISTS wait_samples (
+    id BIGSERIAL PRIMARY KEY,
+    target_id VARCHAR(100) NOT NULL,
+    collected_at TIMESTAMPTZ NOT NULL,
+    observed_count INTEGER NOT NULL,
+    limit_reached BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_wait_samples_target_time
+    ON wait_samples (target_id, collected_at DESC);
+
+CREATE TABLE IF NOT EXISTS wait_observations (
+    id BIGSERIAL PRIMARY KEY,
+    sample_id BIGINT NOT NULL REFERENCES wait_samples(id) ON DELETE CASCADE,
+    session_id INTEGER NOT NULL,
+    wait_type VARCHAR(128) NOT NULL,
+    wait_category VARCHAR(32) NOT NULL,
+    resource_kind VARCHAR(32) NOT NULL,
+    wait_ms BIGINT NOT NULL,
+    elapsed_ms BIGINT NOT NULL,
+    request_status VARCHAR(40) NOT NULL,
+    blocking_session_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_wait_observations_sample
+    ON wait_observations (sample_id);
