@@ -32,7 +32,7 @@ public class ApiController {
 
     @GetMapping("/health")
     public Map<String, Object> health() {
-        return Map.of("service", "DBPulse", "version", "0.2.0", "status", "UP", "phase", 1);
+        return Map.of("service", "DBPulse", "version", "0.3.0-alpha", "status", "UP", "phase", 3);
     }
 
     @GetMapping("/targets")
