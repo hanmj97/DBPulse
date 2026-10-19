@@ -10,7 +10,7 @@ class IncidentWaitFindingsTest {
     @Test
     void missingSamplesMustNotBeCalledHealthy() {
         var evidence = new IncidentWaitEvidenceRepository.WaitEvidence(
-            0, 0, List.of(), List.of());
+            0, 0, 0, List.of(), List.of());
         var findings = IncidentWaitFindings.from(evidence);
         assertThat(findings).extracting(IncidentEvidenceClassifier.Finding::code)
             .containsExactly("WAIT_SAMPLES_UNAVAILABLE");
@@ -20,7 +20,7 @@ class IncidentWaitFindingsTest {
     @Test
     void zeroObservedWaitsAreOnlyASamplingLimit() {
         var evidence = new IncidentWaitEvidenceRepository.WaitEvidence(
-            4, 0, List.of(), List.of());
+            4, 0, 0, List.of(), List.of());
         var findings = IncidentWaitFindings.from(evidence);
         assertThat(findings.getFirst().code()).isEqualTo("WAITS_NOT_OBSERVED");
         assertThat(findings.getFirst().kind()).isEqualTo("LIMITATION");
@@ -32,7 +32,7 @@ class IncidentWaitFindingsTest {
             Instant.parse("2026-10-20T00:00:00Z"), 80, "LCK_M_X",
             "LOCK", "KEY", 12000, 71);
         var evidence = new IncidentWaitEvidenceRepository.WaitEvidence(
-            6, 2, List.of(new IncidentWaitEvidenceRepository.WaitCategorySummary(
+            6, 2, 4, List.of(new IncidentWaitEvidenceRepository.WaitCategorySummary(
                 "LOCK", 4, 12000)), List.of(item));
         var findings = IncidentWaitFindings.from(evidence);
         assertThat(findings).extracting(IncidentEvidenceClassifier.Finding::code)

@@ -64,6 +64,7 @@ public class IncidentWaitEvidenceRepository {
         return new WaitEvidence(
             sampleCount == null ? 0 : sampleCount,
             truncatedSamples == null ? 0 : truncatedSamples,
+            categories.stream().mapToLong(WaitCategorySummary::sampledCount).sum(),
             List.copyOf(categories), List.copyOf(latest));
     }
 
@@ -72,10 +73,7 @@ public class IncidentWaitEvidenceRepository {
                                  String waitType, String waitCategory,
                                  String resourceKind, long waitMs, Integer blockingSessionId) {}
     public record WaitEvidence(long sampleCount, long truncatedSampleCount,
+                               long sampledWaitCount,
                                List<WaitCategorySummary> categories,
-                               List<HistoricalWait> recent) {
-        public long sampledWaitCount() {
-            return categories.stream().mapToLong(WaitCategorySummary::sampledCount).sum();
-        }
-    }
+                               List<HistoricalWait> recent) {}
 }
