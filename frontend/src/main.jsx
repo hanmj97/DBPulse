@@ -123,6 +123,92 @@ function BlockingChainsPanel({ targetId }) {
   </section>;
 }
 
+
+function DeadlockHistoryPanel({ targetId }) {
+  const [status, setStatus] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!targetId) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const base = `/api/v1/targets/${encodeURIComponent(targetId)}/deadlocks`;
+        const [statusResult, eventsResult] = await Promise.all([
+          fetch(`${base}/status`), fetch(`${base}?limit=20`)
+        ]);
+        if (!statusResult.ok || !eventsResult.ok) throw new Error('deadlock API failure');
+        const [nextStatus, nextEvents] = await Promise.all([
+          statusResult.json(), eventsResult.json()
+        ]);
+        if (active) {
+          setStatus(nextStatus);
+          setEvents(nextEvents);
+          setError('');
+        }
+      } catch {
+        if (active) setError('Deadlock 이벤트 API 연결에 실패했습니다.');
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 15000);
+    return () => { active = false; clearInterval(timer); };
+  }, [targetId]);
+
+  return <section id="deadlocks" className="card deadlock-panel">
+    <div className="section-heading">
+      <div><h2>Deadlock Event Analysis</h2>
+        <p>SQL Server system_health Extended Events · 실제 데드락 이력</p></div>
+      <span className="small-pill">15s collect</span>
+    </div>
+    <div className="deadlock-state">
+      <span className={`deadlock-status ${status?.status === 'ONLINE' ? 'online' : 'unknown'}`}>
+        {status?.status === 'ONLINE' ? '이벤트 수집 정상'
+          : status?.status === 'OFFLINE' ? '이벤트 수집 오류'
+          : status?.status || '상태 확인 중'}</span>
+      <span>마지막 수집 {timeFmt(status?.lastCollectedAt)}</span>
+      <span>기록된 이벤트 <strong>{fmt(events.length)}</strong>건</span>
+    </div>
+    {error && <div className="banner error"><AlertCircle size={16}/>{error}</div>}
+    {status?.status === 'OFFLINE' && <div className="banner error"><AlertCircle size={16}/>
+      system_health XEL 접근 권한, 파일 대상, SQL Server 이벤트 수집 로그를 확인해 주세요.
+      ({status.errorCode || 'UNKNOWN'})</div>}
+    {events.length === 0
+      ? <div className="deadlock-empty"><CircleCheck size={18}/>
+          저장된 Deadlock 이벤트가 없습니다. 미발생 상태와 수집 오류는 다릅니다.
+        </div>
+      : <div className="deadlock-list">
+          {events.map(event => <article className="deadlock-event" key={event.id}>
+            <div className="deadlock-event-head">
+              <div><span className="deadlock-id">DEADLOCK #{event.id}</span>
+                <strong>{new Date(event.occurredAt).toLocaleString('ko-KR')}</strong></div>
+              <span className="deadlock-event-pill">SQL Server 감지 이벤트</span>
+            </div>
+            <div className="deadlock-stat-row">
+              <span>해당 DB 참여 세션 <strong>{fmt(event.localParticipantCount)}</strong>개</span>
+              <span>해당 DB 희생 세션 <strong>
+                {event.victimSessionId == null ? '알 수 없음' : `#${event.victimSessionId}`}
+              </strong></span>
+            </div>
+            <div className="deadlock-participants">
+              {(event.participants || []).map(p => <div
+                  className={`deadlock-participant ${p.victim ? 'victim' : ''}`}
+                  key={p.sessionId}>
+                <span>Session #{p.sessionId}</span>
+                <strong>{p.victim ? 'VICTIM' : 'PARTICIPANT'}</strong>
+              </div>)}
+            </div>
+          </article>)}
+        </div>}
+    <p className="deadlock-footnote">
+      원본 데드락 그래프와 SQL/파라미터는 수집하거나 저장하지 않습니다.
+      참여 세션은 현재 연결한 DB 기준으로 필터링되며, 다른 DB에 속한 희생자는 표시되지 않을 수 있습니다.
+      XEL 파일 반영 시점에 따라 이벤트 표시가 지연될 수 있습니다. 데드락 분석 결과는 자동 KILL 명령으로 연결되지 않습니다.
+    </p>
+  </section>;
+}
+
 function App() {
   const [target, setTarget] = useState(null);
   const [history, setHistory] = useState([]);
@@ -232,10 +318,11 @@ function App() {
       <div className="nav-item disabled"><Database size={19} />Databases <span>예정</span></div>
       <a className="nav-item" href="#incidents"><ShieldAlert size={19} />Incidents <span>beta</span></a>
       <a className="nav-item" href="#blocking-chains"><Network size={19} />Blocking Chains <span>beta</span></a>
+      <a className="nav-item" href="#deadlocks"><ShieldAlert size={19} />Deadlocks <span>beta</span></a>
       <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
       <div className="nav-caption second">SYSTEM</div>
       <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 4 · Local Development</div><div>v0.4.0 alpha — Blocking chain analyzer</div></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 5 · Local Development</div><div>v0.5.0 alpha — Deadlock event analysis</div></div>
     </aside>
     <main className="main">
       <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
@@ -263,6 +350,7 @@ function App() {
           {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
         </section>
         <BlockingChainsPanel targetId={target?.id} />
+        <DeadlockHistoryPanel targetId={target?.id} />
         <section id="incidents" className="card incident-panel">
           <div className="section-heading">
             <div><h2>Incident History</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>

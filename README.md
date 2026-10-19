@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.4.0-alpha / Phase 4 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.5.0-alpha / Phase 5 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -174,3 +174,12 @@ docker compose up -d
 - React: **Blocking Chains** 실시간 목록과 과거 Blocking 이력.
 - [상세 설계와 검증 절차](docs/PHASE4_BLOCKING_CHAIN_ANALYZER.md)
 - **실행 전 주의:** 별도 개발 브랜치 코드이며 로컬 Maven/SQL Server 통합 검증 전. 기존 정상 동작하는 v0.3 main은 유지됨.
+
+## Phase 5 — Deadlock Detection & Analysis
+
+- 15초 간격으로 SQL Server `system_health*.xel`에서 `xml_deadlock_report` 읽기.
+- 대상 DB의 참여 세션 번호, 희생 여부 및 이벤트 발생 시각만 저장 (SQL/XEL 경로/XE XML 미저장).
+- PostgreSQL 중복 이벤트 방지 + React **Deadlocks** 화면.
+- API: `/api/v1/targets/local-mssql/deadlocks/status` 및 `/deadlocks?limit=20`.
+- [구현·권한·제한 사항 및 로컬 검증 가이드](docs/PHASE5_DEADLOCK_EVENTS.md).
+- 코드는 개발 브랜치에 있으며 로컬 DB 통합 검증 전; v0.4.0 main은 보존됨.

@@ -53,3 +53,27 @@ a.nav-item{text-decoration:none}.query-panel{padding:24px;margin-top:20px;scroll
 .blocking-chain-note{margin-top:16px;color:#758eae;font-size:11px;line-height:1.7}
 @media(max-width:730px){.blocking-history-row{grid-template-columns:1fr 1fr;gap:5px}.blocking-history-row strong{text-align:left}}
 @media(max-width:470px){.blocking-chain-panel{padding:17px}.blocking-session{min-width:90px;padding:10px}.blocking-chain-flow{gap:9px}.blocking-chain-details{gap:7px}}
+
+/* Phase 5 — real SQL Server deadlock event history */
+.deadlock-panel{padding:24px;margin-top:20px;scroll-margin-top:20px}
+.deadlock-state{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;color:#8299ba;font-size:11px;margin:-4px 0 19px}
+.deadlock-state strong{color:#daebff}
+.deadlock-status{border:1px solid #405577;border-radius:7px;padding:6px 10px;color:#bdcbe3;background:#27364e;font-weight:700}
+.deadlock-status.online{background:#193931;border-color:#336750;color:#83dcb5}
+.deadlock-empty{display:flex;justify-content:center;align-items:center;gap:10px;padding:24px 12px;font-size:12px;color:#9ec8b6}
+.deadlock-list{display:grid;gap:12px}
+.deadlock-event{border:1px solid #324361;border-radius:10px;background:#18253c;padding:16px}
+.deadlock-event-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px 14px}
+.deadlock-event-head>div{display:grid;gap:4px}
+.deadlock-event-head strong{font-size:13px;color:#dfebfc}
+.deadlock-id{font-size:10px;letter-spacing:.08em;color:#ffb8ab;font-weight:800}
+.deadlock-event-pill{font-size:10px;background:#4a303d;border:1px solid #704858;padding:7px 10px;color:#ffc5c2;border-radius:6px}
+.deadlock-stat-row{display:flex;gap:10px 20px;flex-wrap:wrap;margin:14px 0;color:#8fa6c7;font-size:11px}
+.deadlock-stat-row strong{color:#cdddf8}
+.deadlock-participants{display:flex;gap:8px;flex-wrap:wrap}
+.deadlock-participant{background:#283953;border:1px solid #3b5372;border-radius:7px;display:flex;gap:12px;align-items:center;padding:10px;font-size:11px;color:#dce8fa}
+.deadlock-participant strong{font-size:9px;letter-spacing:.04em;color:#aac8ec}
+.deadlock-participant.victim{background:#493340;border-color:#83505e}
+.deadlock-participant.victim strong{color:#ffb0ad}
+.deadlock-footnote{margin-top:18px;line-height:1.8;color:#768faf;font-size:11px}
+@media(max-width:480px){.deadlock-panel{padding:16px}.deadlock-event{padding:12px}.deadlock-event-pill{font-size:9px}}
