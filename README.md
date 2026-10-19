@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.2.0 / Phase 2 (로컬 개발 · 검증 진행 중)
+## 현재 개발 버전: v0.3.0-alpha / Phase 3 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -154,3 +154,11 @@ docker compose up -d
 ## 다음 제품 개발
 
 실시간/누적 성능 분석의 로컬 통합 테스트 후 Blocking·Deadlock 원인 분석과 장애 이벤트 이력, 안전한 복구 정책, 검증 가능한 SQL 튜닝 추천, 사용자별 DB 연결 보안으로 확장한다. 부하 테스트는 제품 신뢰성 검증을 위한 독립 도구로 유지한다. 별도 부하 발생기는 제품 **검증 도구**에만 속한다.
+
+## Phase 3 — Incident Detection (개발 브랜치)
+
+- PostgreSQL의 `incidents` 이력 테이블 및 전용 API
+- 2회 연속 Blocking·장시간 요청·Collector 실패 감지 후 OPEN; 2회 연속 정상 감지 후 RESOLVED
+- React의 Incidents 화면에 사건 이력 표시 (실제 검증 전)
+- 자동복구, Deadlock 상세 원인 분석, SQL 튜닝 제안은 아직 **미구현**
+- [세부 설계 및 로컬 검증 순서](docs/PHASE3_INCIDENT_DETECTION.md)

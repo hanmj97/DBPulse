@@ -42,6 +42,8 @@ function App() {
   const [queryAnalysis, setQueryAnalysis] = useState([]);
   const [queryState, setQueryState] = useState(null);
   const [queryError, setQueryError] = useState('');
+  const [incidents, setIncidents] = useState([]);
+  const [incidentError, setIncidentError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -94,6 +96,31 @@ function App() {
     return () => { active = false; clearInterval(timer); };
   }, [target?.id]);
 
+  // Separate from provisional signals; this shows persisted incident episodes.
+  useEffect(() => {
+    if (!target?.id) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch(`/api/v1/targets/${encodeURIComponent(target.id)}/incidents?limit=30`);
+        if (!response.ok) throw new Error('incident API error');
+        const rows = await response.json();
+        if (active) { setIncidents(rows); setIncidentError(''); }
+      } catch {
+        if (active) setIncidentError('장애 이력 API에 연결할 수 없습니다.');
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [target?.id]);
+
+  const INCIDENT_LABELS = {
+    BLOCKING: 'Blocking 감지',
+    LONG_RUNNING: '장시간 요청 감지',
+    COLLECTION_FAILURE: '수집기 오류 감지',
+  };
+
   const DIAGNOSIS = {
     SLOW_HIGH_READS: ['읽기량과 실행 시간 증가', '기존 인덱스·실행계획을 확인할 후보'],
     SLOW_HIGH_CPU: ['CPU와 실행 시간 증가', '실행계획·연산 및 대기시간을 확인할 후보'],
@@ -114,11 +141,11 @@ function App() {
       <div className="nav-caption">WORKSPACE</div>
       <div className="nav-item active"><Gauge size={19} />Overview</div>
       <div className="nav-item disabled"><Database size={19} />Databases <span>예정</span></div>
-      <div className="nav-item disabled"><ShieldAlert size={19} />Incidents <span>예정</span></div>
+      <a className="nav-item" href="#incidents"><ShieldAlert size={19} />Incidents <span>beta</span></a>
       <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
       <div className="nav-caption second">SYSTEM</div>
       <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 2 · Local Development</div><div>v0.2.0 — Query Store analysis</div></div>
+      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 2 · Local Development</div><div>v0.3.0 alpha — Incident detection</div></div>
     </aside>
     <main className="main">
       <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
@@ -144,6 +171,40 @@ function App() {
         </div>
         <section className="card activity-panel"><div className="section-heading"><div><h2>Recent performance signals</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
           {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
+        </section>
+        <section id="incidents" className="card incident-panel">
+          <div className="section-heading">
+            <div><h2>Incident History</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>
+            <span className="small-pill">5s collect</span>
+          </div>
+          {incidentError && <div className="banner error"><AlertCircle size={17}/>{incidentError}</div>}
+          <div className="incident-legend">
+            <span>진행 중 {incidents.filter(row => row.status === 'OPEN').length}건</span>
+            <span>조회된 이력 {incidents.length}건</span>
+          </div>
+          {incidents.length ? incidents.map(item => (
+            <div className="incident-entry" key={item.id}>
+              <div className={`incident-indicator ${item.status === 'OPEN' ? 'open' : 'resolved'}`}>
+                {item.status === 'OPEN' ? <ShieldAlert size={18}/> : <CircleCheck size={18}/>}
+              </div>
+              <div className="incident-details">
+                <div className="incident-entry-header">
+                  <strong>{INCIDENT_LABELS[item.type] || item.type}</strong>
+                  <span className={`incident-state ${item.status === 'OPEN' ? 'open' : 'resolved'}`}>
+                    {item.status}
+                  </span>
+                </div>
+                <p>{item.type === 'COLLECTION_FAILURE'
+                  ? '수집 오류가 반복되었습니다. MSSQL 서버 자체 장애라고 단정할 수 없습니다.'
+                  : item.type === 'BLOCKING'
+                  ? `관측된 차단 요청: ${fmt(item.observedValue)}건`
+                  : `관측된 최장 실행 시간: ${fmt(item.observedValue)}ms`}</p>
+                <small>최초 감지 {timeFmt(item.startedAt)} · 최근 관측 {timeFmt(item.lastObservedAt)}
+                  {item.resolvedAt ? ` · 해결 {timeFmt(item.resolvedAt)}` : ''}</small>
+              </div>
+            </div>
+          )) : <div className="incident-empty">기록된 장애 이벤트가 없습니다. 실제 수집 중 이상 신호가 지속되면 이곳에 표시됩니다.</div>}
+          <p className="incident-note">두 번 연속 이상 신호 시 OPEN, 두 번 연속 정상 관측 시 RESOLVED. 근본 원인 분석과 Deadlock 이벤트 추적, 자동복구는 다음 개발 단계입니다.</p>
         </section>
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
