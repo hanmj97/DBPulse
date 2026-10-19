@@ -194,3 +194,138 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .rev-wait-bars{grid-template-columns:1fr}
   .rev-chart-area svg{height:175px}
 }
+
+/* Stage 2: consistent analyst workspaces and improved desktop readability */
+.rev-layout{font-size:13px}
+.rev-brand{font-size:23px}
+.rev-nav{font-size:13px;padding:12px 13px}
+.rev-topbar{min-height:72px}
+.rev-search input,.rev-time-select select,.rev-system-pill{font-size:12px}
+.rev-search{height:40px}
+.rev-page-heading h1{font-size:30px}
+.rev-page-heading p{font-size:13px}
+.rev-updated{font-size:11px}
+.rev-main{padding-top:30px}
+.rev-kpi{min-height:115px}
+.rev-kpi-info small{font-size:12px}
+.rev-kpi-info>span{font-size:11px}
+.rev-panel{padding:21px}
+.rev-panel-heading h2{font-size:16px}
+.rev-panel-heading p,.rev-card-foot,.rev-chart-caution{font-size:12px}
+.rev-text-link{font-size:12px}
+.rev-overview-empty{font-size:12px;min-height:105px}
+.rev-overview-secondary{align-items:start}
+.rev-chart-legend span{font-size:11px}
+.rev-wait-row,.rev-wait-row strong{font-size:12px}
+.rev-timeline-item{padding:13px 5px}
+.rev-timeline-item time{font-size:11px;flex-basis:60px}
+.rev-timeline-description strong,.rev-alert-item strong{font-size:13px}
+.rev-timeline-description>span,.rev-alert-item small{font-size:11px}
+.rev-alert-item{padding:13px 4px}
+.rev-table th{font-size:12px;padding:13px 14px}
+.rev-table td{font-size:12px;padding:13px 14px;line-height:1.55}
+.rev-table-action{font-size:11px}
+
+.rev-detail-intro{
+ display:flex;justify-content:space-between;align-items:center;gap:15px;
+ background:linear-gradient(100deg,#142e4d,#0d2038);
+ border:1px solid #31547b;border-radius:12px;padding:17px 20px;
+}
+.rev-detail-intro p{font-size:13px;line-height:1.65;color:#afc6e3}
+.rev-detail-overline{font-size:10px;letter-spacing:1.6px;color:#65abec;font-weight:800;display:block;margin-bottom:7px}
+.rev-back-overview{
+ display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;
+ color:#d7e9fb;background:#1e3c5f;border:1px solid #39628c;
+ border-radius:8px;padding:10px 13px;cursor:pointer;font-size:12px;font-weight:700;
+}
+.rev-back-overview:hover{background:#2d5179}
+
+/* Common deep-navy cards, same density and hierarchy across all existing analyzers */
+.rev-detail-content>.card,.rev-detail-content .rev-panel,.rev-target-detail>.card{
+ background:linear-gradient(155deg,#10243e,#0c1d33 85%);
+ border-color:#2c4a70;box-shadow:0 7px 21px #01081724;border-radius:12px;
+}
+.rev-detail-content .section-heading{margin-bottom:20px}
+.rev-detail-content .section-heading h2{font-size:18px;font-weight:750;color:#eaf3ff;letter-spacing:-.35px;margin-bottom:8px}
+.rev-detail-content .section-heading p{color:#9cb5d6;font-size:12px;line-height:1.6}
+.rev-detail-content .small-pill{border-radius:7px;background:#1d395a;border-color:#31577e;color:#b2d2ef;font-size:11px;padding:7px 10px}
+.rev-detail-content .banner{font-size:12px;line-height:1.55}
+.rev-detail-content .incident-entry{padding:16px 12px;border:1px solid #284463;border-radius:10px;background:#132842;margin-top:8px}
+.rev-detail-content .incident-entry-header strong{font-size:14px}
+.rev-detail-content .incident-details p{font-size:12px;color:#bbcee5}
+.rev-detail-content .incident-details small{font-size:11px;line-height:1.6}
+.rev-detail-content .incident-note,.rev-detail-content .query-note,
+.rev-detail-content .blocking-chain-note,.rev-detail-content .wait-footnote,
+.rev-detail-content .deadlock-footnote,.rev-detail-content .investigation-disclaimer{
+ font-size:12px;line-height:1.8;color:#9cb1ce;
+}
+.rev-detail-content .query-table th,.rev-detail-content .wait-table th{
+ padding:14px 12px;background:#1b3453;color:#afc8e8;font-size:12px;
+}
+.rev-detail-content .query-table td,.rev-detail-content .wait-table td{
+ padding:14px 12px;border-color:#2b4360;color:#d4e2f4;font-size:12px;line-height:1.5;
+}
+.rev-detail-content .query-table td small{font-size:11px}
+.rev-detail-content .query-table tbody tr:hover,.rev-detail-content .wait-table tbody tr:hover{background:#1e375354}
+.rev-detail-content .blocking-chain-item,.rev-detail-content .deadlock-event{
+ background:linear-gradient(110deg,#192d49,#14263e);border-color:#335679;padding:18px;
+}
+.rev-detail-content .blocking-chain-details,.rev-detail-content .deadlock-stat-row{font-size:12px}
+.rev-detail-content .blocking-chain-root,.rev-detail-content .deadlock-footnote{font-size:12px;line-height:1.7}
+.rev-detail-content .blocking-history-row,.rev-detail-content .blocking-history-head,
+.rev-detail-content .wait-history-item,.rev-detail-content .deadlock-event-head strong{font-size:12px}
+.rev-detail-content .blocking-history-row,.rev-detail-content .wait-history-item{padding:13px}
+.rev-detail-content .wait-category-pill{font-size:12px;padding:10px 13px}
+.rev-detail-content .wait-statusline,.rev-detail-content .deadlock-state{font-size:12px}
+.rev-detail-content .investigation-stats small{font-size:12px}
+.rev-detail-content .investigation-stats strong{font-size:22px}
+.rev-detail-content .investigation-subtitle{font-size:15px;margin-top:24px}
+.rev-detail-content .investigation-finding strong{font-size:13px}
+.rev-detail-content .investigation-finding p{font-size:12px}
+.rev-detail-content .investigation-observation{font-size:12px;line-height:1.6}
+.rev-detail-content .investigation-window{font-size:12px}
+.rev-detail-content .investigation-kind{font-size:11px}
+.rev-detail-content .investigation-close,.rev-detail-content .investigation-open{font-size:12px}
+.rev-detail-content .query-panel{scroll-margin-top:100px}
+.rev-detail-content .incident-investigation{scroll-margin-top:95px}
+.rev-detail-content .wait-panel,.rev-detail-content .blocking-chain-panel,
+.rev-detail-content .deadlock-panel{scroll-margin-top:95px}
+
+.rev-incident-toolbar{
+ display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+ margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid #2b4565;
+}
+.rev-incident-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rev-filter-button{
+ display:inline-flex;gap:10px;align-items:center;background:#152b45;color:#a4bddb;
+ border:1px solid #2d4e72;border-radius:8px;padding:9px 12px;
+ font-size:12px;font-weight:700;cursor:pointer;
+}
+.rev-filter-button:hover{background:#224264}
+.rev-filter-button.active{background:#1c4b7f;color:#e5f4ff;border-color:#4c91d4}
+.rev-filter-button span{font-size:11px;opacity:.85}
+.rev-incident-count{font-size:12px;color:#9eb9d9}
+.rev-load-more{
+ display:block;width:100%;padding:12px;margin:17px 0 0;
+ border:1px solid #34587e;border-radius:9px;background:#1a3554;
+ font-size:12px;color:#cde7ff;font-weight:750;cursor:pointer;
+}
+.rev-load-more:hover{background:#25466b}
+.rev-detail-content .investigation-open{padding:9px 13px}
+.rev-detail-content .incident-state{font-size:11px;padding:5px 8px}
+
+@media(max-width:1150px){
+ .rev-kpi{min-height:102px}
+ .rev-page-heading h1{font-size:28px}
+}
+@media(max-width:670px){
+ .rev-main{padding-top:21px}
+ .rev-panel{padding:15px}
+ .rev-kpi{min-height:103px}
+ .rev-kpi-info strong{font-size:22px}
+ .rev-detail-intro{align-items:stretch;flex-direction:column;padding:14px}
+ .rev-back-overview{align-self:flex-start}
+ .rev-detail-content .incident-entry{padding:13px 9px}
+ .rev-detail-content .query-panel,.rev-detail-content .incident-panel,
+ .rev-detail-content .blocking-chain-panel,.rev-detail-content .deadlock-panel{padding:15px}
+}
