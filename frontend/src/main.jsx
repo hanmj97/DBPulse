@@ -243,6 +243,16 @@ function App() {
     setPage('incidents');
     window.location.hash = '#incidents';
   };
+  useEffect(() => {
+    if (!selectedIncidentId || (page !== 'incidents' && page !== 'investigation')) return;
+    // Investigation opens above the incident list after React has rendered it.
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('incident-investigation')?.scrollIntoView({
+        behavior: 'smooth', block: 'start'
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedIncidentId, page]);
 
 
   useEffect(() => {
@@ -387,7 +397,14 @@ function App() {
                   {item.resolvedAt ? ` · 해결 ${timeFmt(item.resolvedAt)}` : ''}</small>
                 <button type="button" className="investigation-open"
                   aria-pressed={selectedIncidentId === item.id}
-                  onClick={() => setSelectedIncidentId(item.id)}>
+                  onClick={() => {
+                    setSelectedIncidentId(item.id);
+                    window.requestAnimationFrame(() => {
+                      document.getElementById('incident-investigation')?.scrollIntoView({
+                        behavior: 'smooth', block: 'start'
+                      });
+                    });
+                  }}>
                   {selectedIncidentId === item.id ? '조사 보고서 표시 중' : '원인 분석 근거 보기 →'}
                 </button>
               </div>
