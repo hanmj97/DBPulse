@@ -783,3 +783,29 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .rev-query-source-filter{align-items:stretch}
   .rev-query-source-filter select{width:100%}
 }
+
+/* Phase 11 — correlated Query Store metrics + confirmed plan operators. */
+.rev-plan-correlation{margin:17px 0;padding:17px;background:var(--t-inner);
+  border:1px solid var(--t-line);border-radius:10px}
+.rev-plan-correlation-title{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:15px}
+.rev-plan-correlation-title h4{font-size:14px;color:var(--t-text);margin:0 0 6px}
+.rev-plan-correlation-title p{font-size:11px;color:var(--t-muted);line-height:1.6;margin:0}
+.rev-plan-correlation-state{font-size:11px;white-space:nowrap;padding:7px 9px;
+  background:var(--t-accent-soft);border:1px solid var(--t-line);
+  border-radius:6px;color:var(--t-accent);font-weight:750}
+.rev-plan-correlation-state.partial{color:#ffca88;background:#604732;border-color:#866542}
+.rev-plan-findings{display:grid;gap:10px}
+.rev-plan-finding{background:var(--t-card);border:1px solid var(--t-line);
+  border-radius:9px;padding:13px 15px}
+.rev-plan-finding-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.rev-plan-finding-heading strong{color:var(--t-text);font-size:12px}
+.rev-plan-finding-kind{font-size:10px;color:var(--t-accent);background:var(--t-accent-soft);
+  padding:5px 8px;border-radius:6px;font-weight:800}
+.rev-plan-finding-kind.review{background:#583d2e;color:#ffd199}
+.rev-plan-finding-evidence{font-size:12px;line-height:1.65;color:var(--t-text);margin:0 0 11px}
+.rev-plan-finding-next{display:flex;align-items:start;gap:9px;padding-top:11px;
+  border-top:1px solid var(--t-line)}
+.rev-plan-finding-next b{white-space:nowrap;font-size:11px;color:var(--t-accent)}
+.rev-plan-finding-next p{font-size:11px;line-height:1.65;color:var(--t-muted);margin:0}
+.rev-plan-correlation .rev-plan-disclaimer{padding-top:13px;border-top:1px solid var(--t-line)}
+@media(max-width:670px){.rev-plan-correlation{padding:12px}.rev-plan-finding-next{flex-direction:column;gap:5px}}
