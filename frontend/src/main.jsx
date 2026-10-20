@@ -497,7 +497,7 @@ function App() {
           <option value="dbpulse-only">DBPulse 수집 패턴만</option>
         </select>
       </div>
-      <QueryTuningAdvisor targetId={target?.id} sourceFilter={querySourceFilter}/>
+      <QueryTuningAdvisorPanel targetId={target?.id} sourceFilter={querySourceFilter}/>
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
             <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
