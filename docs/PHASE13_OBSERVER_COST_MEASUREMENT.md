@@ -1,3 +1,43 @@
+## 2026-10-20 — Step 15: archived A/B XEL temporal overlap investigation
+
+The archive-path contract is:
+- A retest: `D:\Projects\DBPulseLabXE\archive\A_20261020_retest\ObserverCost*.xel`
+- B adaptive: `D:\Projects\DBPulseLabXE\archive\B_20261020\ObserverCost*.xel`
+
+**Do not discard or move the raw archive files during this step.**
+With Windows-authenticated **local SSMS master**, run
+`sql/15_ab_xe_temporal_overlap_lab_only.sql` only after confirming
+both XEL archive paths contain at least one file. This read-only
+diagnostic does not start XE, restart DBPulse, use customer data,
+or require another 10-minute workload run.
+
+It parses only `client_app_name`, event completion timestamp,
+duration, CPU and logical reads. **It never displays or exports
+SQL text or parameters.** CPU and duration microsecond units were
+verified from SQL Server local XE metadata. Event start timestamps
+are **estimated** as completion time minus duration; they should
+not be mistaken for exact DB lock-wait start times.
+
+Expected scope:
+1. 1,200 timed RPC completions **for each** A and B;
+   otherwise it raises an error and the analysis is invalid.
+2. Detailed slow-RPC (>100ms) event times, CPU, counts of
+   intersecting Query Store and 5-second monitor request intervals.
+3. Count of intersections by monitor app name.
+4. A duration-neutral check: for *every* fast/medium/slow timed RPC
+   evaluate the same 200ms completion-centered comparison window
+   (±100ms) to reduce misleading correlations from slow requests
+   inherently spanning longer periods.
+
+**Limitations:** Observed time intersection cannot establish
+causality, lock waits, scheduler stalls or CPU contention. A 5-second
+monitor may overlap a multi-second RPC by chance. XE completion
+events do not include per-request wait_type or execution-plan detail.
+If suspicious co-occurrence exists, a follow-on **local-only,
+permission-bounded** wait-specific test can be designed with explicit
+capture and privacy limits. Functional/UI regression remains a
+separate gate; PR #12 stays Draft.
+
 ## 2026-10-20 — A XE recovered successfully from SQL 14
 
 The **repeated A** raw XEL file survived loss of the SQL 11 SSMS
