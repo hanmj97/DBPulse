@@ -12,6 +12,7 @@ import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
+import QueryObserverOverheadPanel from './QueryObserverOverheadPanel.jsx';
 import QuerySqlDrawer from './QuerySqlDrawer.jsx';
 import { filterQuerySources } from './queryCandidateFilters.js';
 
@@ -488,6 +489,7 @@ function App() {
     </div>}
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
+      <QueryObserverOverheadPanel targetId={target?.id}/>
       <div className="rev-query-source-filter">
         <div>
           <strong>표시할 쿼리</strong>

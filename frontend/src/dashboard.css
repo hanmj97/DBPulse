@@ -926,3 +926,42 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   background:var(--t-accent-soft);color:var(--t-accent);
   border:1px solid var(--t-line)
 }
+
+/* Monitoring Overhead Guard — uses only DBPulse Navy / Midnight Dark variables. */
+.rev-observer-guard{background:var(--t-card);border:1px solid var(--t-line);
+  border-radius:11px;padding:19px 21px;color:var(--t-text)}
+.rev-observer-guard-head{display:flex;gap:14px;justify-content:space-between;
+  align-items:flex-start;flex-wrap:wrap}
+.rev-observer-guard-head h3,.rev-observer-guard>h3{display:flex;gap:8px;align-items:center;
+  color:var(--t-text);font-size:14px;margin:0 0 7px}
+.rev-observer-guard-head h3 small{color:var(--t-accent);font-size:10px}
+.rev-observer-guard-head p,.rev-observer-guard>p{color:var(--t-muted);
+  font-size:11px;line-height:1.7;margin:0}
+.rev-observer-guard-status{display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:750;border-radius:6px;padding:8px 11px;
+  color:var(--t-accent);background:var(--t-accent-soft);
+  border:1px solid var(--t-line)}
+.rev-observer-guard-status.throttled{color:#ffcd98;
+  background:rgba(153,100,45,.18);border-color:#8a6442}
+.rev-observer-guard-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;margin-top:17px}
+.rev-observer-guard-metrics>div{border:1px solid var(--t-line);
+  border-radius:8px;background:var(--t-inner);padding:11px 12px;min-width:0}
+.rev-observer-guard-metrics span{display:block;color:var(--t-muted);
+  font-size:11px;line-height:1.65;margin-bottom:6px}
+.rev-observer-guard-metrics strong{display:block;font-size:16px;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rev-observer-guard-reason{display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:8px 14px;margin-top:14px;font-size:11px}
+.rev-observer-guard-reason strong{color:var(--t-accent)}
+.rev-observer-guard-reason span{color:var(--t-text)}
+.rev-observer-guard-reason small{color:var(--t-muted)}
+.rev-observer-guard-disclaimer{color:var(--t-muted);font-size:10px;
+  line-height:1.8;margin:13px 0 0;padding-top:12px;border-top:1px solid var(--t-line)}
+@media(max-width:780px){
+  .rev-observer-guard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+  .rev-observer-guard{padding:14px}
+  .rev-observer-guard-metrics{grid-template-columns:1fr}
+}
