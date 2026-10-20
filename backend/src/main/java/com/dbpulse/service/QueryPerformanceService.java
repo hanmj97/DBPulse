@@ -28,11 +28,12 @@ public class QueryPerformanceService {
 
     public QueryPerformanceService(MssqlTargetProperties target, MssqlQueryStoreCollector queryStore,
                                    QueryPerformanceRepository repository,
-                                   @Value("${dbpulse.query-analytics.interval-ms:60000}") long intervalMs) {
+                                   @Value("${dbpulse.query-analytics.interval-ms:60000}") long intervalMs,
+                                   @Value("${dbpulse.query-analytics.adaptive-enabled:true}") boolean adaptiveEnabled) {
         this.target = target;
         this.queryStore = queryStore;
         this.repository = repository;
-        this.overheadGuard = new QueryStoreOverheadGuard(intervalMs);
+        this.overheadGuard = new QueryStoreOverheadGuard(intervalMs, adaptiveEnabled);
     }
 
     @Scheduled(fixedDelayString = "${dbpulse.query-analytics.interval-ms:60000}", initialDelay = 10000)
