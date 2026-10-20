@@ -148,17 +148,20 @@ BEGIN
 
     ;WITH Diff AS (
       SELECT COALESCE(c.source_kind,b.source_kind) AS source_kind,
+        CASE WHEN b.query_id IS NULL THEN 1 ELSE 0 END AS newly_observed,
         CASE WHEN c.query_id IS NULL
              OR (b.query_id IS NOT NULL AND (
                 c.executions < b.executions
                 OR c.cpu_us < b.cpu_us
                 OR c.logical_read_pages < b.logical_read_pages
              )) THEN 1 ELSE 0 END AS invalid_reset,
-        CASE WHEN b.query_id IS NULL THEN c.executions
+        -- New captured plans may have executed BEFORE START but surfaced late.
+        -- Exclude their lifetime totals from window deltas; report separately.
+        CASE WHEN b.query_id IS NULL THEN NULL
              ELSE c.executions-b.executions END AS delta_exec,
-        CASE WHEN b.query_id IS NULL THEN c.cpu_us
+        CASE WHEN b.query_id IS NULL THEN NULL
              ELSE c.cpu_us-b.cpu_us END AS delta_cpu_us,
-        CASE WHEN b.query_id IS NULL THEN c.logical_read_pages
+        CASE WHEN b.query_id IS NULL THEN NULL
              ELSE c.logical_read_pages-b.logical_read_pages END AS delta_reads
       FROM #DBPulseObserverBaseline b
       FULL OUTER JOIN #DBPulseObserverCurrent c
@@ -168,17 +171,18 @@ BEGIN
        @ElapsedSeconds AS elapsed_seconds,
        COUNT(*) AS observed_plans,
        SUM(invalid_reset) AS invalid_or_disappeared_plans,
-       CONVERT(BIGINT,ROUND(SUM(CASE WHEN invalid_reset=0
+       SUM(newly_observed) AS newly_observed_plans_excluded,
+       CONVERT(BIGINT,ROUND(SUM(CASE WHEN invalid_reset=0 AND newly_observed=0
                            THEN delta_exec ELSE 0 END),0)) AS observed_executions,
-       ROUND(SUM(CASE WHEN invalid_reset=0
+       ROUND(SUM(CASE WHEN invalid_reset=0 AND newly_observed=0
                       THEN delta_cpu_us ELSE 0 END)/1000.0,2) AS total_cpu_ms,
-       ROUND(SUM(CASE WHEN invalid_reset=0
+       ROUND(SUM(CASE WHEN invalid_reset=0 AND newly_observed=0
                       THEN delta_reads ELSE 0 END),2) AS total_logical_read_pages,
-       ROUND(SUM(CASE WHEN invalid_reset=0 THEN delta_exec ELSE 0 END)
+       ROUND(SUM(CASE WHEN invalid_reset=0 AND newly_observed=0 THEN delta_exec ELSE 0 END)
              * 60.0/NULLIF(@ElapsedSeconds,0),2) AS executions_per_minute,
-       ROUND(SUM(CASE WHEN invalid_reset=0 THEN delta_cpu_us ELSE 0 END)
+       ROUND(SUM(CASE WHEN invalid_reset=0 AND newly_observed=0 THEN delta_cpu_us ELSE 0 END)
              * 60.0/1000.0/NULLIF(@ElapsedSeconds,0),2) AS cpu_ms_per_minute,
-       ROUND(SUM(CASE WHEN invalid_reset=0 THEN delta_reads ELSE 0 END)
+       ROUND(SUM(CASE WHEN invalid_reset=0 AND newly_observed=0 THEN delta_reads ELSE 0 END)
              * 60.0/NULLIF(@ElapsedSeconds,0),2) AS logical_pages_per_minute
     FROM Diff
     GROUP BY source_kind
@@ -187,6 +191,6 @@ BEGIN
     SELECT @ElapsedSeconds AS elapsed_seconds,
        (SELECT COUNT(*) FROM #DBPulseObserverBaseline) AS baseline_plans,
        (SELECT COUNT(*) FROM #DBPulseObserverCurrent) AS current_plans,
-       'This is a Query Store-derived estimate; flush delays, evictions, classification, changing workloads and manual profiler overhead can affect differences.' AS limitations;
+       'Query Store is incomplete: new plans are excluded from deltas; any new/vanished/reset plans or missing collector invalidate a strict A/B claim. Verify using sql/10 and lab-only XE sql/11.' AS limitations;
 END;
 GO
