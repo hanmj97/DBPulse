@@ -12,7 +12,7 @@ SET NOCOUNT ON;
 SELECT DB_NAME() AS database_name,
        actual_state_desc, desired_state_desc, query_capture_mode_desc,
        readonly_reason, current_storage_size_mb, max_storage_size_mb,
-       data_flush_interval_seconds
+       flush_interval_seconds
 FROM sys.database_query_store_options;
 
 -- 2. Look for the actual collector SQL by its unique comment marker
