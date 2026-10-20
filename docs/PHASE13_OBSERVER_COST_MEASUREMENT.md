@@ -49,6 +49,57 @@ is throttled by v0.13. Other fixed-interval DMV / wait / deadlock
 queries still run; compare **per-source** rows and total workload
 rather than expecting all DBPulse workload to halve.
 
+
+## XE preflight and 90-second smoke test (local DBPulseLab)
+
+**Actual event-file directory:** `D:\Projects\DBPulseLabXE` on
+the **SQL Server host**, not the DBPulse backend container. The
+SQL Server *database engine service account* needs Modify access to
+this folder only. Do not grant `Everyone` access or change any
+`dbpulse_monitor` server privileges. Check the exact engine
+service account with Windows-authenticated SSMS sysadmin:
+
+```sql
+SELECT servicename, service_account, status_desc
+FROM sys.dm_server_services
+WHERE servicename LIKE N'SQL Server (%';
+```
+
+Then from PowerShell inspect the folder and its ACL:
+
+```powershell
+# Check lab event-file directory without modifying anything
+$xePath = 'D:\Projects\DBPulseLabXE'
+Test-Path -LiteralPath $xePath
+
+# Show current permissions; do not change root D: ACLs
+if (Test-Path -LiteralPath $xePath) {
+    Get-Acl -LiteralPath $xePath |
+        Select-Object -ExpandProperty Access |
+        Select-Object IdentityReference, FileSystemRights, AccessControlType
+}
+
+# View local SQL Server service identity for cross-checking
+Get-CimInstance Win32_Service |
+    Where-Object { $_.Name -eq 'MSSQLSERVER' -or $_.Name -like 'MSSQL$*' } |
+    Select-Object Name, StartName, State
+```
+
+After confirming exact SQL Server service-folder access,
+open `sql/11_observer_ab_extended_events_lab_only.sql` in a NEW SSMS tab.
+Set `@Phase = 'START'`, execute, **keep the tab open**, wait 90 seconds,
+change to `'END'` and execute again in that same SSMS connection.
+Confirm `dropped_xe_events = 0` and check event category counts.
+A 90-second smoke test only verifies XE operation, **not** an A/B result.
+At the end use `@Phase = 'CLEANUP'` in the same window, then
+delete only `ObserverCost*.xel` from the dedicated event directory.
+The script reports aggregates and does not print captured statements,
+but the XEL files **can contain raw SQL** and must never be committed.
+If there are no `QUERY_STORE_COLLECTOR` records, compare with the
+JVM `successfulCollections` delta and diagnose XE capture scope rather
+than interpreting zero as a zero-cost collector. Do not execute on
+customer databases.
+
 ## Two comparable A/B windows (local lab only)
 
 1. Do not run high-volume SQL load, edit indexes or change the data
