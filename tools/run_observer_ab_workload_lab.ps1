@@ -53,10 +53,30 @@ try {
     $cs = "Server=$Server;Database=DBPulseLab;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Application Name=DBPulseLabWorkload;Connect Timeout=5"
     $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
     $connection.Open()
+
+    # Fail fast BEFORE running the timed workload if the isolated lab
+    # fixture is missing. Do not run setup DDL inside an A/B measurement.
+    $preflight = $connection.CreateCommand()
+    try {
+        $preflight.CommandText = "SELECT OBJECT_ID(N'dbo.Accounts', N'U')"
+        $fixtureId = $preflight.ExecuteScalar()
+        if ($null -eq $fixtureId -or $fixtureId -is [DBNull]) {
+            throw 'Missing DBPulseLab.dbo.Accounts. Run sql/12_prepare_ab_accounts_lab_only.sql in SSMS before either A/B START.'
+        }
+
+        $preflight.CommandText = "SELECT COUNT_BIG(*) FROM dbo.Accounts"
+        $fixtureCount = [long]$preflight.ExecuteScalar()
+        if ($fixtureCount -ne 20000) {
+            throw "Invalid DBPulseLab.dbo.Accounts fixture: $fixtureCount rows; expected 20000. Inspect sql/12 before running A/B."
+        }
+    } finally {
+        $preflight.Dispose()
+    }
+
     $command = $connection.CreateCommand()
     $command.CommandTimeout = 5
 
-    # Uses lab-only dbo.Accounts populated by sql/03_prepare_load_test_data.sql.
+    # Uses pre-seeded lab-only dbo.Accounts from sql/12_prepare_ab_accounts_lab_only.sql.
     # Parameterized SQL prevents generating different ad-hoc statement texts.
     $command.CommandText = 'SELECT COUNT_BIG(*) FROM dbo.Accounts WHERE account_id BETWEEN @lower AND @upper'
     $lower = $command.Parameters.Add('@lower',[System.Data.SqlDbType]::Int)
