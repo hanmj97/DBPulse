@@ -8,7 +8,7 @@ test('SQL instance CPU appears separately from Query Store costs',()=>{
   assert.match(page,/<InstanceCpuPanel targetId=\{target\?\.id\}\s*\/>/);
   assert.match(cpu,/SQL Server 프로세스 CPU/);
   assert.match(cpu,/호스트 전체 CPU/);
-  assert.match(cpu,/특정 DB만의 CPU가 아닌/);
+  assert.match(cpu,/선택한 DB만의 CPU가 아닌/);
 });
 test('Query tuning row displays average duration, CPU time, count and reads',()=>{
   assert.match(advisor,/<small>평균 실행<\/small>/);
