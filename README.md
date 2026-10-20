@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.7.0-alpha / Phase 7 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.8.0-alpha / Phase 8 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -199,3 +199,12 @@ docker compose up -d
 - React: **Wait Diagnostics** 현재 상태·Wait 종류·관측 이력.
 - [설계·개발 제한과 로컬 검증 절차](docs/PHASE7_WAIT_DIAGNOSTICS.md).
 - 별도 개발 브랜치에서 로컬 MSSQL 통합 검증 대기. `main`은 v0.6.0 유지.
+
+## Phase 8 — Incident Wait Correlation (개발 중)
+
+- Incident Investigation의 과거 시간 범위에 맞춰 Wait 수집 기록을 별도로 연결.
+- 유형별 반복 관측 횟수, 유형별 최대 대기, 최근 세션별 Wait 표본.
+- 기록된 Wait 수집 시점 수와 100건 수집 한계에 걸린 시점 수도 표시.
+- `GET /api/v1/targets/local-mssql/incidents/{incidentId}/investigation` 에 `waitEvidence` 추가.
+- [설계 및 검증 절차](docs/PHASE8_INCIDENT_WAIT_CORRELATION.md)
+- 개발 브랜치에 있으며 로컬 MSSQL 통합 검증 전. 기존 v0.7.0은 main에 유지.

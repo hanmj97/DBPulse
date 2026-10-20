@@ -6,6 +6,9 @@ import {
   ShieldAlert, Sparkles, Terminal, WifiOff, Network,
 } from 'lucide-react';
 import './style.css';
+import './dashboard.css';
+import { DashboardShell } from './DashboardShell.jsx';
+import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
 
@@ -222,6 +225,37 @@ function App() {
   const [incidents, setIncidents] = useState([]);
   const [incidentError, setIncidentError] = useState('');
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+  const fromHash = () => ({
+    '#overview':'overview', '#incidents':'incidents', '#investigation':'investigation',
+    '#wait-diagnostics':'waits', '#deadlocks':'deadlocks', '#blocking-chains':'blocking',
+    '#performance':'performance', '#query-performance':'queries', '#targets':'targets'
+  })[window.location.hash] || 'overview';
+  const [page, setPage] = useState(fromHash);
+  const [search, setSearch] = useState('');
+  const [incidentFilter, setIncidentFilter] = useState('ALL');
+  const [showAllIncidents, setShowAllIncidents] = useState(false);
+  const [sampleLimit, setSampleLimit] = useState(60);
+  useEffect(() => {
+    const sync = () => setPage(fromHash());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  const investigate = incidentId => {
+    setSelectedIncidentId(incidentId);
+    setPage('incidents');
+    window.location.hash = '#incidents';
+  };
+  useEffect(() => {
+    if (!selectedIncidentId || (page !== 'incidents' && page !== 'investigation')) return;
+    // Investigation opens above the incident list after React has rendered it.
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('incident-investigation')?.scrollIntoView({
+        behavior: 'smooth', block: 'start'
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedIncidentId, page]);
+
 
   useEffect(() => {
     let active = true;
@@ -312,61 +346,74 @@ function App() {
   const hasData = !!latest && target?.collectorStatus === 'ONLINE';
   const status = STATUS[target?.collectorStatus] || STATUS.INITIALIZING;
   const events = useMemo(() => history.filter((row) => row.blockedRequests > 0 || row.longRunningRequests > 0).slice(-4).reverse(), [history]);
+  const filteredIncidents = useMemo(() => incidents.filter(i =>
+    (incidentFilter === 'ALL' || i.status === incidentFilter) &&
+    (!search.trim() || String(i.id).includes(search.trim()) ||
+    i.type.toLowerCase().includes(search.trim().toLowerCase()) ||
+    (i.summary || '').toLowerCase().includes(search.trim().toLowerCase()))
+  ), [incidents, search, incidentFilter]);
+  const shownIncidents = showAllIncidents || search.trim()
+    ? filteredIncidents : filteredIncidents.slice(0, 10);
 
-  return <div className="layout">
-    <aside className="sidebar">
-      <div className="brand"><div className="brand-icon"><Activity size={22} strokeWidth={3} /></div><span>DBPulse<sup>alpha</sup></span></div>
-      <div className="nav-caption">WORKSPACE</div>
-      <div className="nav-item active"><Gauge size={19} />Overview</div>
-      <div className="nav-item disabled"><Database size={19} />Databases <span>예정</span></div>
-      <a className="nav-item" href="#incidents"><ShieldAlert size={19} />Incidents <span>beta</span></a>
-      <a className="nav-item" href="#blocking-chains"><Network size={19} />Blocking Chains <span>beta</span></a>
-      <a className="nav-item" href="#wait-diagnostics"><Clock3 size={19} />Wait Diagnostics <span>beta</span></a>
-      <a className="nav-item" href="#deadlocks"><ShieldAlert size={19} />Deadlocks <span>beta</span></a>
-      <a className="nav-item" href="#query-performance"><Sparkles size={19} />Query Performance <span>beta</span></a>
-      <div className="nav-caption second">SYSTEM</div>
-      <div className="nav-item disabled"><BellRing size={19} />Notifications <span>예정</span></div>
-      <div className="sidebar-bottom"><div className="tag"><Layers3 size={15}/> Phase 7 · Local Development</div><div>v0.7.0 alpha — Wait diagnostics</div></div>
-    </aside>
-    <main className="main">
-      <div className="topbar"><div className="breadcrumbs">Workspace <span>/</span> Overview</div><div className="liveflag"><span className="live-dot" />LIVE DATA <small>3s UI refresh</small></div></div>
-      <div className="content">
-        <div className="title-row"><div><div className="eyebrow">DATABASE OBSERVABILITY</div><h1>Overview</h1><p>연결된 SQL Server의 현재 요청과 대기 상태를 확인합니다.</p></div><div className="updated"><RefreshCw size={15}/> 마지막 화면 갱신 {updated ? timeFmt(updated.toISOString()) : '—'}</div></div>
-        {error && <div className="banner error"><AlertCircle size={18}/>{error}</div>}
-        <section className="target-bar card">
-          <div className="server-icon"><Server size={23}/></div>
-          <div className="target-info"><strong>{target?.name || 'Local SQL Server'}</strong><span>MSSQL · {target?.databaseName || 'DBPulseLab'} · 전용 수집기</span></div>
-          <div className={`status status-${status.tone}`}><span className="status-dot"/>{status.label}</div>
-        </section>
-        {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info"><Terminal size={18}/>MSSQL 수집을 시작하려면 프로젝트의 <code>.env</code>에서 연결 값을 설정하고 백엔드를 재시작하세요.</div>}
-        {target?.collectorStatus === 'OFFLINE' && <div className="banner error"><WifiOff size={18}/>연결 또는 수집에 실패했어요. MSSQL 계정, TCP 포트, DMV 조회 권한을 확인하세요. ({target.errorCode || 'UNKNOWN'})</div>}
-        <div className="metrics-grid">
-          <Metric label="Active requests" value={hasData ? latest.activeRequests : null} unit="건" Icon={Activity} note="현재 실행 중인 요청 수" />
-          <Metric label="Blocked requests" value={hasData ? latest.blockedRequests : null} unit="건" Icon={LockKeyhole} note="다른 세션에 의해 대기 중" tone={latest?.blockedRequests ? 'red' : ''} />
-          <Metric label="Long-running" value={hasData ? latest.longRunningRequests : null} unit="건" Icon={Clock3} note="실행 1,000ms 이상" tone={latest?.longRunningRequests ? 'amber' : ''} />
-          <Metric label="Max elapsed" value={hasData ? latest.maxElapsedMs : null} unit="ms" Icon={Gauge} note="현재 요청의 최장 실행 시간" />
-        </div>
-        <div className="charts-grid">
-          <article className="card graph"><div className="section-heading"><div><h2>Active request trend</h2><p>최근 최대 60개 샘플 · 실제 DMV 조회 결과</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="activeRequests" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
-          <article className="card graph"><div className="section-heading"><div><h2>Blocking trend</h2><p>다른 트랜잭션으로 인해 차단된 요청 수</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="blockedRequests" tone="orange" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
-        </div>
-        <section className="card activity-panel"><div className="section-heading"><div><h2>Recent performance signals</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
-          {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
-        </section>
-        <BlockingChainsPanel targetId={target?.id} />
-        <WaitDiagnostics targetId={target?.id} />
-        <DeadlockHistoryPanel targetId={target?.id} />
-        <section id="incidents" className="card incident-panel">
+
+
+  const DETAIL_DESCRIPTIONS = {
+    incidents:'감지된 장애를 상태별로 조회하고 해당 시점의 관측 근거를 확인합니다.',
+    investigation:'저장된 사건의 관측 근거를 검토합니다. 동시간대의 신호가 확정 원인은 아닙니다.',
+    blocking:'실시간 차단 세션과 과거 차단 관계를 확인합니다.',
+    waits:'실행 요청의 Wait Type과 리소스 종류를 분석합니다.',
+    deadlocks:'system_health에서 수집한 데드락 이벤트를 조회합니다.',
+    performance:'실제 DMV 요청 지표와 시점별 변화 추이를 확인합니다.',
+    queries:'Query Store의 쿼리·실행계획별 집계 통계를 확인합니다.'
+  };
+  const detailIntro = pageKey => <div className="rev-detail-intro">
+    <div><span className="rev-detail-overline">ANALYSIS WORKSPACE</span>
+      <p>{DETAIL_DESCRIPTIONS[pageKey]}</p>
+    </div>
+    <button type="button" className="rev-back-overview"
+      onClick={()=>{window.location.hash='#overview';setPage('overview');}}>
+      <ArrowUpRight size={15}/> 개요로 돌아가기
+    </button>
+  </div>;
+
+  return <DashboardShell page={page} target={target}
+    incidentCount={incidentError ? 0 : incidents.filter(i => i.status === 'OPEN').length}
+    incidentError={incidentError} updated={updated} sampleLimit={sampleLimit}
+    onSampleLimit={setSampleLimit} search={search} onSearch={setSearch} onNavigate={setPage}>
+    {error && <div className="banner error"><AlertCircle size={18}/>{error}</div>}
+    {page === 'overview' && <OverviewDashboard target={target} history={history}
+      incidents={incidents} incidentError={incidentError}
+      queryAnalysis={queryAnalysis} sampleLimit={sampleLimit}
+      onNavigate={setPage} onInvestigate={investigate}/>}
+    {(page === 'incidents' || page === 'investigation') &&
+      <div id={page === 'incidents' ? 'incidents' : 'investigation'} className="rev-detail-content">
+        {detailIntro(page)}
+        {selectedIncidentId && <IncidentInvestigation targetId={target?.id} incidentId={selectedIncidentId}
+          onClose={() => setSelectedIncidentId(null)} />}
+        <div className="rev-detail-help">인시던트를 선택하면 해당 사건 발생 당시 저장된
+          Blocking·Wait·Deadlock 관측 근거를 조사할 수 있습니다.</div>
+        <section id="incident-list" className="card incident-panel">
           <div className="section-heading">
-            <div><h2>Incident History</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>
+            <div><h2>인시던트 이력</h2><p>Blocking · 장시간 요청 · 수집 실패의 지속 상태를 기록합니다.</p></div>
             <span className="small-pill">5s collect</span>
           </div>
           {incidentError && <div className="banner error"><AlertCircle size={17}/>{incidentError}</div>}
-          <div className="incident-legend">
-            <span>진행 중 {incidents.filter(row => row.status === 'OPEN').length}건</span>
-            <span>조회된 이력 {incidents.length}건</span>
+          <div className="rev-incident-toolbar">
+            <div className="rev-incident-tabs" role="group" aria-label="인시던트 상태 필터">
+              {[
+                ['ALL','전체', incidents.length],
+                ['OPEN','진행 중',incidents.filter(row=>row.status==='OPEN').length],
+                ['RESOLVED','해결됨',incidents.filter(row=>row.status==='RESOLVED').length]
+              ].map(([key,label,count]) =>
+                <button key={key} type="button" aria-pressed={incidentFilter===key}
+                  className={'rev-filter-button '+(incidentFilter===key?'active':'')}
+                  onClick={()=>{setIncidentFilter(key);setShowAllIncidents(false);}}>
+                  {label}<span>{count}</span>
+                </button>)}
+            </div>
+            <span className="rev-incident-count">검색 결과 {filteredIncidents.length}건</span>
           </div>
-          {incidents.length ? incidents.map(item => (
+          {shownIncidents.length ? shownIncidents.map(item => (
             <div className="incident-entry" key={item.id}>
               <div className={`incident-indicator ${item.status === 'OPEN' ? 'open' : 'resolved'}`}>
                 {item.status === 'OPEN' ? <ShieldAlert size={18}/> : <CircleCheck size={18}/>}
@@ -384,22 +431,59 @@ function App() {
                   ? `관측된 차단 요청: ${fmt(item.observedValue)}건`
                   : `관측된 최장 실행 시간: ${fmt(item.observedValue)}ms`}</p>
                 <small>최초 감지 {timeFmt(item.startedAt)} · 최근 관측 {timeFmt(item.lastObservedAt)}
-                  {item.resolvedAt ? ` · 해결 {timeFmt(item.resolvedAt)}` : ''}</small>
+                  {item.resolvedAt ? ` · 해결 ${timeFmt(item.resolvedAt)}` : ''}</small>
                 <button type="button" className="investigation-open"
                   aria-pressed={selectedIncidentId === item.id}
-                  onClick={() => setSelectedIncidentId(item.id)}>
+                  onClick={() => {
+                    setSelectedIncidentId(item.id);
+                    window.requestAnimationFrame(() => {
+                      document.getElementById('incident-investigation')?.scrollIntoView({
+                        behavior: 'smooth', block: 'start'
+                      });
+                    });
+                  }}>
                   {selectedIncidentId === item.id ? '조사 보고서 표시 중' : '원인 분석 근거 보기 →'}
                 </button>
               </div>
             </div>
-          )) : <div className="incident-empty">기록된 장애 이벤트가 없습니다. 실제 수집 중 이상 신호가 지속되면 이곳에 표시됩니다.</div>}
+          )) : <div className="incident-empty">{search ? '검색 조건과 일치하는 사건이 없습니다.' : '기록된 장애 이벤트가 없습니다. 실제 수집 중 이상 신호가 지속되면 이곳에 표시됩니다.'}</div>}
+          {filteredIncidents.length > shownIncidents.length &&
+            <button type="button" className="rev-load-more"
+              onClick={()=>setShowAllIncidents(true)}>
+              나머지 {filteredIncidents.length - shownIncidents.length}건 더 보기
+            </button>}
           <p className="incident-note">두 번 연속 이상 신호 시 OPEN, 두 번 연속 정상 관측 시 RESOLVED. 사건의 분석 버튼에서 당시의 수집 근거와 한계를 확인할 수 있습니다. 자동복구는 아직 제공하지 않습니다.</p>
         </section>
-                <IncidentInvestigation targetId={target?.id} incidentId={selectedIncidentId}
-          onClose={() => setSelectedIncidentId(null)} />
+                
+
+      </div>}
+    {page === 'blocking' && <div className="rev-detail-content">{detailIntro('blocking')}<BlockingChainsPanel targetId={target?.id}/></div>}
+    {page === 'waits' && <div className="rev-detail-content">{detailIntro('waits')}<WaitDiagnostics targetId={target?.id}/></div>}
+    {page === 'deadlocks' && <div className="rev-detail-content">{detailIntro('deadlocks')}<DeadlockHistoryPanel targetId={target?.id}/></div>}
+    {page === 'performance' && <div id="performance" className="rev-detail-content">
+      {detailIntro('performance')}
+      <div className="rev-detail-help">DMV에서 수집한 최신 요청 상태와 관측 추이입니다.
+        전체 처리량이나 SQL Server의 CPU 점유율을 나타내지 않습니다.</div>
+        <div className="metrics-grid">
+          <Metric label="활성 요청" value={hasData ? latest.activeRequests : null} unit="건" Icon={Activity} note="현재 실행 중인 요청 수" />
+          <Metric label="차단된 요청" value={hasData ? latest.blockedRequests : null} unit="건" Icon={LockKeyhole} note="다른 세션에 의해 대기 중" tone={latest?.blockedRequests ? 'red' : ''} />
+          <Metric label="장시간 실행 요청" value={hasData ? latest.longRunningRequests : null} unit="건" Icon={Clock3} note="실행 1,000ms 이상" tone={latest?.longRunningRequests ? 'amber' : ''} />
+          <Metric label="최장 실행 시간" value={hasData ? latest.maxElapsedMs : null} unit="ms" Icon={Gauge} note="현재 요청의 최장 실행 시간" />
+        </div>
+        <div className="charts-grid">
+          <article className="card graph"><div className="section-heading"><div><h2>활성 요청 추이</h2><p>최근 최대 60개 샘플 · 실제 DMV 조회 결과</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="activeRequests" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
+          <article className="card graph"><div className="section-heading"><div><h2>Blocking 추이</h2><p>다른 트랜잭션으로 인해 차단된 요청 수</p></div><span className="small-pill">5s collect</span></div><MiniChart items={history} field="blockedRequests" tone="orange" emptyText="아직 수집된 데이터가 없습니다." /><div className="chart-foot"><span>{history.length ? timeFmt(history[0].collectedAt) : '—'}</span><span>{history.length ? timeFmt(latest.collectedAt) : '—'}</span></div></article>
+        </div>
+        <section className="card activity-panel"><div className="section-heading"><div><h2>최근 성능 이상 신호</h2><p>수집 샘플 중 Blocking 또는 장시간 요청이 확인된 시점</p></div><span className="small-pill">READ ONLY</span></div>
+          {events.length ? events.map((item, i) => <div className="event" key={`${item.collectedAt}-${i}`}><div className="event-icon"><AlertCircle size={18}/></div><div><strong>{item.blockedRequests ? `Blocking ${item.blockedRequests}건` : `장시간 요청 ${item.longRunningRequests}건`}</strong><p>최장 실행 {fmt(item.maxElapsedMs)}ms · {timeFmt(item.collectedAt)}</p></div><ArrowUpRight size={16} className="muted" /></div>) : <div className="empty-events"><CircleCheck size={21}/><div>현재 표시할 성능 이상 신호가 없습니다.<small>수집 데이터가 없거나, 아직 탐지된 항목이 없습니다.</small></div></div>}
+        </section>
+
+    </div>}
+    {page === 'queries' && <div className="rev-detail-content">
+      {detailIntro('queries')}
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
-            <div><h2>Query Performance Analyzer</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
+            <div><h2>쿼리 성능 분석</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
             <span className="small-pill">30s collect</span>
           </div>
           <div className="query-state">
@@ -425,10 +509,27 @@ function App() {
           </tbody></table></div>
           <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 30초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문·파라미터는 수집하지 않습니다.</p>
         </section>
-        <div className="disclaimer"><Radio size={14}/> 수집 값은 SQL Server의 해당 DB에서 관찰된 실행 중 요청의 시점별 스냅샷입니다. 전체 처리량이나 완료된 쿼리 건수를 의미하지 않습니다.</div>
-      </div>
-    </main>
-  </div>;
+
+    </div>}
+    {page === 'targets' && 
+  <section className="rev-target-detail" id="targets">
+    <div className="target-bar card">
+      <div className="server-icon"><Server size={23}/></div>
+      <div className="target-info"><strong>{target?.name || '연결 대상 확인 중'}</strong>
+        <span>MSSQL · {target?.databaseName || 'DBPulseLab'} · 로컬 단일 수집기</span></div>
+      <div className={`status status-${status.tone}`}><span className="status-dot"/>{status.label}</div>
+    </div>
+    <article className="rev-panel"><div className="rev-panel-heading"><div><h2>연결 대상 정보</h2>
+      <p>현재 릴리스는 단일 MSSQL 모니터링 대상만 지원합니다.</p></div></div>
+      <p>새로운 서버 등록 및 사용자별 DB 연결 기능은 이후에 개발됩니다.
+      아직 제공되지 않는 기능을 작동하는 것처럼 표시하지 않습니다.</p>
+    </article>
+    {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info">
+      <Terminal size={18}/>.env에 MSSQL 연결 정보를 설정하고 백엔드를 재시작해 주세요.</div>}
+    {target?.collectorStatus === 'OFFLINE' && <div className="banner error">
+      <WifiOff size={18}/>연결 및 수집 오류: {target?.errorCode || 'UNKNOWN'}</div>}
+  </section>}
+  </DashboardShell>;
 }
 
 createRoot(document.getElementById('root')).render(<App/>);

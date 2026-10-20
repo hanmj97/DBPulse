@@ -138,3 +138,11 @@ a.nav-item{text-decoration:none}.query-panel{padding:24px;margin-top:20px;scroll
 .wait-history-item:last-child{border-bottom:0}
 .wait-footnote{font-size:11px;color:#8599b5;line-height:1.8;margin-top:17px}
 @media(max-width:700px){.wait-panel{padding:16px}.wait-history-item{grid-template-columns:1fr 1fr}}
+
+/* Phase 8 incident wait evidence */
+.investigation-wait-categories{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:12px}
+.investigation-wait-category{display:flex;flex-direction:column;gap:6px;min-width:145px;padding:11px 13px;background:#1c344b;border:1px solid #375574;border-radius:8px;font-size:11px;color:#adc4d9}
+.investigation-wait-category strong{font-size:12px;color:#c9e5ff}
+.investigation-wait-category small{font-size:10px;color:#85abc1}
+.investigation-wait-observations{margin-top:10px}
+.investigation-wait-disclaimer{color:#8fa6bd;font-size:11px;line-height:1.7;margin:10px 0 4px}
