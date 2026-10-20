@@ -177,6 +177,24 @@ XE session and remove only its dedicated XEL files; perform 10-minute
 A=fixed and B=continuous THROTTLED measurements with matching workloads.
 Keep PR #12 Draft until measured results and regression checks pass.
 
+## Required A/B synthetic table (before either measurement window)
+
+The local `DBPulseLab.dbo.Accounts` table is **not created by DBPulse startup**.
+The original `sql/03_prepare_load_test_data.sql` also modifies Query Store
+configuration, so **do not rerun SQL 03 during v0.13 benchmarking**.
+Use the isolated `sql/12_prepare_ab_accounts_lab_only.sql` instead,
+through a Windows-authenticated SSMS session, **before opening the A/B
+START windows**. It creates the missing table and seeds 20,000 synthetic
+rows only when empty, verifies IDs 1..20000, and leaves Query Store
+configuration and other DBPulse tables untouched.
+
+Check that the current SSMS connection is on local DBPulseLab.
+If either SQL 09 or SQL 11 START has already been executed without the
+fixture, invalidate/cancel that interval and restart cleanly after
+creating the table. Do not measure setup/index build inside A or B.
+The PowerShell workload now checks the fixture before its timed loop
+and fails with an actionable message if the table is missing.
+
 ## Two comparable A/B windows (local lab only)
 
 1. Do not run high-volume SQL load, edit indexes or change the data
