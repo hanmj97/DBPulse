@@ -250,6 +250,77 @@ remains so throughout the 10-minute client load. Do not modify fixture,
 Query Store settings, or SQL 11 instrumentation between A and B.
 
 
+## 2026-10-20 — B adaptive 120s A/B comparison (measured, release held)
+
+The user completed B with the same v0.13 app and same 1,200 timed
+read-only synthetic queries over 600 seconds:
+\`policy=ADAPTIVE\` and \`mode=THROTTLED\` at start and end,
+\`successfulCollectorDelta=5\`, \`failedCollectorDelta=0\`,
+\`skippedCycleDelta=5\`, \`JdbcWallMsDelta=1289\`,
+\`modeViolationSamples=0\`, \`apiStatusErrors=0\`,
+\`comparisonEligible=true\`. Client mean latency **11.38 ms** and
+p95 **1.69 ms** (A: 5.975 ms and 1.624 ms).
+
+**XE B (710 seconds; 0 dropped events; vs A: 628 seconds):**
+
+| XE class | B completed requests | B total CPU ms | B logical pages | B physical pages | B mean duration ms |
+|---|---:|---:|---:|---:|---:|
+| LAB_WORKLOAD (1,200 RPC + 2 setup batches) | 1,202 | 17,421 | 18,545 | 860 | 11.07 |
+| OTHER_INTERNAL | 460 | 3,547 | 68,151 | 4,353 | 82.22 |
+| QUERY_STORE_COLLECTOR | 6 | 299 | 64,697 | 2,414 | 120.95 |
+| QUERY_STORE_STATE | 2 | 15 | 5,150 | 308 | 31.07 |
+| **DBPulse internal total (not workload)** | **468** | **3,861** | **137,998** | **7,075** | — |
+
+**Per-minute comparison** (computed as value × 60 / XE elapsed seconds):
+
+| Metric / minute | A 628s | B 710s | Change B vs A |
+|---|---:|---:|---:|
+| Query Store collector completed requests | 1.051 | 0.507 | **−51.8%** |
+| Query Store collector CPU ms | 44.62 | 25.27 | **−43.4%** |
+| Query Store collector logical-read pages | 11,433 | 5,467 | **−52.2%** |
+| ALL DBPulse internal CPU ms | 314.71 | 326.28 | **+3.7%** |
+| ALL DBPulse internal logical-read pages | 18,252 | 11,662 | **−36.1%** |
+| ALL DBPulse internal calls | 39.27 | 39.55 | **+0.7%** |
+| OTHER_INTERNAL CPU ms | 270.10 | 299.75 | **+11.0%** |
+
+**User workload risk:**
+A client mean 5.975 ms → B 11.38 ms (**+90.5%**);
+client p95 1.624 ms → B 1.69 ms (**+4.1%**).
+XE workload mean 5.67 ms → 11.07 ms (**+95.2%**) and
+XE workload p95 1.31 ms → 1.35 ms (**+3.1%**).
+The entire LAB_WORKLOAD XE CPU sum rose from **2,123 ms** to
+**17,421 ms** (**+720.6%**). No causality is established; a small
+number of outliers and two preflight batch events mixed into the
+1,202-request total must be investigated. An increased mean with
+a near-stable p95 is plausible under skewed tails.
+**Do not claim user-query performance protection or improvement.**
+
+The B SQL 09 Query Store counter view still did not display a
+\`QUERY_STORE_COLLECTOR\` category, despite 6 actual XE completions,
+and is **inconclusive for collector attribution**. B secondary
+OTHER_INTERNAL: 311 calls / 6,434.1 ms CPU / 8,688 logical pages;
+QUERY_STORE_STATE: 8 calls / 48.17 ms CPU / 15,105 pages.
+Do not merge or add these values to XE totals.
+
+**Confounders:** XE A covered 628 s and B 710 s, while each client load
+ran ~600 s. Normalize *background-collector* comparisons by their own
+XE windows; do not treat XE per-minute workload counts as the
+actual scripted load rate. These are two single nonrandomized sequential
+lab runs, not a controlled proof of production observer impact.
+Repeat with closely matched capture windows and a crossover order
+(A-B-B-A or B-A-A-B) if attribution is needed.
+
+**Next blocking investigation:** Keep B
+\`D:\\Projects\\DBPulseLabXE\\ObserverCost*.xel\` files, and run
+\`sql/13_ab_xe_workload_spike_diagnostics_lab_only.sql\` in Windows-auth
+local SSMS master to split RPC vs 2 batch costs and show only numeric
+p50/p95/p99/max latency and largest 15 event durations; it emits
+**no statement text or parameters**. If B XEL files are already deleted,
+the diagnostic cannot recover them; remeasure rather than invent values.
+Retain Draft PR #12 until workload regression, Query Store/XE attribution,
+5-second incident monitoring and both dark themes are reviewed.
+
+
 ## Two comparable A/B windows (local lab only)
 
 1. Do not run high-volume SQL load, edit indexes or change the data
