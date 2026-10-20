@@ -5,10 +5,12 @@
  DBPulseLabWorkload client. Requires lab sysadmin/ALTER ANY EVENT SESSION.
  Captures rpc_completed (prepared/JDBC calls) and sql_batch_completed (batches).
  This avoids summing nested statement-completed events with their parent RPCs.
- XE event cpu_time metadata differs by event type/version. RPC CPU for
- SQL Server 2012+ is in microseconds. Batch CPU is reported separately
- and MUST NOT be combined with the 1,200 timed workload RPC calls.
- Verify batch cpu_time units on the actual server before using its total.
+ On this local SQL Server, sys.dm_xe_object_columns confirmed BOTH
+ rpc_completed and sql_batch_completed cpu_time and duration are in
+ MICROSECONDS. Do not multiply batch CPU by 1000. LAB_SETUP_BATCH is
+ still separated from 1,200 measured client RPC calls.
+ For other SQL Server versions, confirm XE field descriptions before
+ interpreting CPU measurements.
  Records statement text inside a LOCAL XEL file (sensitive!); report
  returns aggregates only. Remove XEL after the experiment.
  Never execute on a customer/production SQL Server.
@@ -124,13 +126,9 @@ BEGIN
                THEN x.value('(/event/data[@name="statement"]/value)[1]','nvarchar(max)')
                ELSE x.value('(/event/data[@name="batch_text"]/value)[1]','nvarchar(max)')
           END AS statement_text,
-          -- RPC CPU is measured in microseconds on SQL Server 2012+.
-          -- Batch CPU is NOT used to compare timed workload requests;
-          -- verify batch metadata on the exact SQL Server before interpreting.
-          CASE WHEN event_name=N'sql_batch_completed'
-               THEN 1000 * x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint')
-               ELSE x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint')
-          END AS cpu_us,
+          -- Local SQL Server XE metadata: BOTH event CPU fields are us.
+          -- Never multiply sql_batch_completed CPU by 1000.
+          x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint') AS cpu_us,
           x.value('(/event/data[@name="duration"]/value)[1]','bigint') AS duration_us,
           x.value('(/event/data[@name="logical_reads"]/value)[1]','bigint') AS logical_reads,
           x.value('(/event/data[@name="physical_reads"]/value)[1]','bigint') AS physical_reads
@@ -192,7 +190,7 @@ BEGIN
            @Seconds AS elapsed_seconds, @DroppedEvents AS dropped_xe_events,
            CASE WHEN @DroppedEvents=0 THEN 'NO_REPORTED_XE_DROPS'
                 ELSE 'INVALID_XE_DROPPED_EVENTS' END AS capture_integrity,
-           'LAB_WORKLOAD counts timed RPC only, LAB_SETUP_BATCH is excluded from workload CPU/latency comparisons. Verify batch CPU XE units against server metadata. Do not add to Query Store totals.' AS limitations;
+           'On local DBPulseLab both RPC and batch XE cpu_time use microseconds. LAB_WORKLOAD counts timed RPC only; LAB_SETUP_BATCH excluded from latency/CPU comparison. Do not add to Query Store totals.' AS limitations;
     -- KEEP session stopped until review; run CLEANUP later.
 END
 ELSE IF @Phase='CLEANUP'
