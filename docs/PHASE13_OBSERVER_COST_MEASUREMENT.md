@@ -1,3 +1,76 @@
+## 2026-10-20 — A XE recovered successfully from SQL 14
+
+The **repeated A** raw XEL file survived loss of the SQL 11 SSMS
+result grid. `sql/14_recover_a_xe_after_lost_ssms_result_lab_only.sql`
+read **1,612 event completions**, including **exactly 1,200 timed
+`DBPulseLabWorkload` RPCs** and two setup batches, in the bracketed
+recovery window. Observed first and last event UTC:
+**06:49:47.280–06:59:52.227**, which do **not** identify the
+original XE session START/END boundaries. A's independent client
+workload ran **06:49:52.611–06:59:52.623** (~600s), with policy
+FIXED_BASELINE_LAB_ONLY and no mode violations.
+
+**A workload RPC-only (1,200 calls):**
+- CPU **4,329 ms**; logical reads **19,813 pages**;
+  physical reads **796 pages**.
+- Mean XE request duration **9.545ms**, p50 **0.178ms**,
+  p95 **1.373ms**, p99 **220.83ms**, max **2,282.341ms**.
+- 17 requests >100ms, 3 requests >1s.
+- Two separate LAB_SETUP_BATCH completions consumed **0ms CPU
+  (at XE precision)**, 106 logical pages, 85 physical pages.
+- The independent PowerShell client mean **9.838ms**, p95
+  **1.665ms** and `comparisonEligible=true`.
+
+**Recovered A DBPulse internal raw totals, not rates:**
+
+| Category | Completed requests | CPU ms | Logical read pages | Physical read pages |
+|---|---:|---:|---:|---:|
+| OTHER_INTERNAL | 398 | 3,415 | 53,628 | 3,913 |
+| QUERY_STORE_COLLECTOR | 10 | 391 | 101,595 | 3,605 |
+| QUERY_STORE_STATE | 2 | 0 (rounded) | 3,099 | 246 |
+| **Total** | **410** | **3,806** | **158,322** | **7,764** |
+
+A 5-second monitor evidence: DBPulseCollector 116 RPCs,
+BlockingChain 116, Waits 117, Deadlocks 39, CpuSample 10,
+and DBPulseQueryStore 12 (collector 10 + state 2).
+This confirms those calls were observed, NOT correctness of
+every corresponding dashboard feature.
+
+**B vs repeated A, matched 1,200 timed RPCs only:**
+
+| Metric | Repeated A (FIXED 60s) | B (THROTTLED 120s) | Observed difference |
+|---|---:|---:|---:|
+| Timed RPC CPU ms | 4,329 | 1,421 | −67.2% |
+| Timed RPC logical pages | 19,813 | 18,439 | −6.9% |
+| Client mean ms | 9.838 | 11.380 | +15.7% |
+| Client p95 ms | 1.665 | 1.690 | +1.5% |
+| XE timed RPC mean ms | 9.545 | 11.082 | +16.1% |
+| XE timed RPC p95 ms | 1.373 | 1.339 | −2.5% |
+| Requests >100ms | 17 | 5 | −12 |
+| Requests >1s | 3 | 4 | +1 |
+
+**Interpretation and release decision:**
+The workload RPC CPU comparison is now correctly separated from
+setup batches; B had 67.2% less *observed* timed-RPC CPU than
+the repeated A trial. This does **NOT** prove self-throttling
+caused this difference: outlier latency, host variability,
+sequential non-randomized measurements, and CPU scheduling
+are uncontrolled. B mean client latency was 15.7% higher than
+this A trial and p95 was near-flat; outlier patterns differ.
+The repeated A XE duration is **unknown** because the original
+SQL 11 END output was lost, so do not normalize or directly
+compare total internal background-query rates with the B
+710-second window. Earlier A 628-second XE is a separate A run,
+not interchangeable with repeated A's XEL.
+
+**Next:** Archive the newly recovered A XEL privately,
+keeping earlier B XEL in its existing private folder;
+analyze long request stalls with timestamps and event
+co-occurrence, then verify existing monitoring functions and
+navy/midnight UI. If definitive causal claims are desired,
+use paired, time-aligned, repeated crossover runs.
+Keep PR #12 in Draft until outstanding verification gates pass.
+
 ## 2026-10-20 — repeated A results received, XE output lost
 
 New A client workload ran 2026-10-20 **06:49:52.611 UTC to
