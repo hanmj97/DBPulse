@@ -100,4 +100,17 @@ class PlanMetricCorrelationServiceTest {
             .containsExactly("NO_THRESHOLD_CORRELATION");
         assertThat(result.findings().getFirst().nextCheck()).contains("보증하지");
     }
+    @Test
+    void internalCollectorGetsOnlyOverheadAdviceRegardlessOfPlanOperators() {
+        var sample = new QueryPerformanceSnapshot(NOW, 95, 29, 108,
+            45.76, 1.96, 1071.43, NOW, "HIGH_READS", "DBPULSE_PATTERN");
+        var result = service.review(sample,
+            plan(95, 29, "AVAILABLE", "CLUSTERED_INDEX_SCAN", "HASH_MATCH"));
+        assertThat(result.status()).isEqualTo("COLLECTOR_OVERHEAD_ONLY");
+        assertThat(result.findings())
+            .extracting(PlanMetricCorrelationService.Finding::code)
+            .containsExactly("MONITORING_OVERHEAD");
+        assertThat(result.findings().getFirst().nextCheck()).contains("수집 주기");
+    }
+
 }

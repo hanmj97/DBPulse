@@ -920,3 +920,9 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   --t-muted:#b3c9d8;--t-secondary:#94b0c2;--t-accent:#6fd2c5;
   --t-accent-soft:#214640;--t-hover:#294a56;
 }
+
+/* Explicitly distinguish DBPulse collection load from customer SQL tuning urgency. */
+.rev-tuning-rank.internal{
+  background:var(--t-accent-soft);color:var(--t-accent);
+  border:1px solid var(--t-line)
+}

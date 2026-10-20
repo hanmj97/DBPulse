@@ -131,14 +131,14 @@ public class MssqlQueryStoreCollector {
 
     private record StateSnapshot(String state, Instant fetchedAt) {}
 
-    private static boolean shouldRefreshState(StateSnapshot snapshot, Instant now) {
-        return snapshot == null || !now.isBefore(snapshot.fetchedAt().plus(STATE_CACHE_TTL));
+    static boolean shouldRefreshState(Instant lastChecked, Instant now) {
+        return lastChecked == null || !now.isBefore(lastChecked.plus(STATE_CACHE_TTL));
     }
 
     private String readStateIfNeeded(Connection conn) throws SQLException {
         Instant now = Instant.now();
         StateSnapshot cached = cachedState;
-        if (!shouldRefreshState(cached, now)) return cached.state();
+        if (!shouldRefreshState(cached == null ? null : cached.fetchedAt(), now)) return cached.state();
         String state;
         try (PreparedStatement stmt = conn.prepareStatement(STORE_STATE_SQL)) {
             stmt.setQueryTimeout(5);

@@ -38,6 +38,17 @@ public class PlanMetricCorrelationService {
         if (sample.queryId() != plan.queryId() || sample.planId() != plan.planId()) {
             throw new IllegalArgumentException("QUERY_PLAN_MISMATCH");
         }
+        if ("DBPULSE_PATTERN".equals(sample.sourceCategory())) {
+            return new Correlation("COLLECTOR_OVERHEAD_ONLY", sample.collectedAt(),
+                List.of(new Finding("MONITORING_OVERHEAD", "INFO",
+                    "DBPulse 자체 수집 SQL 관측",
+                    "수집기 SQL의 평균 논리 읽기 " + fmt(sample.avgLogicalReadsPages()) +
+                      " pages, 평균 CPU " + fmt(sample.avgCpuMs()) + " ms.",
+                    "DBPulse의 SQL 수집 주기·호출 횟수·실제 CPU와 논리 읽기 부담을 측정하세요. " +
+                      "고객 테이블의 인덱스 생성이나 실행계획 변경을 권장하지 않습니다.")),
+                LIMITATION + " 자체 수집 SQL은 업무 쿼리 튜닝 후보가 아니며 수집 부하 점검 대상으로 다룹니다.");
+        }
+
         if (!"AVAILABLE".equals(plan.status()) &&
             !"OPERATOR_LIMIT_REACHED".equals(plan.status())) {
             return new Correlation("PLAN_UNAVAILABLE", sample.collectedAt(),

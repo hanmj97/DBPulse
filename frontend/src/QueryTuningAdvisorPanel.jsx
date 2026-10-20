@@ -5,11 +5,12 @@ import QueryPlanComparison from './QueryPlanComparison.jsx';
 import { filterQueryCandidates, filterQuerySources } from './queryCandidateFilters.js';
 
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
-const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰'};
+const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰', INTERNAL:'수집 부하'};
 const SIGNALS = {
   SLOW_HIGH_READS:'실행 지연·논리 읽기 높음', SLOW_HIGH_CPU:'실행 지연·CPU 높음',
   SLOW_AVERAGE:'평균 실행 시간 높음', HIGH_READS:'논리 읽기 높음',
-  HIGH_CPU:'CPU 높음', OBSERVE:'현재 임계값 미만'
+  HIGH_CPU:'CPU 높음', OBSERVE:'현재 임계값 미만',
+  COLLECTOR_OVERHEAD:'DBPulse 내부 수집 SQL · 관측 전용'
 };
 
 export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'exclude-dbpulse', onShowSql }) {
@@ -50,7 +51,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
   return <section id="sql-tuning-advisor" className="card rev-tuning-panel">
     <div className="section-heading">
       <div><span className="rev-tuning-eyebrow"><Sparkles size={14}/>QUERY STORE INSIGHTS</span>
-        <h2>SQL Tuning Advisor <small>v0.10 alpha</small></h2>
+        <h2>SQL Tuning Advisor <small>v0.12 alpha</small></h2>
         <p>실제 집계 수치로 검토 우선순위를 정하고 점검할 항목을 제안합니다.</p>
       </div>
       <span className="small-pill">읽기 전용</span>
@@ -99,7 +100,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
         </div>
       </div>
       <div className="rev-tuning-filters" role="group" aria-label="튜닝 후보 우선순위 필터">
-        {[['ALL','전체'],['HIGH','우선 점검'],['MEDIUM','점검 권장'],['OBSERVE','관찰']].map(([code,label])=>
+        {[['ALL','전체'],['HIGH','우선 점검'],['MEDIUM','점검 권장'],['OBSERVE','관찰'],...(sourceFilter!=='exclude-dbpulse'?[['INTERNAL','수집 부하']]:[])].map(([code,label])=>
           <button type="button" className={filter===code?'active':''} aria-pressed={filter===code}
             key={code} onClick={()=>setFilter(code)}>{label}</button>)}
       </div>
@@ -152,7 +153,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
       })}</div>
     </>}
     <p className="rev-tuning-footer"><ShieldCheck size={17}/>
-      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 30초 간 증가량이 아닙니다.
+      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 수집 주기(기본 60초) 중 증가량이 아닙니다.
       SQL 원문은 자동 저장하지 않으며, 보안 허용 시 버튼으로만 조회합니다. 인덱스를 자동 추천하거나 생성하지 않습니다.</p>
   </section>;
 }
