@@ -262,3 +262,12 @@ docker compose up -d
 - 클릭할 때만 DB 조회, SQL 원문 PostgreSQL/로그 미저장, API/브라우저 캐시 방지, 최대 65,536자 및 초과 시 잘림 표시
 - Query Store 텍스트는 실제 값이 치환된 원본 배치와 다를 수 있음. 외부 공개 서비스에서 인증 없이 활성화 금지
 - [기능·제한·검증 가이드](docs/PHASE12_QUERY_TEXT_DRAWER.md)
+
+## Phase 13 — Monitoring Overhead Guard (개발 중)
+
+- DBPulse 자체 Query Store 수집 비용을 JDBC 수집시간과 Query Store 내부 SQL 실행당 평균 CPU·논리 읽기로 추정하여 표시.
+- 2회 연속 부하 징후(또는 반복 실패) 시 **Query Store 통계 폴링만** 기본 60초 → 120초로 완화, 정상 3회 뒤 복귀.
+- Incident/Blocking/Deadlock/Wait 등 기존 기본 DMV 모니터링(5초)은 유지.
+- `GET /api/v1/targets/local-mssql/query-performance/overhead`는 Java 프로세스 메모리 상태만 반환하며 MSSQL 추가 조회 없음.
+- Query Store 과거 통계의 집계값이므로 **실제 고객 DB 전체 부하나 성능 영향을 입증하지 못함**. 로컬 환경 외 사용 금지.
+- [설계, API, 로컬 검증 및 향후 제약](docs/PHASE13_MONITORING_OVERHEAD_GUARD.md)
