@@ -26,26 +26,50 @@ public class MssqlQueryStoreCollector {
         FROM sys.database_query_store_options
         """;
 
+    // Keep newest 20 and highest weighted duration 20 (deduped, max 40).
     // Query Store stats are window/cumulative counters and may be flushed asynchronously.
     // Do not present execution_count as requests performed in a 30-second polling interval.
     private static final String QUERY_STATS_SQL = """
-        SELECT TOP (20)
-          q.query_id,
-          p.plan_id,
-          SUM(rs.count_executions) AS execution_count,
-          SUM(rs.avg_duration * rs.count_executions) / NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_duration_ms,
-          SUM(rs.avg_cpu_time * rs.count_executions) / NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_cpu_ms,
-          SUM(rs.avg_logical_io_reads * rs.count_executions) / NULLIF(SUM(rs.count_executions), 0) AS avg_logical_reads_pages,
-          DATEDIFF_BIG(SECOND, '19700101',
-            CAST(SWITCHOFFSET(MAX(rs.last_execution_time), '+00:00') AS datetime2)) AS last_executed_epoch
-        FROM sys.query_store_query q
-        JOIN sys.query_store_plan p ON p.query_id = q.query_id
-        JOIN sys.query_store_runtime_stats rs ON rs.plan_id = p.plan_id
-        WHERE rs.last_execution_time >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
-          AND rs.execution_type = 0
-        GROUP BY q.query_id, p.plan_id
-        HAVING SUM(rs.count_executions) > 0
-        ORDER BY SUM(rs.avg_duration * rs.count_executions) DESC
+        WITH aggregates AS (
+          SELECT
+            q.query_id,
+            p.plan_id,
+            SUM(rs.count_executions) AS execution_count,
+            SUM(rs.avg_duration * rs.count_executions) /
+              NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_duration_ms,
+            SUM(rs.avg_cpu_time * rs.count_executions) /
+              NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_cpu_ms,
+            SUM(rs.avg_logical_io_reads * rs.count_executions) /
+              NULLIF(SUM(rs.count_executions), 0) AS avg_logical_reads_pages,
+            MAX(rs.last_execution_time) AS last_executed_at,
+            SUM(rs.avg_duration * rs.count_executions) AS weighted_duration,
+            DATEDIFF_BIG(SECOND, '19700101',
+              CAST(SWITCHOFFSET(MAX(rs.last_execution_time), '+00:00') AS datetime2))
+              AS last_executed_epoch
+          FROM sys.query_store_query q
+          JOIN sys.query_store_plan p ON p.query_id = q.query_id
+          JOIN sys.query_store_runtime_stats rs ON rs.plan_id = p.plan_id
+          WHERE rs.last_execution_time >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
+            AND rs.execution_type = 0
+          GROUP BY q.query_id, p.plan_id
+          HAVING SUM(rs.count_executions) > 0
+        ),
+        ranked AS (
+          SELECT *,
+            ROW_NUMBER() OVER (
+              ORDER BY last_executed_at DESC, query_id DESC, plan_id DESC
+            ) AS recent_rank,
+            ROW_NUMBER() OVER (
+              ORDER BY weighted_duration DESC, query_id DESC, plan_id DESC
+            ) AS workload_rank
+          FROM aggregates
+        )
+        SELECT TOP (40)
+          query_id, plan_id, execution_count, avg_duration_ms, avg_cpu_ms,
+          avg_logical_reads_pages, last_executed_epoch
+        FROM ranked
+        WHERE recent_rank <= 20 OR workload_rank <= 20
+        ORDER BY last_executed_at DESC, query_id DESC, plan_id DESC
         """;
 
     public MssqlQueryStoreCollector(MssqlTargetProperties props) {

@@ -15,13 +15,28 @@ import org.springframework.stereotype.Service;
 @Service
 public class QueryTuningAdvisor {
     public List<Candidate> advise(List<QueryPerformanceSnapshot> rows, int limit) {
-        return rows.stream().map(this::classify)
-            .sorted(Comparator
+        return advise(rows, limit, "priority");
+    }
+
+    /** UI defaults to newest execution; existing two-arg callers keep priority behavior. */
+    public List<Candidate> advise(List<QueryPerformanceSnapshot> rows, int limit, String sort) {
+        Comparator<Candidate> order = switch (sort) {
+            case "recent" -> Comparator
+                .comparing(Candidate::lastExecutedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .reversed()
+                .thenComparing(Comparator.comparingDouble(
+                    (Candidate c) -> c.metrics().avgDurationMs()).reversed());
+            case "duration" -> Comparator.comparingDouble(
+                (Candidate c) -> c.metrics().avgDurationMs()).reversed();
+            case "priority" -> Comparator
                 .comparingInt((Candidate c) -> priorityOrder(c.priority()))
-                .thenComparing(Comparator.comparingDouble((Candidate c) -> c.metrics().avgDurationMs()).reversed())
-                .thenComparingLong(Candidate::queryId)
-                .thenComparingLong(Candidate::planId))
-            .limit(limit).toList();
+                .thenComparing(Comparator.comparingDouble(
+                    (Candidate c) -> c.metrics().avgDurationMs()).reversed());
+            default -> throw new IllegalArgumentException("INVALID_SORT");
+        };
+        return rows.stream().map(this::classify).sorted(order
+            .thenComparingLong(Candidate::queryId)
+            .thenComparingLong(Candidate::planId)).limit(limit).toList();
     }
 
     private static int priorityOrder(String priority) {

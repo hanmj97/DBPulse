@@ -56,4 +56,27 @@ class QueryTuningAdvisorTest {
             .containsExactly("BASELINE_ONLY");
         assertThat(advice.actions().getFirst().description()).contains("보증하지");
     }
+    @Test
+    void recentSortingPlacesMostRecentlyExecutedQueriesFirstEvenIfPriorityIsLower() {
+        var oldSlow = snapshot(10, 750, 320, 2600);
+        var justRan = new QueryPerformanceSnapshot(
+            NOW, 20, 22, 1, 4, 2, 3,
+            NOW.plusSeconds(120), "OBSERVE");
+        var rows = List.of(oldSlow, justRan);
+        assertThat(new QueryTuningAdvisor().advise(rows, 2, "recent"))
+            .extracting(QueryTuningAdvisor.Candidate::queryId)
+            .containsExactly(20L, 10L);
+        assertThat(new QueryTuningAdvisor().advise(rows, 2, "priority"))
+            .extracting(QueryTuningAdvisor.Candidate::queryId)
+            .containsExactly(10L, 20L);
+    }
+
+    @Test
+    void durationSortingWorksIndependentlyOfLastExecutionTime() {
+        var rows = List.of(snapshot(1, 50, 10, 5),snapshot(2, 800, 600, 2000));
+        assertThat(new QueryTuningAdvisor().advise(rows, 2, "duration"))
+            .extracting(QueryTuningAdvisor.Candidate::queryId)
+            .containsExactly(2L, 1L);
+    }
+
 }
