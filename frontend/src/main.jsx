@@ -504,7 +504,7 @@ function App() {
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
             <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
-            <span className="small-pill">30s collect</span>
+            <span className="small-pill">60s collect</span>
           </div>
           <div className="query-state">
             분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
@@ -547,7 +547,7 @@ function App() {
             </tr>;
           }) : <tr><td className="query-empty" colSpan="7">선택한 패턴 분류에 해당하는 쿼리가 없습니다. 전체 수집 쿼리 보기 또는 Query Store 상태를 확인해 주세요.</td></tr>}
           </tbody></table></div>
-          <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 30초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문은 자동 수집·저장하지 않으며, 명시적으로 활성화한 경우에만 버튼 클릭으로 조회합니다.</p>
+          <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 60초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문은 자동 수집·저장하지 않으며, 명시적으로 활성화한 경우에만 버튼 클릭으로 조회합니다.</p>
         </section>
         <QuerySqlDrawer targetId={target?.id} selection={sqlSelection}
           onClose={()=>setSqlSelection(null)}/>

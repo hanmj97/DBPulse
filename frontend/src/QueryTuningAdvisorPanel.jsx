@@ -107,7 +107,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
         {rows.length===0
           ? '현재 Query Store에서 수집된 후보가 없습니다. 수집기와 Query Store 상태를 확인해 주세요.'
           : hasIdSearch
-            ? '현재 수집된 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(약 30초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
+            ? '현재 수집된 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(기본 약 60초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
             : '해당 우선순위의 후보가 없습니다.'}
       </p>}
       <div className="rev-tuning-candidates">{shown.map(row=>{

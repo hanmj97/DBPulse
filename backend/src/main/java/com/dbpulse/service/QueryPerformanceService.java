@@ -28,7 +28,7 @@ public class QueryPerformanceService {
         this.repository = repository;
     }
 
-    @Scheduled(fixedDelayString = "${dbpulse.query-analytics.interval-ms:30000}", initialDelay = 10000)
+    @Scheduled(fixedDelayString = "${dbpulse.query-analytics.interval-ms:60000}", initialDelay = 10000)
     public void collect() {
         if (!target.isEnabled()) {
             state.set(new AnalysisState("NOT_CONFIGURED", null, 0, "MSSQL_NOT_CONFIGURED"));

@@ -27,17 +27,38 @@ public class MssqlQueryStoreCollector {
         FROM sys.database_query_store_options
         """;
 
-    // Classified exclusively inside SQL Server: query_sql_text NEVER crosses JDBC.
-    // Heuristics identify known DBPulse collector shapes, not the authenticated client.
-    // Keep <=40 non-DBPulse-pattern candidates + <=10 classified monitor candidates.
-    // Query Store runtime stats are interval aggregates and can be delayed.
+    // Filter and aggregate the recent Query Store runtime interval rows FIRST.
+    // Only then match SQL fingerprints; no raw SQL text leaves SQL Server.
+    // This reduces unnecessary wide query_text lookups across historical queries.
+    // No hardcoded Query ID/Plan ID; customer databases assign their own IDs.
     private static final String QUERY_STATS_SQL = """
         /* DBPULSE_INTERNAL_QSTORE_STATS_V1 */
-        WITH classified_queries AS (
-          SELECT q.query_id,
+        WITH aggregates AS (
+          SELECT
+            p.query_id,
+            p.plan_id,
+            SUM(rs.count_executions) AS execution_count,
+            SUM(rs.avg_duration * rs.count_executions) /
+              NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_duration_ms,
+            SUM(rs.avg_cpu_time * rs.count_executions) /
+              NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_cpu_ms,
+            SUM(rs.avg_logical_io_reads * rs.count_executions) /
+              NULLIF(SUM(rs.count_executions), 0) AS avg_logical_reads_pages,
+            MAX(rs.last_execution_time) AS last_executed_at,
+            SUM(rs.avg_duration * rs.count_executions) AS weighted_duration,
+            DATEDIFF_BIG(SECOND, '19700101',
+              CAST(SWITCHOFFSET(MAX(rs.last_execution_time), '+00:00') AS datetime2))
+              AS last_executed_epoch
+          FROM sys.query_store_plan p
+          JOIN sys.query_store_runtime_stats rs ON rs.plan_id = p.plan_id
+          WHERE rs.last_execution_time >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
+            AND rs.execution_type = 0
+          GROUP BY p.query_id, p.plan_id
+          HAVING SUM(rs.count_executions) > 0
+        ),
+        classified AS (
+          SELECT a.*,
             CASE
-              -- Prefer unique DBPulse internal SQL markers where Query Store retains comments.
-              -- SQL Server capture/normalization can omit comments; fallbacks below remain essential.
               WHEN CHARINDEX(N'DBPULSE_INTERNAL_', qt.query_sql_text) > 0
               THEN 'DBPULSE_PATTERN'
               WHEN qt.query_sql_text LIKE N'%sys.query_store_query_text%'
@@ -79,34 +100,9 @@ public class MssqlQueryStoreCollector {
               THEN 'DBPULSE_PATTERN'
               ELSE 'OTHER_OR_UNKNOWN'
             END AS source_category
-          FROM sys.query_store_query q
-          JOIN sys.query_store_query_text qt ON q.query_text_id = qt.query_text_id
-        ),
-        aggregates AS (
-          SELECT
-            q.query_id,
-            p.plan_id,
-            c.source_category,
-            SUM(rs.count_executions) AS execution_count,
-            SUM(rs.avg_duration * rs.count_executions) /
-              NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_duration_ms,
-            SUM(rs.avg_cpu_time * rs.count_executions) /
-              NULLIF(SUM(rs.count_executions), 0) / 1000.0 AS avg_cpu_ms,
-            SUM(rs.avg_logical_io_reads * rs.count_executions) /
-              NULLIF(SUM(rs.count_executions), 0) AS avg_logical_reads_pages,
-            MAX(rs.last_execution_time) AS last_executed_at,
-            SUM(rs.avg_duration * rs.count_executions) AS weighted_duration,
-            DATEDIFF_BIG(SECOND, '19700101',
-              CAST(SWITCHOFFSET(MAX(rs.last_execution_time), '+00:00') AS datetime2))
-              AS last_executed_epoch
-          FROM sys.query_store_query q
-          JOIN classified_queries c ON q.query_id = c.query_id
-          JOIN sys.query_store_plan p ON p.query_id = q.query_id
-          JOIN sys.query_store_runtime_stats rs ON rs.plan_id = p.plan_id
-          WHERE rs.last_execution_time >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
-            AND rs.execution_type = 0
-          GROUP BY q.query_id, p.plan_id, c.source_category
-          HAVING SUM(rs.count_executions) > 0
+          FROM aggregates a
+          JOIN sys.query_store_query q ON q.query_id = a.query_id
+          JOIN sys.query_store_query_text qt ON qt.query_text_id = q.query_text_id
         ),
         ranked AS (
           SELECT *,
@@ -118,7 +114,7 @@ public class MssqlQueryStoreCollector {
               PARTITION BY source_category
               ORDER BY weighted_duration DESC, query_id DESC, plan_id DESC
             ) AS workload_rank
-          FROM aggregates
+          FROM classified
         )
         SELECT TOP (50)
           query_id, plan_id, source_category, execution_count, avg_duration_ms, avg_cpu_ms,
@@ -129,6 +125,30 @@ public class MssqlQueryStoreCollector {
            OR (source_category = 'DBPULSE_PATTERN' AND recent_rank <= 10)
         ORDER BY last_executed_at DESC, query_id DESC, plan_id DESC
         """;
+
+    private static final java.time.Duration STATE_CACHE_TTL = java.time.Duration.ofMinutes(5);
+    private volatile StateSnapshot cachedState;
+
+    private record StateSnapshot(String state, Instant fetchedAt) {}
+
+    private static boolean shouldRefreshState(StateSnapshot snapshot, Instant now) {
+        return snapshot == null || !now.isBefore(snapshot.fetchedAt().plus(STATE_CACHE_TTL));
+    }
+
+    private String readStateIfNeeded(Connection conn) throws SQLException {
+        Instant now = Instant.now();
+        StateSnapshot cached = cachedState;
+        if (!shouldRefreshState(cached, now)) return cached.state();
+        String state;
+        try (PreparedStatement stmt = conn.prepareStatement(STORE_STATE_SQL)) {
+            stmt.setQueryTimeout(5);
+            try (ResultSet rs = stmt.executeQuery()) {
+                state = rs.next() ? rs.getString("actual_state_desc") : "OFF";
+            }
+        }
+        cachedState = new StateSnapshot(state, Instant.now());
+        return state;
+    }
 
     public MssqlQueryStoreCollector(MssqlTargetProperties props) {
         this.props = props;
@@ -151,13 +171,7 @@ public class MssqlQueryStoreCollector {
         auth.setProperty("password", props.getPassword());
         try (Connection conn = DriverManager.getConnection(url, auth)) {
             conn.setReadOnly(true);
-            String state;
-            try (PreparedStatement stmt = conn.prepareStatement(STORE_STATE_SQL)) {
-                stmt.setQueryTimeout(5);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    state = rs.next() ? rs.getString("actual_state_desc") : "OFF";
-                }
-            }
+            String state = readStateIfNeeded(conn);
             if (!"READ_WRITE".equals(state) && !"READ_ONLY".equals(state)) {
                 return new QueryStoreResult("QUERY_STORE_DISABLED", List.of());
             }
@@ -180,6 +194,10 @@ public class MssqlQueryStoreCollector {
                 }
             }
             return new QueryStoreResult(state.equals("READ_ONLY") ? "QUERY_STORE_READ_ONLY" : "ONLINE", rows);
+        } catch (SQLException failure) {
+            // Refresh Query Store state on the next poll if a stats read fails.
+            cachedState = null;
+            throw failure;
         }
     }
 
