@@ -20,11 +20,7 @@ const links = [
 // Available presets are local UI preferences; no server action or DB mutation.
 export const DBPULSE_THEMES = [
   {id:'navy', name:'DBPulse 네이비'},
-  {id:'white', name:'클린 화이트'},
-  {id:'lavender', name:'파스텔 라벤더'},
-  {id:'sage', name:'파스텔 세이지'},
-  {id:'dark', name:'미드나잇 다크'},
-  {id:'slate', name:'소프트 차콜'}
+  {id:'dark', name:'미드나잇 다크'}
 ];
 const THEME_STORAGE_KEY = 'dbpulse-ui-theme';
 const supportedTheme = value => DBPULSE_THEMES.some(option => option.id === value);

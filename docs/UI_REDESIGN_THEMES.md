@@ -9,9 +9,10 @@ adjacent **최근 인시던트 타임라인** card and support portfolio-like th
 - The two overview secondary cards now stretch to an equal grid row height.
   The live signals disclaimer remains anchored to the card bottom and
   individual items use consistent density.
-- The application topbar includes a six-preset theme selector.
-- Presets: DBPulse Navy (default), Clean White, Pastel Lavender, Pastel Sage,
-  Midnight Dark, Soft Charcoal.
+- The application topbar includes a two-preset theme selector.
+- Presets: DBPulse Navy (default) and Midnight Dark. The unused
+  White, Lavender, Sage and Slate choices and palettes have been removed.
+  If a browser previously saved a removed theme, it falls back to Navy.
 - Selection is saved under `localStorage['dbpulse-ui-theme']`. Refreshing
   or navigating to a different analyzer retains the chosen theme. If storage
   is unavailable, the choice still works for the current render session.
@@ -37,8 +38,8 @@ npm.cmd run dev
 ```
 
 Open `http://127.0.0.1:5174/#overview`.
-Try the topbar **테마** selector and confirm six choices.
-Check white, lavender, sage, and slate for readable text and navigation;
+Try the topbar **테마** selector and confirm only the two dark themes are available.
+Check Navy and Midnight Dark for readable text and navigation;
 then choose one, refresh and confirm it is remembered.
 
 Check overview with both 0 and several live alerts, and confirm the two

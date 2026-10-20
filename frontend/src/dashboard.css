@@ -339,40 +339,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   --t-hover:#1c4166;--t-chart-grid:#2d405a;--t-shadow:#0004;
   --t-ok-bg:#103c36;--t-ok-text:#78e6c1;--t-ok-border:#236859;
 }
-.rev-layout[data-theme="white"]{
-  --t-bg:#f4f7fc;--t-top:#ffffff;--t-sidebar:#fefeff;--t-card:#ffffff;
-  --t-inner:#f0f5fc;--t-line:#d7e2f0;--t-text:#20324a;--t-muted:#506985;
-  --t-secondary:#617f9e;--t-accent:#236cc2;--t-accent-soft:#e3effe;
-  --t-hover:#edf4fc;--t-chart-grid:#d5e1ef;--t-shadow:#152b4511;
-  --t-ok-bg:#e0f4e9;--t-ok-text:#197b57;--t-ok-border:#a9d7be;
-}
-.rev-layout[data-theme="lavender"]{
-  --t-bg:#faf7fe;--t-top:#fdfaff;--t-sidebar:#fcf9ff;--t-card:#ffffff;
-  --t-inner:#f3edfb;--t-line:#e3d8ef;--t-text:#392b51;--t-muted:#6e6086;
-  --t-secondary:#7c7090;--t-accent:#8255b5;--t-accent-soft:#f0e5f9;
-  --t-hover:#f2eafc;--t-chart-grid:#e7dff2;--t-shadow:#43325e11;
-  --t-ok-bg:#e2f4e9;--t-ok-text:#267853;--t-ok-border:#afdbc3;
-}
-.rev-layout[data-theme="sage"]{
-  --t-bg:#f4f8f2;--t-top:#fcfffa;--t-sidebar:#fbfefa;--t-card:#ffffff;
-  --t-inner:#edf5ec;--t-line:#d8e5d9;--t-text:#253b32;--t-muted:#526e60;
-  --t-secondary:#718a77;--t-accent:#327b65;--t-accent-soft:#deefe4;
-  --t-hover:#edf7ed;--t-chart-grid:#dce9df;--t-shadow:#1d47320e;
-  --t-ok-bg:#d9f2df;--t-ok-text:#19734e;--t-ok-border:#add8b7;
-}
 .rev-layout[data-theme="dark"]{
   --t-bg:#101a27;--t-top:#172534;--t-sidebar:#152333;--t-card:#1c2d41;
   --t-inner:#243b50;--t-line:#3a526c;--t-text:#edf6fa;--t-muted:#b3c9d8;
   --t-secondary:#94b0c2;--t-accent:#6fd2c5;--t-accent-soft:#214640;
   --t-hover:#294a56;--t-chart-grid:#3c536b;--t-shadow:#0005;
   --t-ok-bg:#163b34;--t-ok-text:#82e3be;--t-ok-border:#35745d;
-}
-.rev-layout[data-theme="slate"]{
-  --t-bg:#222933;--t-top:#2a3542;--t-sidebar:#28323e;--t-card:#303d4c;
-  --t-inner:#384b5d;--t-line:#4b6073;--t-text:#f2f6fc;--t-muted:#c0cddd;
-  --t-secondary:#a6bbd0;--t-accent:#c8aeed;--t-accent-soft:#514765;
-  --t-hover:#435469;--t-chart-grid:#4c6072;--t-shadow:#0005;
-  --t-ok-bg:#284b40;--t-ok-text:#8ee6c1;--t-ok-border:#417e60;
 }
 .rev-layout[data-theme]{
   color:var(--t-text);background:var(--t-bg);
