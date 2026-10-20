@@ -1,3 +1,26 @@
+## 2026-10-20 — XE file retention verification before repeating A
+
+Local PowerShell listing contained **one** remaining XEL:
+`ObserverCost_0_134369498078710000.xel`, 1,552,384 bytes,
+last modified **2026-10-20 15:15:17 KST**. This matches the B
+capture END at approximately 15:15:17 KST. No original A
+(~14:55:15 KST) XEL was present in the listed local directory.
+This is strong file-timestamp evidence that only the B XEL is
+retained; the actual XEL event timestamps are authoritative.
+
+**Next action:** Do NOT delete this B evidence. After confirming
+SQL 11 is stopped, run its `CLEANUP` to drop the existing session,
+then move the B `ObserverCost*.xel` file(s) to a private,
+outside-Git archive under `D:\Projects\DBPulseLabXE\archive\B_20261020`.
+The SQL 11 capture reads only the root `ObserverCost*.xel`, so
+the old B file will not contaminate the repeated A window.
+These files may contain raw SQL statements; never upload or
+commit them. Use the corrected SQL 11 for the new A capture and
+preserve its XEL separately. Do not infer an A RPC CPU from the
+old mixed 2,123 ms workload total. Consider another B capture
+with aligned measurement windows if strict workload-latency
+attribution is required. PR #12 stays Draft.
+
 ## 2026-10-20 — Confirmed XE CPU time units and B workload correction
 
 The user re-ran SQL 13 and provided **actual SQL Server
