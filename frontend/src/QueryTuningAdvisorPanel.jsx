@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, CircleHelp, Sparkles, ShieldCheck } from 'lucide-react';
 import PlanOperatorEvidence from './PlanOperatorEvidence.jsx';
-import { filterQueryCandidates } from './queryCandidateFilters.js';
+import { filterQueryCandidates, filterQuerySources } from './queryCandidateFilters.js';
 
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰'};
@@ -11,7 +11,7 @@ const SIGNALS = {
   HIGH_CPU:'CPU 높음', OBSERVE:'현재 임계값 미만'
 };
 
-export default function QueryTuningAdvisorPanel({ targetId }) {
+export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'exclude-dbpulse' }) {
   const [report,setReport] = useState(null);
   const [error,setError] = useState('');
   const [selected,setSelected] = useState(null);
@@ -26,7 +26,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
     setReport(null);
     const refresh = async () => {
       try {
-        const res = await fetch(`/api/v1/targets/${encodeURIComponent(targetId)}/query-performance/advisor?limit=40&sort=${encodeURIComponent(sort)}`);
+        const res = await fetch(`/api/v1/targets/${encodeURIComponent(targetId)}/query-performance/advisor?limit=50&sort=${encodeURIComponent(sort)}`);
         if(!res.ok) throw new Error('Advisor API failed');
         const data = await res.json();
         if(active) { setReport(data);setError(''); }
@@ -39,7 +39,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
     return () => {active = false;clearInterval(timer);};
   },[targetId,sort]);
 
-  const rows = report?.candidates || [];
+  const rows = filterQuerySources(report?.candidates || [], sourceFilter);
   const shown = filterQueryCandidates(rows, {
     priority: filter, queryId: queryIdFilter, planId: planIdFilter
   });
@@ -106,7 +106,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
         {rows.length===0
           ? '현재 Query Store에서 수집된 후보가 없습니다. 수집기와 Query Store 상태를 확인해 주세요.'
           : hasIdSearch
-            ? '현재 수집된 최대 40개 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(약 30초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
+            ? '현재 수집된 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(약 30초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
             : '해당 우선순위의 후보가 없습니다.'}
       </p>}
       <div className="rev-tuning-candidates">{shown.map(row=>{
@@ -142,7 +142,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
       })}</div>
     </>}
     <p className="rev-tuning-footer"><ShieldCheck size={17}/>
-      최근 실행 20개 + 실행 비용 상위 20개(중복 제거, 최대 40개)의 Query Store 집계입니다. 실행 횟수는 30초 간 증가량이 아닙니다.
+      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 30초 간 증가량이 아닙니다.
       실제 SQL 원문·실행계획 없이 특정 인덱스를 추천하거나 자동 생성하지 않습니다.</p>
   </section>;
 }

@@ -11,3 +11,12 @@ export function filterQueryCandidates(candidates, { priority = 'ALL', queryId = 
     (p === '' || String(item.planId) === p)
   );
 }
+
+/** Only suppresses known DBPulse query-text fingerprints, never every SELECT. */
+export function filterQuerySources(rows, source = 'exclude-dbpulse') {
+  return (rows || []).filter(row => {
+    if (source === 'all') return true;
+    const matched = row.sourceCategory === 'DBPULSE_PATTERN';
+    return source === 'dbpulse-only' ? matched : !matched;
+  });
+}

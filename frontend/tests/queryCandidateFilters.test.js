@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterQueryCandidates } from '../src/queryCandidateFilters.js';
+import { filterQueryCandidates, filterQuerySources } from '../src/queryCandidateFilters.js';
 
 const rows = [
   {queryId:239,planId:178,priority:'OBSERVE'},
@@ -27,4 +27,16 @@ test('priority tabs combine with ID filters', () => {
 test('empty or missing candidate list is handled safely', () => {
   assert.deepEqual(filterQueryCandidates([], {queryId:'239'}),[]);
   assert.deepEqual(filterQueryCandidates(null, {queryId:'239'}),[]);
+});
+
+test('DBPulse fingerprints hidden by default without hiding user SQL', () => {
+  const samples = [
+    {queryId:247, sourceCategory:'OTHER_OR_UNKNOWN'},
+    {queryId:72, sourceCategory:'DBPULSE_PATTERN'},
+    {queryId:95, sourceCategory:'DBPULSE_PATTERN'},
+    {queryId:777, sourceCategory:'UNKNOWN'}
+  ];
+  assert.deepEqual(filterQuerySources(samples).map(x=>x.queryId),[247,777]);
+  assert.deepEqual(filterQuerySources(samples,'all').map(x=>x.queryId),[247,72,95,777]);
+  assert.deepEqual(filterQuerySources(samples,'dbpulse-only').map(x=>x.queryId),[72,95]);
 });

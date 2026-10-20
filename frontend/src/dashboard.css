@@ -766,3 +766,20 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .rev-tuning-id-fields input{width:100%}
   .rev-tuning-clear-search{width:100%}
 }
+
+/* Query Store origin: inferred collector SQL shape, not app identity. */
+.rev-query-source-filter{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;
+  background:var(--t-card);border:1px solid var(--t-line);border-radius:11px;
+  padding:17px 20px;flex-wrap:wrap;
+}
+.rev-query-source-filter strong{color:var(--t-text);font-size:14px}
+.rev-query-source-filter p{color:var(--t-muted);font-size:11px;line-height:1.65;margin:6px 0 0}
+.rev-query-source-filter select{
+  background:var(--t-inner);color:var(--t-text);padding:10px 12px;
+  border:1px solid var(--t-line);border-radius:7px;cursor:pointer;font-size:12px;
+}
+@media(max-width:670px){
+  .rev-query-source-filter{align-items:stretch}
+  .rev-query-source-filter select{width:100%}
+}
