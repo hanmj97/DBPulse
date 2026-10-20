@@ -1,3 +1,59 @@
+## Operations-centered Overview revision (2026-10-20; user requested)
+
+This is an **actual React/CSS code change** on PR #12, not an image
+mockup. The prior Overview/Query screenshots and user report established
+that the pre-change screens were working. The changes below have
+**not yet been reviewed by the user in their running local browser**.
+
+- A full-width server-status bar replaces the numeric "1 monitored
+  target" KPI. It shows the actual `target.name`, database name,
+  collector connection state and timestamp of the most recent **fresh**
+  5-second DMV snapshot. If the last snapshot is stale (>30s) or absent,
+  do not present the last historical sample as "healthy".
+- Five remaining operational KPI buttons preserve their original
+  destinations: open incidents, live Blocking, long-running requests,
+  recent Deadlock events, and current Wait observations.
+  Historic Deadlock count is *not* presented as active Deadlocks.
+- The existing DMV trend chart still uses **actual** activeRequests,
+  blockedRequests and longRunningRequests samples. It now supports
+  pointer hover and keyboard Left/Right/Home/End sample inspection
+  with a timestamp and exact observed values. No artificial points,
+  server CPU or Query Store data are inserted into the DMV chart.
+- If no Wait observations or active alert signals are available, their
+  cards collapse to small honest state indicators. Missing/offline
+  data uses a distinct "unavailable" state, **not** a green success
+  indicator. Observed waits retain category breakdown.
+- Add read-only navigation shortcuts to Blocking, Wait Diagnostics
+  and Query Performance. Existing clickable Incident timeline and
+  Incident detail table remain intact.
+- Uses only existing `--t-*` palette tokens; Navy and Midnight Dark
+  presets and SQL text portal styling remain intact. Adds narrow
+  viewport layout rules and static frontend regression tests.
+
+Manual acceptance checks after `git pull` + `npm run dev`:
+
+- [ ] At `http://127.0.0.1:5174/#overview`, the server bar
+      displays the **actual** MSSQL target, database name, sample
+      time and meaningful running/unknown state.
+- [ ] Hover over or focus the chart and press arrow keys; displayed
+      date/time and all three counts correspond to the hovered point.
+- [ ] With no current Wait/alerts, the right cards are compact; if
+      collection is offline/stale, the server/empty states do not
+      falsely show a clean bill of health.
+- [ ] Click all five KPIs and three operator shortcuts; menu/hash
+      navigation works without full-page errors.
+- [ ] Recent Incident timeline and table both open Investigation
+      for existing records (if no records, mark scenario NOT TESTED).
+- [ ] In Navy and Midnight Dark, hover/graph/empty cards readable.
+      Check narrow browser/mobile widths and theme persistence.
+- [ ] SQL drawer/Query page remain unchanged, functional.
+- [ ] No errors in browser DevTools console.
+
+No database changes, backend collector code, intervals, or MSSQL
+permissions are involved. This is visual/UI behavior work only.
+The branch remains Draft until reviewed and the original v0.13
+release gates are satisfied.
+
 # DBPulse v0.13 — Final local UI regression checklist (Draft PR #12)
 
 Scope: **local-only** browser review of existing features. This is not a
