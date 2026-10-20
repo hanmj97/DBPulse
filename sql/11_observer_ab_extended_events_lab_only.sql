@@ -135,6 +135,7 @@ BEGIN
     INSERT INTO #DBPulseXECosts
     SELECT app_name, event_name,
            CASE WHEN app_name=N'DBPulseLabWorkload' THEN 'LAB_WORKLOAD'
+                WHEN app_name=N'DBPulseXEProbe' THEN 'XE_SMOKE_PROBE'
                 WHEN app_name=N'DBPulseQueryStore'
                   AND (statement_text LIKE N'%DBPULSE_INTERNAL_QSTORE_STATS_V1%'
                     OR (statement_text LIKE N'%sys.query_store_runtime_stats%'
