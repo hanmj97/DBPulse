@@ -1,3 +1,42 @@
+## 2026-10-20 — SQL 13 long-tail diagnosis and workload CPU correction
+
+The B XEL contains **1,200 rpc_completed** and **2 sql_batch_completed**
+events for the synthetic `DBPulseLabWorkload` application.
+From the RPC events **alone**:
+- total CPU **1,421 ms**, logical reads **18,439 pages**, physical
+  reads **775 pages**;
+- mean duration **11.082 ms**, median **1.076 ms**, p95 **1.339 ms**,
+  p99 **44.457 ms**, max **4,180.761 ms**;
+- 23 calls >20ms, 5 calls >100ms, 4 calls >1s. The four slowest
+  calls (~4.181s, 3.065s, 2.412s, 2.284s) sum to **11.941s** of
+  ~13.298s total RPC elapsed time, contributing ~9.95ms to the
+  11.082ms overall mean.
+
+**Important correction:** in earlier SQL 11, the two completed
+`sql_batch_completed` records contributed **16,000 ms** to
+a mixed workload CPU figure of **17,421 ms**, despite batch mean
+duration of ~2ms. This can reflect misinterpreted XE event units
+or timer precision; **do not treat it as a 16-second SQL workload CPU
+spike**. We must check the **actual instance** metadata with
+`sys.dm_xe_object_columns`, and inspect the two unconverted raw
+`cpu_time` values without viewing SQL text. The corrected SQL 13
+reports RPC-only CPU, raw batch CPU separately, and XE metadata; the
+revised SQL 11 labels `LAB_SETUP_BATCH` separately from the
+1,200 timed `LAB_WORKLOAD` RPC calls.
+
+A's earlier aggregate mixed **2,123 ms** for 1,202 events, so a
+valid **A RPC-only CPU baseline is absent** unless the original A XEL
+still exists. No valid A/B workload SQL CPU percentage can be reported
+from these two mixed totals. The observed A/B client mean and p95
+latency changes remain genuine data, but **causality remains unknown**.
+
+Do not merge PR #12 yet. First re-run corrected SQL 13 on the
+retained B XEL and inspect event unit metadata; then recover
+A RPC-only cost if original A XEL exists or remeasure under paired
+and crossover windows. Avoid changing customer DBs or granting
+additional permissions.
+
+
 # DBPulse v0.13 — Observer cost measurement protocol
 
 ## What has and has not been confirmed
@@ -209,7 +248,7 @@ The user completed the **A** run with \`policy=FIXED_BASELINE_LAB_ONLY\`,
 
 | XE category | Requests | CPU ms | Logical read pages | Physical read pages | Mean duration ms |
 |---|---:|---:|---:|---:|---:|
-| LAB_WORKLOAD | 1,202 | 2,123 | 19,053 | 563 | 5.67 |
+| LAB_WORKLOAD (mixed RPC + 2 setup batches; **CPU not a valid timed-RPC baseline**) | 1,202 | 2,123 (mixed; provisional) | 19,053 | 563 | 5.67 |
 | OTHER_INTERNAL | 397 | 2,827 | 65,008 | 3,348 | 125.8 |
 | QUERY_STORE_COLLECTOR | 11 | 467 | 119,662 | 4,437 | 180.34 |
 | QUERY_STORE_STATE | 3 | 0 (rounded) | 6,366 | 287 | 83.94 |
@@ -265,7 +304,7 @@ p95 **1.69 ms** (A: 5.975 ms and 1.624 ms).
 
 | XE class | B completed requests | B total CPU ms | B logical pages | B physical pages | B mean duration ms |
 |---|---:|---:|---:|---:|---:|
-| LAB_WORKLOAD (1,200 RPC + 2 setup batches) | 1,202 | 17,421 | 18,545 | 860 | 11.07 |
+| LAB_WORKLOAD (mixed; **CPU invalid for timed-RPC comparison**) | 1,202 | 17,421 (mixed, not timed-RPC CPU) | 18,545 | 860 | 11.07 |
 | OTHER_INTERNAL | 460 | 3,547 | 68,151 | 4,353 | 82.22 |
 | QUERY_STORE_COLLECTOR | 6 | 299 | 64,697 | 2,414 | 120.95 |
 | QUERY_STORE_STATE | 2 | 15 | 5,150 | 308 | 31.07 |
@@ -288,11 +327,17 @@ A client mean 5.975 ms → B 11.38 ms (**+90.5%**);
 client p95 1.624 ms → B 1.69 ms (**+4.1%**).
 XE workload mean 5.67 ms → 11.07 ms (**+95.2%**) and
 XE workload p95 1.31 ms → 1.35 ms (**+3.1%**).
-The entire LAB_WORKLOAD XE CPU sum rose from **2,123 ms** to
-**17,421 ms** (**+720.6%**). No causality is established; a small
-number of outliers and two preflight batch events mixed into the
-1,202-request total must be investigated. An increased mean with
-a near-stable p95 is plausible under skewed tails.
+**CORRECTION — The earlier +720.6% workload CPU claim is INVALID.**
+SQL 13 shows that the B total of 17,421 ms comprises only **1,421 ms
+for 1,200 timed RPCs** and **16,000 ms assigned to two setup-batch
+events by the XE normalization logic**. Batch duration is only ~2.042
+ms mean, making the batch CPU scaling suspicious; confirm on-server
+XE metadata before interpreting those two batch CPU values.
+The A mixed total 2,123 ms also combines 1,200 RPCs and 2 setup
+batches; its *RPC-only CPU* is not available from the previously
+shared aggregate. Therefore A-vs-B timed workload CPU % change is
+**UNKNOWN**, NOT +720.6%. An increased mean with near-stable p95
+is consistent with the observed long-tail outliers.
 **Do not claim user-query performance protection or improvement.**
 
 The B SQL 09 Query Store counter view still did not display a
