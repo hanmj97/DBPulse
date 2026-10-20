@@ -18,7 +18,7 @@ Java backend, React UI or PostgreSQL. SQL Server performs on-server
 types and occurrence counts** are returned to JDBC.
 
 - Input is parameterized `queryId` / `planId`, selected from the
-  latest stored top-20 query-plan pairs for the current target.
+  latest bounded top-40 query-plan pairs (20 most recent + 20 highest weighted duration, deduped) for the current target.
 - XML is parsed in SQL Server only, *after* a separate metadata check.
 - Plan text limit: 1,000,000 bytes of SQL Server `DATALENGTH(query_plan)`.
 - At most 101 operator nodes fetched to detect a >100-node truncated result.
@@ -40,7 +40,7 @@ Before reading MSSQL, the endpoint checks:
 - the configured target ID,
 - positive query/plan IDs,
 - a fresh (<2 minutes) Query Store successful collection,
-- and the exact query/plan pair appears in that latest top 20.
+- and the exact query/plan pair appears in that latest bounded top 40.
 
 Success example (illustrative):
 
@@ -137,3 +137,50 @@ do **not** expand privileges without explicit inspection.
 GitHub Actions must pass Maven tests and React production build, then local
 SQL Server 2025/Query Store integration is verified by the user. Keep
 PR in Draft until then. v0.9.0 main is the stable baseline.
+
+## Query page: most recently executed first
+
+The user requested that a newly executed SQL statement should be findable
+at the top of the **DBPULSE / 쿼리** page when comparing SSMS Query Store plans.
+Previously both the SQL Server collector and the Advisor favored expensive
+queries, making recent low-cost queries easy to miss.
+
+New behavior:
+- Every 30 seconds the Query Store collector keeps **20 most recent
+  query-plan pairs** and **20 most expensive weighted-duration pairs**;
+  a query in both sets is stored once, for at most 40 pairs per snapshot.
+- Advisor API `?limit=40&sort=recent` is the UI default.
+  Options `sort=priority` and `sort=duration` preserve tuning workflows.
+  Invalid sorts are rejected with HTTP 400.
+- The existing Query Store table shows last execution time and defaults
+  to latest-first as well. It has duration/read sorts without modifying
+  the collected data.
+- `/plan-evidence/{queryId}/{planId}` accepts only IDs in that most recent
+  recorded union set. The on-demand read-only and XML privacy rules remain.
+- Latest execution is derived from `MAX(rs.last_execution_time)`. Query
+  Store may publish runtime stats asynchronously. A just-executed statement
+  can take longer than 30 seconds to appear, and SQL Server capture settings
+  may exclude some queries entirely. An empty/missing result is NOT evidence
+  that a SQL statement did not execute.
+- The two subsets are still bounded, filtered to Query Store stats with
+  last execution inside the existing 15-minute window. This is not
+  a complete audit log of every executed SQL statement.
+
+### Local check
+
+```powershell
+# Confirm the backend version and wait for a Query Store poll (~30s).
+$base = "http://127.0.0.1:18081/api/v1/targets/local-mssql"
+Invoke-RestMethod "http://127.0.0.1:18081/api/v1/health"
+$latest = Invoke-RestMethod "$base/query-performance/advisor?limit=40&sort=recent"
+$latest.candidates | Select-Object -First 10 queryId,planId,lastExecutedAt,priority |
+  Format-Table
+$priority = Invoke-RestMethod "$base/query-performance/advisor?limit=40&sort=priority"
+$priority.candidates | Select-Object -First 5 queryId,planId,lastExecutedAt,priority |
+  Format-Table
+```
+
+Perform the user-supplied query in **DBPulseLab**, wait at least one
+Query Store collection cycle, and check matching query/plan IDs in SSMS.
+The latest Query Store sample should place it among the most recent
+captured plans if Query Store actually captured it.

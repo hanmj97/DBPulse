@@ -228,3 +228,9 @@ docker compose up -d
 - **SQL 원문, 파라미터, 인덱스/테이블명, 계획 XML을 수집·저장하지 않음.**
 - [v0.10 설계·한계 및 실제 SQL Server 검증 방법](docs/PHASE10_PLAN_OPERATOR_EVIDENCE.md).
 - 별도 개발 브랜치로 사용자 로컬 통합 테스트 전이며, v0.9.0은 main에 유지.
+
+### 쿼리 화면 최신 실행순 정렬 (v0.10 개선)
+- 기본: `DBPULSE / 쿼리`에서 `lastExecutedAt` 최근 실행순
+- 선택: 튜닝 우선순위순·평균 실행시간순 (Query Store 표는 읽기량순도 가능)
+- 수집: 최근 실행 상위 20개 + 실행 비용 상위 20개, 중복 제거(최대 40개)
+- Query Store 수집 및 통계 반영 지연에 따라 방금 실행한 SQL이 보이지 않을 수 있음
