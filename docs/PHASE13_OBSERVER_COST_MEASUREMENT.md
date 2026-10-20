@@ -138,6 +138,45 @@ identified as stats or state requests.
 - Compare DBPulse JVM `successfulCollections` between START and END
   before drawing any conclusion about a missing collector row.
 
+## 2026-10-20 — successful corrected XE smoke measurement (120 seconds)
+
+After replacing statement-only capture with request-level `rpc_completed` /
+`sql_batch_completed`, the user ran an actual **120-second** local XE
+smoke test against DBPulseLab. The report contained **81 RPC completions**,
+with **zero reported dropped XE events**:
+
+| App | RPC completions |
+|---|---:|
+| DBPulseBlockingChain | 23 |
+| DBPulseCollector | 23 |
+| DBPulseCpuSample | 2 |
+| DBPulseDeadlocks | 7 |
+| DBPulseQueryStore | 1 |
+| DBPulseQueryText | 1 |
+| DBPulseWaits | 23 |
+| DBPulseXEProbe | 1 |
+
+| Classified XE category | Calls | CPU ms | Logical read pages | Physical read pages | Avg duration ms |
+|---|---:|---:|---:|---:|---:|
+| OTHER_INTERNAL | 79 | 235 | 11,403 | 863 | 34.95 |
+| QUERY_STORE_COLLECTOR | 1 | 47 | 12,447 | 483 | 4,011.07 |
+| XE_SMOKE_PROBE | 1 | 0 | 0 | 0 | 0.19 |
+
+**Interpretation:** Real DBPulse collector RPC was observed, addressing
+the zero-event blind spot in the earlier XE configuration. The
+Query Store-only 598-second report had `QUERY_STORE_COLLECTOR=0`, but
+that was **not** proof of zero collector calls. The corrected XE capture
+recorded one collector completion with nonzero CPU and reads. One
+request's ~4-second elapsed duration is not the same as 47 ms of CPU
+and is insufficient to determine the source of the remaining time.
+The result proves that the instrumentation sees this query, **not** that
+adaptive scheduling reduces total cost or customer query latency.
+
+**Next:** After copying these aggregate numbers, `CLEANUP` the stopped
+XE session and remove only its dedicated XEL files; perform 10-minute
+A=fixed and B=continuous THROTTLED measurements with matching workloads.
+Keep PR #12 Draft until measured results and regression checks pass.
+
 ## Two comparable A/B windows (local lab only)
 
 1. Do not run high-volume SQL load, edit indexes or change the data
