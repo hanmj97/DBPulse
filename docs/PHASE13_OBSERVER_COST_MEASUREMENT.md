@@ -150,7 +150,7 @@ It does **not** double-count `rpc_completed` and
 in a separate category.
 
 **Safety:** administrator-only, DBPulseLab only. Event files live at
-`C:\DBPulseLabXE\ObserverCost*.xel` and may **contain SQL statements**,
+`D:\Projects\DBPulseLabXE\ObserverCost*.xel` and may **contain SQL statements**,
 even though reports expose only aggregated numbers. Set up the
 directory and SQL Server service-account file permissions manually,
 delete any old matching XEL *before* each START and securely remove the
