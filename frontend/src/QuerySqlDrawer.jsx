@@ -11,6 +11,8 @@ export default function QuerySqlDrawer({targetId,selection,onClose}) {
   const [error,setError] = useState('');
   const [copied,setCopied] = useState(false);
   const closeRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(()=>{
     if(!selection || !targetId) {setReport(null);setError('');return undefined;}
@@ -47,13 +49,13 @@ export default function QuerySqlDrawer({targetId,selection,onClose}) {
     if(!selection)return undefined;
     const before=document.activeElement;
     closeRef.current?.focus();
-    const esc=(event)=>{if(event.key==='Escape')onClose();};
+    const esc=(event)=>{if(event.key==='Escape')onCloseRef.current();};
     document.addEventListener('keydown',esc);
     return ()=>{
       document.removeEventListener('keydown',esc);
       if(before && typeof before.focus==='function' && before.isConnected) before.focus();
     };
-  },[Boolean(selection),onClose]);
+  },[Boolean(selection)]);
 
   if(!selection)return null;
 
@@ -66,7 +68,9 @@ export default function QuerySqlDrawer({targetId,selection,onClose}) {
       setCopied(false);
     }
   };
-  return createPortal(<div className="rev-sql-drawer-root">
+  // The theme variables normally live on .rev-layout, while this drawer portals to body.
+  const activeTheme = document.querySelector('.rev-layout')?.getAttribute('data-theme') === 'dark' ? 'dark' : 'navy';
+  return createPortal(<div className="rev-sql-drawer-root" data-theme={activeTheme}>
     <button className="rev-sql-drawer-backdrop" type="button"
       aria-label="SQL 원문 창 닫기" onClick={onClose}/>
     <aside className="rev-sql-drawer" role="dialog" aria-modal="true"

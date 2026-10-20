@@ -254,3 +254,11 @@ docker compose up -d
 - API: `GET /api/v1/targets/local-mssql/query-performance/plan-comparison/{queryId}/{planId}`
 - [개발·검증 상세](docs/PHASE12_QUERY_PLAN_COMPARISON.md).
 - 아직 Draft PR / 로컬 MSSQL 검증 전; v0.11.0이 main 기준 버전.
+
+## v0.12 추가 기능 — Query Store SQL 원문 드로어
+
+- `DBPULSE / 쿼리`의 `SQL 보기` 버튼을 클릭하면 오른쪽 패널에서 **선택한 Query ID/Plan ID의 Query Store SQL 원문** 조회
+- 민감한 SQL 원문 노출 방지를 위해 **기본 비활성화**; 로컬 `.env`의 `DBPULSE_QUERY_TEXT_ENABLED=true`로 명시적으로 허용
+- 클릭할 때만 DB 조회, SQL 원문 PostgreSQL/로그 미저장, API/브라우저 캐시 방지, 최대 65,536자 및 초과 시 잘림 표시
+- Query Store 텍스트는 실제 값이 치환된 원본 배치와 다를 수 있음. 외부 공개 서비스에서 인증 없이 활성화 금지
+- [기능·제한·검증 가이드](docs/PHASE12_QUERY_TEXT_DRAWER.md)

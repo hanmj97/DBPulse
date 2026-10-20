@@ -908,3 +908,15 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .rev-tuning-row-actions{flex-wrap:wrap}.rev-tuning-row-actions .rev-tuning-toggle{flex-basis:100%}
   .rev-tuning-row-sql{margin:0 10px 10px auto}}
 @media(prefers-reduced-motion:reduce){.rev-sql-drawer{animation:none}}
+
+/* The drawer is portaled to document.body: explicitly inherit the two chosen theme palettes. */
+.rev-sql-drawer-root[data-theme="navy"]{
+  --t-card:#10233c;--t-inner:#172d49;--t-line:#2b486a;--t-text:#edf5ff;
+  --t-muted:#a3bad7;--t-secondary:#8fa9ca;--t-accent:#4da4ff;
+  --t-accent-soft:#173d68;--t-hover:#1c4166;
+}
+.rev-sql-drawer-root[data-theme="dark"]{
+  --t-card:#1c2d41;--t-inner:#243b50;--t-line:#3a526c;--t-text:#edf6fa;
+  --t-muted:#b3c9d8;--t-secondary:#94b0c2;--t-accent:#6fd2c5;
+  --t-accent-soft:#214640;--t-hover:#294a56;
+}
