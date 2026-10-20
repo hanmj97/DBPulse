@@ -692,3 +692,26 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .rev-tuning-empty{padding:23px;border:1px dashed var(--t-line);border-radius:8px;color:var(--t-muted);font-size:12px;line-height:1.8;background:var(--t-inner)}
 @media(max-width:900px){.rev-tuning-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.rev-tuning-panel{padding:15px}.rev-tuning-toggle{flex-wrap:wrap;gap:9px}.rev-tuning-title{flex-basis:calc(100% - 95px)}.rev-tuning-numeric{min-width:0;flex:1}}
+
+/* Phase 10: bounded and explicit SQL Server estimated plan operator evidence. */
+.rev-plan-evidence{background:var(--t-card);border:1px solid var(--t-line);border-radius:10px;padding:16px;margin:19px 0 16px}
+.rev-plan-evidence-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rev-plan-evidence-heading h4{color:var(--t-text);font-size:13px;margin:0 0 7px}
+.rev-plan-evidence-heading p{color:var(--t-muted);font-size:11px;line-height:1.6}
+.rev-plan-evidence-heading button{display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;background:var(--t-accent-soft);color:var(--t-accent);border:1px solid var(--t-accent);border-radius:7px;padding:9px 12px;font-size:11px;font-weight:750}
+.rev-plan-evidence-heading button:disabled{cursor:wait;opacity:.7}
+.rev-plan-status,.rev-plan-warning{display:flex;align-items:center;gap:8px;padding:11px;border-radius:7px;font-size:11px;line-height:1.65;margin-top:13px}
+.rev-plan-status{border:1px solid #35846a;background:#17493e;color:#a5efce}
+.rev-plan-warning{border:1px solid #855d3d;background:#4b352b;color:#ffcf9c}
+.rev-plan-status svg,.rev-plan-warning svg{flex-shrink:0}
+.rev-plan-metadata{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.rev-plan-metadata span{font-size:11px;border:1px solid var(--t-line);padding:8px 10px;color:var(--t-muted);border-radius:7px}
+.rev-plan-metadata strong{color:var(--t-text)}
+.rev-plan-operator-list{display:grid;gap:7px}
+.rev-plan-operator{display:flex;align-items:center;justify-content:space-between;gap:13px;background:var(--t-inner);border:1px solid var(--t-line);border-radius:8px;padding:12px}
+.rev-plan-operator-name{display:grid;gap:5px}
+.rev-plan-operator-name strong{font-size:12px;color:var(--t-text)}
+.rev-plan-operator-name small{font-size:11px;line-height:1.65;color:var(--t-muted)}
+.rev-plan-operator b{white-space:nowrap;color:var(--t-accent);font-size:13px}
+.rev-plan-disclaimer{margin-top:14px;color:var(--t-muted);font-size:11px;line-height:1.7}
+@media(max-width:700px){.rev-plan-evidence-heading{align-items:start;flex-direction:column}.rev-plan-operator{align-items:start}}

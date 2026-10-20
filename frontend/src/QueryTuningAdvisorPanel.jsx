@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, CircleHelp, Sparkles, ShieldCheck } from 'lucide-react';
+import PlanOperatorEvidence from './PlanOperatorEvidence.jsx';
 
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰'};
@@ -39,7 +40,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
   return <section id="sql-tuning-advisor" className="card rev-tuning-panel">
     <div className="section-heading">
       <div><span className="rev-tuning-eyebrow"><Sparkles size={14}/>QUERY STORE INSIGHTS</span>
-        <h2>SQL Tuning Advisor <small>v0.9 alpha</small></h2>
+        <h2>SQL Tuning Advisor <small>v0.10 alpha</small></h2>
         <p>실제 집계 수치로 검토 우선순위를 정하고 점검할 항목을 제안합니다.</p>
       </div>
       <span className="small-pill">읽기 전용</span>
@@ -86,6 +87,8 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
             <h3>권장 점검 순서</h3>
             {(row.actions||[]).map((action,index)=><div className="rev-tuning-action" key={action.code}>
               <span>{index+1}</span><div><strong>{action.title}</strong><p>{action.description}</p></div></div>)}
+            <PlanOperatorEvidence key={key} targetId={targetId}
+              queryId={row.queryId} planId={row.planId}/>
             <p className="rev-tuning-disclaimer"><CircleHelp size={15}/>{row.limitation}</p>
           </div>}
         </article>;
