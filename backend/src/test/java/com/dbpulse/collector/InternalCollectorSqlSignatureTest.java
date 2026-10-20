@@ -24,7 +24,8 @@ class InternalCollectorSqlSignatureTest {
         new Statement(MssqlQueryStoreCollector.class, "QUERY_STATS_SQL", "QSTORE_STATS"),
         new Statement(MssqlPlanOperatorCollector.class, "METADATA_SQL", "PLAN_METADATA"),
         new Statement(MssqlPlanOperatorCollector.class, "OPERATOR_SQL", "PLAN_OPERATORS"),
-        new Statement(MssqlQueryTextCollector.class, "QUERY_TEXT_SQL", "QUERY_TEXT")
+        new Statement(MssqlQueryTextCollector.class, "QUERY_TEXT_SQL", "QUERY_TEXT"),
+        new Statement(MssqlInstanceCpuCollector.class, "CPU_SQL", "CPU_SAMPLE")
     );
 
     private static String query(Class<?> clazz, String name) throws Exception {

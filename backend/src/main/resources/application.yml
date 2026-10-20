@@ -21,6 +21,9 @@ spring:
   jackson:
     time-zone: UTC
 dbpulse:
+  cpu:
+    enabled: ${DBPULSE_SQLSERVER_CPU_ENABLED:false}
+    interval-ms: ${DBPULSE_SQLSERVER_CPU_INTERVAL_MS:60000}
   query-analytics:
     interval-ms: ${DBPULSE_QUERY_ANALYTICS_INTERVAL_MS:60000}
   query-text:
