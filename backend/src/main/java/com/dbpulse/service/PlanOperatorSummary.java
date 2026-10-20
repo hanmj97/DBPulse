@@ -33,7 +33,7 @@ public final class PlanOperatorSummary {
         Map<String, Integer> counts = new LinkedHashMap<>();
         int other = 0;
         for (String physicalOp : physicalOps.subList(0, Math.min(maxOps, physicalOps.size()))) {
-            String code = LABELS.get(physicalOp);
+            String code = physicalOp == null ? null : LABELS.get(physicalOp);
             if (code == null) other++;
             else counts.merge(code, 1, Integer::sum);
         }
