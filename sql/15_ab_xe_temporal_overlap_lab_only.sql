@@ -25,6 +25,7 @@ IF OBJECT_ID('tempdb..#DBPulseEventOverlap15') IS NOT NULL
     DROP TABLE #DBPulseEventOverlap15;
 
 CREATE TABLE #DBPulseEventOverlap15 (
+    event_id BIGINT IDENTITY(1,1) PRIMARY KEY,
     sample CHAR(1) NOT NULL,
     app_name NVARCHAR(128) NOT NULL,
     event_name NVARCHAR(128) NOT NULL,
@@ -117,14 +118,15 @@ END;
 -- "overlapping" means estimated request time intervals intersect;
 -- it does NOT imply blocking or causal interference.
 ;WITH Slow AS (
-    SELECT sample,event_start_utc,event_end_utc,duration_us,cpu_us
+    SELECT event_id,sample,event_start_utc,event_end_utc,duration_us,cpu_us
     FROM #DBPulseEventOverlap15
     WHERE app_name=N'DBPulseLabWorkload'
       AND event_name=N'rpc_completed'
       AND duration_us>=100000
       AND event_start_utc IS NOT NULL
 )
-SELECT s.sample,s.event_end_utc AS slow_rpc_completed_utc,
+SELECT s.sample,s.event_id AS slow_event_id,
+       s.event_end_utc AS slow_rpc_completed_utc,
        ROUND(s.duration_us/1000.0,3) AS slow_rpc_duration_ms,
        ROUND(s.cpu_us/1000.0,3) AS slow_rpc_cpu_ms,
        COUNT_BIG(m.app_name) AS simultaneous_monitor_requests,
@@ -140,7 +142,7 @@ LEFT JOIN #DBPulseEventOverlap15 m
  AND m.event_start_utc IS NOT NULL
  AND m.event_start_utc <= s.event_end_utc
  AND m.event_end_utc >= s.event_start_utc
-GROUP BY s.sample,s.event_end_utc,s.duration_us,s.cpu_us
+GROUP BY s.sample,s.event_id,s.event_end_utc,s.duration_us,s.cpu_us
 ORDER BY s.sample,s.duration_us DESC,s.event_end_utc;
 
 -- 3. Which monitor components appear during actual slow RPCs?
