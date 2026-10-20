@@ -22,7 +22,7 @@ class PlanOperatorSummaryTest {
     @Test
     void doesNotExposeUnknownPlanStringsOrObjectNames() {
         var summary = PlanOperatorSummary.summarize(
-            List.of("some app's secret table", null, "Index Seek"), 100);
+            java.util.Arrays.asList("some app's secret table", null, "Index Seek"), 100);
         assertThat(summary.operators())
             .extracting(PlanOperatorSummary.OperatorCount::type)
             .contains("OTHER_OPERATOR", "INDEX_SEEK")
