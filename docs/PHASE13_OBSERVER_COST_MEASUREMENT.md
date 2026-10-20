@@ -100,6 +100,44 @@ JVM `successfulCollections` delta and diagnose XE capture scope rather
 than interpreting zero as a zero-cost collector. Do not execute on
 customer databases.
 
+
+## 2026-10-20 smoke-test diagnostic: 179 seconds, zero events
+
+A 179-second SQL 11 smoke capture reported `dropped_xe_events=0`,
+but **no rows** in the first results table. This does NOT establish
+zero DBPulse load or a successful A/B measurement. The first version
+listened only to `sql_statement_completed`. JDBC prepared statements
+commonly use RPC/procedure execution, so it could miss the outer call.
+
+The updated SQL 11 captures **`rpc_completed` and
+`sql_batch_completed` only** (request-level completions);
+do not sum these with nested statement-completed events. It reports
+counts per `event_name` and `app_name` before categorized totals
+and normalizes SQL-batch CPU milliseconds to microseconds, then to
+display milliseconds (RPC CPU is already microseconds on supported
+SQL Server 2012+). There is a separate `XE_SMOKE_PROBE` category
+for the local diagnostic client. Generic `DBPulseQueryStore` RPC calls
+without SQL text are `QUERY_STORE_UNATTRIBUTED` rather than falsely
+identified as stats or state requests.
+
+**Redo 90-second smoke test before A/B:**
+- Run `@Phase='CLEANUP'` in the original **stopped** SQL 11 SSMS
+  session; check the dedicated XE session is absent.
+- Delete only `D:\Projects\DBPulseLabXE\ObserverCost*.xel`
+  *after* confirming the previous test's results are no longer needed.
+  XELs can contain SQL text and should not enter Git.
+- Pull the revised branch, open the updated SQL 11 in a **new SSMS tab**,
+  run `START`. Use a local ADO.NET connection with
+  `Application Name=DBPulseXEProbe` and a parameterized
+  `SELECT @value` call, which exercises the RPC path.
+- Wait at least 90 seconds, then run `END` in **that same new tab**.
+  Check `rpc_completed`/application rows, `XE_SMOKE_PROBE`,
+  `QUERY_STORE_COLLECTOR` or `QUERY_STORE_UNATTRIBUTED`, and
+  `dropped_xe_events=0`. Absence of expected probe events remains
+  a hard block on proceeding to the 10-minute benchmark.
+- Compare DBPulse JVM `successfulCollections` between START and END
+  before drawing any conclusion about a missing collector row.
+
 ## Two comparable A/B windows (local lab only)
 
 1. Do not run high-volume SQL load, edit indexes or change the data
