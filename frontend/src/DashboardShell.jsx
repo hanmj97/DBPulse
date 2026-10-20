@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Activity, Bell, ChartNoAxesCombined, CheckCircle2, ChevronDown, Clock3,
   Database, Gauge, GitBranch, LayoutDashboard, LockKeyhole, Search,
-  Server, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, X
+  Server, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, Palette, X
 } from 'lucide-react';
 
 const links = [
@@ -16,6 +16,27 @@ const links = [
   {key:'investigation', label:'원인 분석', icon:Sparkles, href:'#investigation'}
 ];
 
+// Same persistence pattern as the user's portfolio theme selector.
+// Available presets are local UI preferences; no server action or DB mutation.
+export const DBPULSE_THEMES = [
+  {id:'navy', name:'DBPulse 네이비'},
+  {id:'white', name:'클린 화이트'},
+  {id:'lavender', name:'파스텔 라벤더'},
+  {id:'sage', name:'파스텔 세이지'},
+  {id:'dark', name:'미드나잇 다크'},
+  {id:'slate', name:'소프트 차콜'}
+];
+const THEME_STORAGE_KEY = 'dbpulse-ui-theme';
+const supportedTheme = value => DBPULSE_THEMES.some(option => option.id === value);
+function initialTheme() {
+  try {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return supportedTheme(saved) ? saved : 'navy';
+  } catch {
+    return 'navy';
+  }
+}
+
 export const PAGE_NAMES = Object.fromEntries(links.map(link => [link.key, link.label]));
 PAGE_NAMES.targets = '대상 서버';
 
@@ -24,6 +45,13 @@ export function DashboardShell({
   sampleLimit, onSampleLimit, search, onSearch, onNavigate
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [theme, setTheme] = useState(initialTheme);
+  const chooseTheme = value => {
+    const next = supportedTheme(value) ? value : 'navy';
+    setTheme(next);
+    try { window.localStorage.setItem(THEME_STORAGE_KEY, next); }
+    catch { /* Browsers with storage disabled can still use themes this session. */ }
+  };
   const online = target?.collectorStatus === 'ONLINE';
   const label = target?.collectorStatus === 'ONLINE' ? '수집 정상'
     : target?.collectorStatus === 'OFFLINE' ? '수집 오류'
@@ -40,7 +68,7 @@ export function DashboardShell({
         <span className="rev-count">{incidentCount}</span>}
     </a>;
 
-  return <div className="rev-layout">
+  return <div className="rev-layout" data-theme={theme}>
     <aside className={'rev-sidebar ' + (mobileOpen ? 'mobile-open' : '')}>
       <a className="rev-brand" href="#overview" onClick={() => setMobileOpen(false)}>
         <span className="rev-logo"><Activity size={27} strokeWidth={2.8}/></span>
@@ -82,6 +110,15 @@ export function DashboardShell({
           <button type="submit" aria-label="검색 실행">검색</button>
         </form>
         <div className="rev-topbar-actions">
+          <div className="rev-theme-picker">
+            <Palette size={16} aria-hidden="true"/>
+            <label htmlFor="dbpulse-theme-select">테마</label>
+            <select id="dbpulse-theme-select" aria-label="DBPulse 색상 테마 선택"
+              value={theme} onChange={event => chooseTheme(event.target.value)}>
+              {DBPULSE_THEMES.map(option =>
+                <option key={option.id} value={option.id}>{option.name}</option>)}
+            </select>
+          </div>
           <div className="rev-time-select"><Clock3 size={15}/>
             <select aria-label="성능 차트 샘플 범위" value={sampleLimit}
               onChange={e => onSampleLimit(Number(e.target.value))}>
