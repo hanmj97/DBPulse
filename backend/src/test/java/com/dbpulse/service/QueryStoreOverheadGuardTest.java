@@ -100,4 +100,32 @@ class QueryStoreOverheadGuardTest {
         assertThat(g.snapshot().reason()).isEqualTo("NOT_CONFIGURED");
         assertThat(g.shouldSkipScheduledTick()).isFalse();
     }
+    @Test
+    void actualAttemptsAndSkippedTicksAreDistinctNonSqlServerCounters() {
+        var g = new QueryStoreOverheadGuard(60_000);
+        g.recordSuccess(100, List.of(internal(1, 1000)), NOW);
+        g.recordSuccess(180, List.of(internal(1, 1200)), NOW.plusSeconds(60));
+        assertThat(g.shouldSkipScheduledTick()).isTrue();
+        assertThat(g.shouldSkipScheduledTick()).isFalse();
+        g.recordFailure(250, NOW.plusSeconds(180));
+        var report = g.snapshot();
+        assertThat(report.totalCollectorAttempts()).isEqualTo(3);
+        assertThat(report.successfulCollections()).isEqualTo(2);
+        assertThat(report.failedCollections()).isEqualTo(1);
+        assertThat(report.skippedCycles()).isEqualTo(1);
+        assertThat(report.cumulativeJdbcWallMs()).isEqualTo(530);
+        assertThat(report.totalCollectorAttempts())
+            .isEqualTo(report.successfulCollections() + report.failedCollections());
+    }
+
+    @Test
+    void totalsSurviveCounterStateResetDuringDisabledTargetPeriod() {
+        var g = new QueryStoreOverheadGuard(60_000);
+        g.recordSuccess(100, List.of(), NOW);
+        g.reset();
+        assertThat(g.snapshot().successfulCollections()).isEqualTo(1);
+        assertThat(g.snapshot().cumulativeJdbcWallMs()).isEqualTo(100);
+        assertThat(g.snapshot().reason()).isEqualTo("NOT_CONFIGURED");
+    }
+
 }

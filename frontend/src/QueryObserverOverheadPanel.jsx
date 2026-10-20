@@ -69,6 +69,9 @@ export default function QueryObserverOverheadPanel({targetId}) {
         <div><span>내부 SQL 평균 CPU 최대</span>
           <strong>{data.sampledInternalPlans>0?fmt(data.peakInternalAvgCpuMs,2)+'ms':'표본 없음'}</strong></div>
         <div><span>보호로 생략한 수집</span><strong>{fmt(data.skippedCycles)}회</strong></div>
+        <div><span>누적 실제 수집 시도</span><strong>{fmt(data.totalCollectorAttempts)}회</strong></div>
+        <div><span>수집 성공 / 실패</span><strong>{fmt(data.successfulCollections)} / {fmt(data.failedCollections)}회</strong></div>
+        <div><span>누적 JDBC 처리시간</span><strong>{fmt(data.cumulativeJdbcWallMs)}ms</strong></div>
       </div>
       <div className="rev-observer-guard-reason" aria-live="polite">
         <strong>현재 판단</strong>

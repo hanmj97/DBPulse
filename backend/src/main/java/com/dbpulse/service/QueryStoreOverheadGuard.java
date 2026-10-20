@@ -29,6 +29,10 @@ public final class QueryStoreOverheadGuard {
     private int recoveryStreak;
     private int failureStreak;
     private long skippedCycles;
+    private long totalCollectorAttempts;
+    private long successfulCollections;
+    private long failedCollections;
+    private long cumulativeJdbcWallMs;
     private long lastCollectorWallMs;
     private int internalSampleCount;
     private double peakInternalAvgCpuMs;
@@ -60,6 +64,9 @@ public final class QueryStoreOverheadGuard {
     public synchronized void recordSuccess(long jdbcWallMs,
                                            List<QueryPerformanceSnapshot> captured,
                                            Instant now) {
+        totalCollectorAttempts++;
+        successfulCollections++;
+        cumulativeJdbcWallMs += Math.max(0, jdbcWallMs);
         lastObservedAt = now;
         lastCollectorWallMs = Math.max(0, jdbcWallMs);
         internalSampleCount = 0;
@@ -97,6 +104,9 @@ public final class QueryStoreOverheadGuard {
     }
 
     public synchronized void recordFailure(long jdbcWallMs, Instant now) {
+        totalCollectorAttempts++;
+        failedCollections++;
+        cumulativeJdbcWallMs += Math.max(0, jdbcWallMs);
         lastObservedAt = now;
         lastCollectorWallMs = Math.max(0, jdbcWallMs);
         failureStreak++;
@@ -135,6 +145,10 @@ public final class QueryStoreOverheadGuard {
             recoveryStreak,
             failureStreak,
             skippedCycles,
+            totalCollectorAttempts,
+            successfulCollections,
+            failedCollections,
+            cumulativeJdbcWallMs,
             NOTE
         );
     }
@@ -151,6 +165,8 @@ public final class QueryStoreOverheadGuard {
         long lastCollectorWallMs, Instant lastObservedAt,
         int sampledInternalPlans, double peakInternalAvgCpuMs,
         double peakInternalAvgLogicalReadsPages, int expensiveStreak,
-        int recoveryStreak, int failureStreak, long skippedCycles, String limitation
+        int recoveryStreak, int failureStreak, long skippedCycles,
+        long totalCollectorAttempts, long successfulCollections,
+        long failedCollections, long cumulativeJdbcWallMs, String limitation
     ) {}
 }
