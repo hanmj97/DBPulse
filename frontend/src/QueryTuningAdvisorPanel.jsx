@@ -51,7 +51,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
   return <section id="sql-tuning-advisor" className="card rev-tuning-panel">
     <div className="section-heading">
       <div><span className="rev-tuning-eyebrow"><Sparkles size={14}/>QUERY STORE INSIGHTS</span>
-        <h2>SQL Tuning Advisor <small>v0.12 alpha</small></h2>
+        <h2>SQL Tuning Advisor <small>v0.13 alpha</small></h2>
         <p>실행시간·평균 CPU 시간·집계 실행 횟수·논리 읽기를 함께 비교해 점검할 항목을 제안합니다.</p>
       </div>
       <span className="small-pill">읽기 전용</span>
