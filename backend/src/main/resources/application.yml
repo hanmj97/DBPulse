@@ -26,6 +26,8 @@ dbpulse:
     interval-ms: ${DBPULSE_SQLSERVER_CPU_INTERVAL_MS:60000}
   query-analytics:
     interval-ms: ${DBPULSE_QUERY_ANALYTICS_INTERVAL_MS:60000}
+    # Disable ONLY for isolated A/B fixed-60s baseline; default guard remains active.
+    adaptive-enabled: ${DBPULSE_QUERY_ANALYTICS_ADAPTIVE_ENABLED:true}
   query-text:
     enabled: ${DBPULSE_QUERY_TEXT_ENABLED:false}
   collector:
