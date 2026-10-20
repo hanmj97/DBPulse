@@ -729,3 +729,40 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .rev-query-table-toolbar{justify-content:flex-end;margin:0 0 13px}
 .rev-query-last-executed{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:650}
 @media(max-width:650px){.rev-tuning-controls{align-items:flex-start;flex-direction:column}.rev-query-table-toolbar{justify-content:flex-start;flex-wrap:wrap}}
+
+/* Advisor ID filter: exact Query Store query_id / plan_id matching; preserve theme. */
+.rev-tuning-id-search{
+  background:var(--t-inner);border:1px solid var(--t-line);
+  border-radius:10px;padding:14px 15px;margin-bottom:14px;
+}
+.rev-tuning-id-fields{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px}
+.rev-tuning-id-fields label{
+  display:grid;gap:7px;color:var(--t-muted);font-size:12px;font-weight:750;
+}
+.rev-tuning-id-fields input{
+  width:155px;max-width:100%;border:1px solid var(--t-line);border-radius:7px;
+  padding:10px 12px;background:var(--t-card);color:var(--t-text);
+  font-size:13px;font-variant-numeric:tabular-nums;outline-offset:2px;
+}
+.rev-tuning-id-fields input:focus{
+  border-color:var(--t-accent);outline:2px solid var(--t-accent-soft);
+}
+.rev-tuning-id-fields input::placeholder{color:var(--t-secondary)}
+.rev-tuning-clear-search{
+  background:var(--t-card);color:var(--t-accent);
+  border:1px solid var(--t-line);border-radius:7px;
+  padding:10px 12px;font-size:12px;cursor:pointer;
+}
+.rev-tuning-clear-search:not(:disabled):hover{background:var(--t-hover)}
+.rev-tuning-clear-search:disabled{opacity:.4;cursor:default}
+.rev-tuning-search-caption{
+  display:flex;gap:9px 16px;flex-wrap:wrap;align-items:center;
+  margin-top:12px;line-height:1.55;
+}
+.rev-tuning-search-caption span{color:var(--t-accent);font-size:12px;font-weight:750}
+.rev-tuning-search-caption small{color:var(--t-muted);font-size:11px}
+@media(max-width:650px){
+  .rev-tuning-id-fields label{flex:1;min-width:110px}
+  .rev-tuning-id-fields input{width:100%}
+  .rev-tuning-clear-search{width:100%}
+}

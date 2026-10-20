@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, CircleHelp, Sparkles, ShieldCheck } from 'lucide-react';
 import PlanOperatorEvidence from './PlanOperatorEvidence.jsx';
+import { filterQueryCandidates } from './queryCandidateFilters.js';
 
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰'};
@@ -16,6 +17,9 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
   const [selected,setSelected] = useState(null);
   const [filter,setFilter] = useState('ALL');
   const [sort,setSort] = useState('recent');
+  // Lab IDs are examples only; filters stay reusable for any monitored database.
+  const [queryIdFilter,setQueryIdFilter] = useState('');
+  const [planIdFilter,setPlanIdFilter] = useState('');
   useEffect(() => {
     if (!targetId) return undefined;
     let active = true;
@@ -36,7 +40,11 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
   },[targetId,sort]);
 
   const rows = report?.candidates || [];
-  const shown = rows.filter(row=>filter==='ALL'||row.priority===filter);
+  const shown = filterQueryCandidates(rows, {
+    priority: filter, queryId: queryIdFilter, planId: planIdFilter
+  });
+  const hasIdSearch = queryIdFilter !== '' || planIdFilter !== '';
+  const clearIdSearch = () => {setQueryIdFilter('');setPlanIdFilter('');};
   const ready = report && ['ONLINE','QUERY_STORE_READ_ONLY'].includes(report.status);
   return <section id="sql-tuning-advisor" className="card rev-tuning-panel">
     <div className="section-heading">
@@ -69,13 +77,37 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
         </div>
         <small>최근 실행 시각은 Query Store에 기록된 값이며 약간 늦게 반영될 수 있습니다.</small>
       </div>
+      <div className="rev-tuning-id-search" role="search" aria-label="Query ID 및 Plan ID 검색">
+        <div className="rev-tuning-id-fields">
+          <label htmlFor="dbpulse-tuning-query-id">Query ID
+            <input id="dbpulse-tuning-query-id" type="text" inputMode="numeric"
+              autoComplete="off" placeholder="예: 239" value={queryIdFilter}
+              onChange={event=>setQueryIdFilter(event.target.value.replace(/[^0-9]/g,'').slice(0,19))}/>
+          </label>
+          <label htmlFor="dbpulse-tuning-plan-id">Plan ID
+            <input id="dbpulse-tuning-plan-id" type="text" inputMode="numeric"
+              autoComplete="off" placeholder="예: 178" value={planIdFilter}
+              onChange={event=>setPlanIdFilter(event.target.value.replace(/[^0-9]/g,'').slice(0,19))}/>
+          </label>
+          <button type="button" onClick={clearIdSearch} disabled={!hasIdSearch}
+            className="rev-tuning-clear-search">검색 초기화</button>
+        </div>
+        <div className="rev-tuning-search-caption">
+          <span aria-live="polite">현재 수집된 {rows.length}개 후보 중 {shown.length}개 표시</span>
+          <small>두 ID를 입력하면 모두 일치하는 계획만 표시합니다. 입력 즉시 필터링됩니다.</small>
+        </div>
+      </div>
       <div className="rev-tuning-filters" role="group" aria-label="튜닝 후보 우선순위 필터">
         {[['ALL','전체'],['HIGH','우선 점검'],['MEDIUM','점검 권장'],['OBSERVE','관찰']].map(([code,label])=>
           <button type="button" className={filter===code?'active':''} aria-pressed={filter===code}
             key={code} onClick={()=>setFilter(code)}>{label}</button>)}
       </div>
-      {shown.length===0 && <p className="rev-tuning-empty">
-        {rows.length===0 ? '현재 조회된 Query Store 후보가 없습니다.' : '해당 우선순위의 후보가 없습니다.'}
+      {shown.length===0 && <p className="rev-tuning-empty" role="status">
+        {rows.length===0
+          ? '현재 Query Store에서 수집된 후보가 없습니다. 수집기와 Query Store 상태를 확인해 주세요.'
+          : hasIdSearch
+            ? '현재 수집된 최대 40개 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(약 30초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
+            : '해당 우선순위의 후보가 없습니다.'}
       </p>}
       <div className="rev-tuning-candidates">{shown.map(row=>{
         const key = `${row.queryId}:${row.planId}`;
