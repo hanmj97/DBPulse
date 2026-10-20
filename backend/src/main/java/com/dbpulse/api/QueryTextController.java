@@ -53,8 +53,7 @@ public class QueryTextController {
         var state = queryStore.state();
         if (!List.of("ONLINE", "QUERY_STORE_READ_ONLY").contains(state.status())
             || state.lastCollectedAt() == null
-            || Duration.between(state.lastCollectedAt(), Instant.now())
-                .compareTo(Duration.ofMinutes(2)) > 0) {
+            || !queryStore.isFresh(state.lastCollectedAt())) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
         }
         boolean sampled = repository.latest(id, state.lastCollectedAt(), 50)
