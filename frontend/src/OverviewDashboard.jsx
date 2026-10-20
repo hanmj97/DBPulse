@@ -150,7 +150,11 @@ export default function OverviewDashboard({
   },[targetId]);
 
   const latest = history.at(-1);
-  const online = target?.collectorStatus === 'ONLINE' && Boolean(latest);
+  const latestAtMs = latest?.collectedAt ? Date.parse(latest.collectedAt) : NaN;
+  // Avoid presenting a stale 5-second DMV sample as current health.
+  const ageMs = Date.now() - latestAtMs;
+  const recentSample = Number.isFinite(ageMs) && ageMs >= -10000 && ageMs <= 30000;
+  const online = target?.collectorStatus === 'ONLINE' && recentSample;
   const currentWaits = feed.waits?.status==='ONLINE' ? feed.waits.observations || [] : null;
   const waitGroups = useMemo(() => {
     const count = new Map();
@@ -177,45 +181,101 @@ export default function OverviewDashboard({
       note:'DMV 최신 스냅샷',level:'warning',action:()=>nav('queries')}]:[])
   ].slice(0,4);
 
-  return <div className="rev-dashboard">
-    <section className="rev-kpi-grid" aria-label="주요 실시간 지표">
-      <KpiCard icon={Database} label="모니터링 대상" value={target ? 1 : null}
-        note={target?.name || '대상 확인 중'} tone="targets" onClick={()=>nav('targets')}/>
+  const unknownHealth = !online || !hasIncidentData;
+  const hasLiveConcern = !unknownHealth &&
+    (open.length>0 || (Number(latest?.blockedRequests)||0)>0 ||
+     (Number(latest?.longRunningRequests)||0)>0);
+  const operationLabel = unknownHealth ? '운영 상태 확인 중'
+    : hasLiveConcern ? '관측된 이상 신호 있음' : '관측 지표상 이상 없음';
+  const operationClass = unknownHealth ? 'unknown' : hasLiveConcern ? 'warning' : 'good';
+
+  return <div className="rev-dashboard rev-ops-dashboard">
+    <section className="rev-ops-server-bar" aria-label="모니터링 서버 상태 요약">
+      <div className="rev-ops-server-primary">
+        <span className="rev-ops-server-icon"><Server size={23}/></span>
+        <div className="rev-ops-server-text">
+          <span className="rev-ops-eyebrow">MONITORING TARGET</span>
+          <strong>{target?.name || '서버 연결 확인 중'}</strong>
+          <span>{target?.databaseName || '데이터베이스 확인 중'} · MSSQL · 최근 DMV {online ? clock(latest.collectedAt) : '관측 확인 중'}</span>
+        </div>
+      </div>
+      <div className="rev-ops-server-meta">
+        <span className={'rev-ops-health-pill '+operationClass}>
+          {operationClass==='good' ? <CheckCircle2 size={15}/> : <CircleAlert size={15}/>}
+          {operationLabel}
+        </span>
+        <span className="rev-ops-server-secondary">
+          {online ? 'DMV 수집 정상 · 5초 기본 주기' :
+            target?.collectorStatus === 'OFFLINE' ? '연결 또는 수집 오류' :
+            target?.collectorStatus === 'NOT_CONFIGURED' ? '연결 설정 필요' :
+            '현재 표본 확인 중'}
+        </span>
+        <button type="button" className="rev-ops-server-link" onClick={()=>nav('targets')}>
+          대상 정보 <ArrowRight size={14}/>
+        </button>
+      </div>
+    </section>
+
+    <section className="rev-kpi-grid rev-ops-kpis" aria-label="실시간 운영 지표">
       <KpiCard icon={ShieldAlert} label="열린 인시던트" value={hasIncidentData ? open.length : null}
         note="진행 중인 사건" tone="incidents" onClick={()=>nav('incidents')}/>
       <KpiCard icon={LockKeyhole} label="Blocking 요청" value={online ? latest.blockedRequests : null}
-        note="현재 수집된 차단 요청" tone="blocking" onClick={()=>nav('blocking')}/>
-      <KpiCard icon={GitBranch} label="최근 Deadlock" value={recentDeadlocks?.length ?? null}
-        note="조회된 최근 최대 50건" tone="deadlock" onClick={()=>nav('deadlocks')}/>
+        note="최신 DMV 스냅샷" tone="blocking" onClick={()=>nav('blocking')}/>
       <KpiCard icon={Clock3} label="장시간 실행 요청" value={online ? latest.longRunningRequests : null}
         note="수집기 임계값 기준" tone="long" onClick={()=>nav('performance')}/>
+      <KpiCard icon={GitBranch} label="최근 Deadlock" value={recentDeadlocks?.length ?? null}
+        note="최근 조회 최대 50건" tone="deadlock" onClick={()=>nav('deadlocks')}/>
       <KpiCard icon={Bell} label="현재 Wait 요청" value={currentWaits?.length ?? null}
-        note="최근 1회 Wait 스냅샷" tone="waits" onClick={()=>nav('waits')}/>
+        note="최근 1회 Wait 표본" tone="waits" onClick={()=>nav('waits')}/>
     </section>
 
-    <div className="rev-overview-primary">
+    <div className="rev-overview-primary rev-ops-primary">
       <TrendChart history={online ? history : []} sampleLimit={sampleLimit}/>
-      <article className="rev-panel rev-wait-summary">
-        <div className="rev-panel-heading">
-          <div><h2>주요 대기 유형</h2><p>최근 수집 시점의 Wait 분류</p></div>
-          <button className="rev-text-link" onClick={()=>nav('waits')}>상세 <ArrowRight size={14}/></button>
-        </div>
-        {currentWaits === null ? <div className="rev-overview-empty">
-          Wait 수집 상태를 확인할 수 없습니다.</div>
-          : waitGroups.length===0 ? <div className="rev-overview-empty">
-            현재 관측된 대기 요청이 없습니다.</div>
-          : <div className="rev-wait-bars">{waitGroups.map(([kind,count],index)=>
-              <div className="rev-wait-row" key={kind}>
-                <span>{kind}</span>
-                <div className="rev-wait-track"><div className={'rev-wait-fill rev-wait-fill-'+index}
-                  style={{width:(count/waitTotal*100)+'%'}}/></div>
-                <strong>{num(count)}건</strong>
-              </div>)}</div>}
-        <p className="rev-card-foot">대기 유형별 횟수는 단일 시점의 요청 표본입니다. 누적 Wait 통계가 아닙니다.</p>
-      </article>
+      <div className="rev-ops-side-stack">
+        <article className={'rev-panel rev-wait-summary rev-ops-mini-panel'+(waitGroups.length===0?' rev-ops-compact':'')}>
+          <div className="rev-panel-heading">
+            <div><h2>주요 대기 유형</h2><p>가장 최근 Wait 요청 표본</p></div>
+            <button type="button" className="rev-text-link" onClick={()=>nav('waits')}>상세 <ArrowRight size={14}/></button>
+          </div>
+          {currentWaits===null
+            ? <div className="rev-ops-compact-state unavailable"><CircleAlert size={19}/>
+                <span>Wait 수집 상태 확인 필요</span></div>
+            : waitGroups.length===0
+              ? <div className="rev-ops-compact-state"><CheckCircle2 size={19}/>
+                  <span>현재 관측된 Wait 요청 없음</span></div>
+              : <div className="rev-wait-bars">{waitGroups.map(([kind,count],index)=>
+                  <div className="rev-wait-row" key={kind}>
+                    <span title={kind}>{kind}</span>
+                    <div className="rev-wait-track"><div className={'rev-wait-fill rev-wait-fill-'+index}
+                      style={{width:(count/waitTotal*100)+'%'}}/></div>
+                    <strong>{num(count)}건</strong>
+                  </div>)}</div>}
+          {waitGroups.length>0 &&
+            <p className="rev-card-foot">최근 한 시점의 요청 표본이며 누적 Wait 통계가 아닙니다.</p>}
+        </article>
+        <article className={'rev-panel rev-current-signals rev-ops-mini-panel'+(!alerts.length?' rev-ops-compact':'')}>
+          <div className="rev-panel-heading">
+            <div><h2>현재 관측 신호</h2><p>열린 인시던트와 최신 DMV</p></div>
+            <button type="button" className="rev-text-link" onClick={()=>nav('incidents')}>이력 <ArrowRight size={14}/></button>
+          </div>
+          {alerts.length
+            ? <div className="rev-alert-items">{alerts.map(a=>
+                <button className="rev-alert-item" key={a.key} type="button" onClick={a.action}>
+                  <span className={'rev-alert-icon '+a.level}><CircleAlert size={17}/></span>
+                  <span><strong>{a.title}</strong><small>{a.kind} · {a.note}</small></span>
+                  <ArrowRight size={15}/>
+                </button>)}</div>
+            : <div className={'rev-ops-compact-state'+(unknownHealth?' unavailable':'')}>
+                {unknownHealth ? <CircleAlert size={19}/> : <CheckCircle2 size={19}/>}
+                <span>{unknownHealth ? '수집 상태를 확인 중입니다.' :
+                  '최근 관측된 주요 이상 신호 없음'}</span>
+              </div>}
+          <p className="rev-card-foot">현재 수집된 정보만 표시하며, 데이터 공백을 정상으로 판단하지 않습니다.</p>
+        </article>
+      </div>
     </div>
 
-    <div className="rev-overview-secondary">
+    <div className="rev-overview-secondary rev-ops-secondary">
       <article className="rev-panel rev-incident-timeline">
         <div className="rev-panel-heading">
           <div><h2>최근 인시던트 타임라인</h2><p>발생 시각순 최근 4건</p></div>
@@ -231,21 +291,22 @@ export default function OverviewDashboard({
                 <span>{item.status === 'OPEN' ? '진행 중' : '해결됨'} · {dateTime(item.startedAt)}</span></span>
               <ArrowRight size={15}/></button>)}</div>}
       </article>
-      <article className="rev-panel rev-current-signals">
+      <article className="rev-panel rev-ops-action-panel">
         <div className="rev-panel-heading">
-          <div><h2>현재 관측 신호</h2><p>실시간 지표와 열린 인시던트</p></div>
-          <button className="rev-text-link" onClick={()=>nav('incidents')}>이력 확인 <ArrowRight size={14}/></button>
+          <div><h2>운영 바로가기</h2><p>문제 진단에 필요한 화면으로 이동</p></div>
+          <span className="rev-panel-tag">READ ONLY</span>
         </div>
-        {alerts.length ? <div className="rev-alert-items">{alerts.map(a=>
-          <button className="rev-alert-item" key={a.key} onClick={a.action}>
-            <span className={'rev-alert-icon '+a.level}><CircleAlert size={17}/></span>
-            <span><strong>{a.title}</strong><small>{a.kind} · {a.note}</small></span>
-            <ArrowRight size={15}/>
-          </button>)}</div> : <div className="rev-overview-empty">
-          {hasIncidentData && online ? '현재 조회된 열린 인시던트나 성능 이상 신호가 없습니다.'
-            : '수집 상태를 확인 중입니다. 관측 공백을 정상으로 단정하지 않습니다.'}
-        </div>}
-        <p className="rev-card-foot">전용 알림 정책은 아직 개발 중이며, 이 패널은 관측 결과만 표시합니다.</p>
+        <div className="rev-ops-action-list">
+          <button type="button" onClick={()=>nav('blocking')}>
+            <LockKeyhole size={18}/><span><strong>Blocking 분석</strong><small>대기 세션과 차단 관계 확인</small></span><ArrowUpRight size={16}/>
+          </button>
+          <button type="button" onClick={()=>nav('waits')}>
+            <Clock3 size={18}/><span><strong>Wait Diagnostics</strong><small>최근 대기 유형 및 관측 이력</small></span><ArrowUpRight size={16}/>
+          </button>
+          <button type="button" onClick={()=>nav('queries')}>
+            <Gauge size={18}/><span><strong>쿼리 성능 분석</strong><small>Query Store 통계와 튜닝 후보</small></span><ArrowUpRight size={16}/>
+          </button>
+        </div>
       </article>
     </div>
 
