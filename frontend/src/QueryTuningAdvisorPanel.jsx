@@ -12,7 +12,7 @@ const SIGNALS = {
   HIGH_CPU:'CPU 높음', OBSERVE:'현재 임계값 미만'
 };
 
-export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'exclude-dbpulse' }) {
+export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'exclude-dbpulse', onShowSql }) {
   const [report,setReport] = useState(null);
   const [error,setError] = useState('');
   const [selected,setSelected] = useState(null);
@@ -114,6 +114,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
         const key = `${row.queryId}:${row.planId}`;
         const open = selected===key;
         return <article className="rev-tuning-item" key={key}>
+          <div className="rev-tuning-row-actions">
           <button type="button" className="rev-tuning-toggle" onClick={()=>setSelected(open?null:key)}
             aria-expanded={open}>
             <span className={'rev-tuning-rank '+row.priority.toLowerCase()}>{LABELS[row.priority]||row.priority}</span>
@@ -126,6 +127,12 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
             <span className="rev-tuning-numeric"><small>논리 읽기</small><strong>{fmt(row.metrics.avgLogicalReadsPages)} pages</strong></span>
             <ChevronDown className={open?'expanded':''} size={18}/>
           </button>
+          <button type="button" className="rev-query-sql-link rev-tuning-row-sql"
+            aria-label={`Query ${row.queryId}, Plan ${row.planId} SQL 원문 보기`}
+            onClick={()=>onShowSql?.(row.queryId,row.planId)}>
+            SQL 보기
+          </button>
+          </div>
           {open && <div className="rev-tuning-detail">
             <div className="rev-tuning-metrics">
               <span>평균 CPU <strong>{fmt(row.metrics.avgCpuMs)} ms</strong></span>
@@ -146,6 +153,6 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
     </>}
     <p className="rev-tuning-footer"><ShieldCheck size={17}/>
       DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 30초 간 증가량이 아닙니다.
-      실제 SQL 원문·실행계획 없이 특정 인덱스를 추천하거나 자동 생성하지 않습니다.</p>
+      SQL 원문은 자동 저장하지 않으며, 보안 허용 시 버튼으로만 조회합니다. 인덱스를 자동 추천하거나 생성하지 않습니다.</p>
   </section>;
 }

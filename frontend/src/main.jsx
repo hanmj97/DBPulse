@@ -12,6 +12,7 @@ import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
+import QuerySqlDrawer from './QuerySqlDrawer.jsx';
 import { filterQuerySources } from './queryCandidateFilters.js';
 
 const fmt = (n) => (n == null ? '—' : new Intl.NumberFormat('ko-KR').format(n));
@@ -224,6 +225,7 @@ function App() {
   const [queryAnalysis, setQueryAnalysis] = useState([]);
   const [queryTableSort,setQueryTableSort] = useState('recent');
   const [querySourceFilter,setQuerySourceFilter] = useState('exclude-dbpulse');
+  const [sqlSelection,setSqlSelection] = useState(null);
   const [queryState, setQueryState] = useState(null);
   const [queryError, setQueryError] = useState('');
   const [incidents, setIncidents] = useState([]);
@@ -497,7 +499,8 @@ function App() {
           <option value="dbpulse-only">DBPulse 수집 패턴만</option>
         </select>
       </div>
-      <QueryTuningAdvisorPanel targetId={target?.id} sourceFilter={querySourceFilter}/>
+      <QueryTuningAdvisorPanel targetId={target?.id} sourceFilter={querySourceFilter}
+        onShowSql={(queryId,planId)=>setSqlSelection({queryId,planId})}/>
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
             <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
@@ -529,7 +532,12 @@ function App() {
           ).map(row => {
             const [label, suggestion] = DIAGNOSIS[row.diagnosisCode] || DIAGNOSIS.OBSERVE;
             return <tr key={`${row.queryId}-${row.planId}-${row.collectedAt}`}>
-              <td><strong>#{row.queryId}</strong><small>plan {row.planId}</small></td>
+              <td><strong>#{row.queryId}</strong><small>plan {row.planId}</small>
+                <button type="button" className="rev-query-sql-link"
+                  onClick={()=>setSqlSelection({queryId:row.queryId,planId:row.planId})}>
+                  SQL 보기
+                </button>
+              </td>
               <td className="rev-query-last-executed">{row.lastExecutedAt ? new Date(row.lastExecutedAt).toLocaleString('ko-KR',{hour12:false}) : '—'}</td>
               <td>{fmt(row.executionCount)}</td>
               <td>{Number(row.avgDurationMs).toFixed(2)} ms</td>
@@ -539,9 +547,10 @@ function App() {
             </tr>;
           }) : <tr><td className="query-empty" colSpan="7">선택한 패턴 분류에 해당하는 쿼리가 없습니다. 전체 수집 쿼리 보기 또는 Query Store 상태를 확인해 주세요.</td></tr>}
           </tbody></table></div>
-          <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 30초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문·파라미터는 수집하지 않습니다.</p>
+          <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 30초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문은 자동 수집·저장하지 않으며, 명시적으로 활성화한 경우에만 버튼 클릭으로 조회합니다.</p>
         </section>
-
+        <QuerySqlDrawer targetId={target?.id} selection={sqlSelection}
+          onClose={()=>setSqlSelection(null)}/>
     </div>}
     {page === 'targets' && 
   <section className="rev-target-detail" id="targets">
