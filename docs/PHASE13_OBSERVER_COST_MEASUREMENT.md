@@ -1,3 +1,37 @@
+## 2026-10-20 — repeated A results received, XE output lost
+
+New A client workload ran 2026-10-20 **06:49:52.611 UTC to
+06:59:52.623 UTC** with **1,200 requests**. Process policy
+`FIXED_BASELINE_LAB_ONLY`, `NORMAL` at both ends, 10 collector
+successes, 0 failures, 0 skips, 0 mode violations, 0 API errors;
+`ComparisonEligible=true`. Client mean **9.838ms**, p95 **1.665ms**,
+JDBC wall delta **1,995ms**.
+
+SQL 09 Query Store (654 sec) returned:
+`OTHER_INTERNAL` 286 executions, 6,364.62ms CPU,
+6,633 logical pages; `QUERY_STORE_STATE` 13 executions,
+68.5ms CPU, 21,864 logical pages; `QUERY_TEXT_VIEWER` 0
+new executions; collector category absent again. It showed 14
+baseline plans and 14 current plans, with 0 invalid/disappeared
+and 0 newly observed in displayed rows. **SQL 09 is not an XE
+cost substitute, and does not prove collector was not executed.**
+
+The user lost the **SQL 11 END result grid**; do not invent
+XE collector CPU, logical reads or A RPC-only CPU. Before
+rerunning a 10-minute workload, check whether the **new A
+`D:\Projects\DBPulseLabXE\ObserverCost*.xel`** survives.
+`sql/14_recover_a_xe_after_lost_ssms_result_lab_only.sql`
+can reconstruct request-level CPU/reads, timed RPC latency
+quantiles, counts, and outlier timestamps without relying on
+the old SSMS temp table. It reads only XEL and tempdb.
+The script filters a bracket around the new A client times.
+The first/last captured events **are not exact XE START/END**;
+do not normalize collector rates from that span unless the true
+XE measurement duration can be independently established.
+
+Do not drop/delete the A XEL until reconstruction is complete.
+Older B XEL remains in a private archive separate from the root.
+
 ## 2026-10-20 — XE file retention verification before repeating A
 
 Local PowerShell listing contained **one** remaining XEL:
