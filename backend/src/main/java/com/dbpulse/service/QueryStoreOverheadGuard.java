@@ -23,6 +23,7 @@ public final class QueryStoreOverheadGuard {
         "내부 SQL 식별은 문장 패턴 기반 추정입니다. Query Store 수집만 조절하며 5초 장애 감지는 유지합니다.";
 
     private final long baseIntervalMs;
+    private final boolean adaptiveEnabled;
     private boolean throttled;
     private boolean skipNextTick;
     private int expensiveStreak;
@@ -41,9 +42,15 @@ public final class QueryStoreOverheadGuard {
     private String reason = "NOT_MEASURED";
 
     public QueryStoreOverheadGuard(long baseIntervalMs) {
+        this(baseIntervalMs, true);
+    }
+
+    /** Fixed baseline is for isolated A/B measurements only, not customer deployment. */
+    public QueryStoreOverheadGuard(long baseIntervalMs, boolean adaptiveEnabled) {
         if (baseIntervalMs < 5_000L || baseIntervalMs > 300_000L)
             throw new IllegalArgumentException("Query Store interval must be 5000..300000ms");
         this.baseIntervalMs = baseIntervalMs;
+        this.adaptiveEnabled = adaptiveEnabled;
     }
 
     /**
@@ -52,7 +59,7 @@ public final class QueryStoreOverheadGuard {
      * 2x base cadence; no additional background worker is created.
      */
     public synchronized boolean shouldSkipScheduledTick() {
-        if (!throttled) return false;
+        if (!adaptiveEnabled || !throttled) return false;
         if (skipNextTick) {
             skipNextTick = false;
             skippedCycles++;
@@ -89,7 +96,7 @@ public final class QueryStoreOverheadGuard {
             recoveryStreak = 0;
             reason = slowWall ? "COLLECTOR_WALL_TIME_HIGH" :
                 highCpu ? "INTERNAL_AVG_CPU_HIGH" : "INTERNAL_AVG_LOGICAL_READS_HIGH";
-            if (expensiveStreak >= 2) throttled = true;
+            if (adaptiveEnabled && expensiveStreak >= 2) throttled = true;
         } else {
             expensiveStreak = 0;
             recoveryStreak++;
@@ -100,7 +107,7 @@ public final class QueryStoreOverheadGuard {
                 skipNextTick = false;
             }
         }
-        if (throttled) skipNextTick = true;
+        if (adaptiveEnabled && throttled) skipNextTick = true;
     }
 
     public synchronized void recordFailure(long jdbcWallMs, Instant now) {
@@ -115,7 +122,7 @@ public final class QueryStoreOverheadGuard {
         reason = "QUERY_STORE_COLLECTION_FAILED";
         // Avoid repeatedly hammering an unavailable Query Store. Independent
         // 5s DMV collection continues even while Query Store is in backoff.
-        if (failureStreak >= 2) {
+        if (adaptiveEnabled && failureStreak >= 2) {
             throttled = true;
             skipNextTick = true;
         }
@@ -149,6 +156,7 @@ public final class QueryStoreOverheadGuard {
             successfulCollections,
             failedCollections,
             cumulativeJdbcWallMs,
+            adaptiveEnabled ? "ADAPTIVE" : "FIXED_BASELINE_LAB_ONLY",
             NOTE
         );
     }
@@ -167,6 +175,7 @@ public final class QueryStoreOverheadGuard {
         double peakInternalAvgLogicalReadsPages, int expensiveStreak,
         int recoveryStreak, int failureStreak, long skippedCycles,
         long totalCollectorAttempts, long successfulCollections,
-        long failedCollections, long cumulativeJdbcWallMs, String limitation
+        long failedCollections, long cumulativeJdbcWallMs,
+        String policy, String limitation
     ) {}
 }
