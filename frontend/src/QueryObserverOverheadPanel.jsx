@@ -48,6 +48,7 @@ export default function QueryObserverOverheadPanel({targetId}) {
   </section>;
 
   const isBackoff=data?.mode==='THROTTLED';
+  const isLabBaseline=data?.policy==='FIXED_BASELINE_LAB_ONLY';
   return <section className="rev-observer-guard" aria-label="DBPulse 자체 수집 부하 상태">
     <div className="rev-observer-guard-head">
       <div>
@@ -56,11 +57,12 @@ export default function QueryObserverOverheadPanel({targetId}) {
       </div>
       <span className={`rev-observer-guard-status ${isBackoff?'throttled':'normal'}`}>
         {isBackoff?<ShieldAlert size={14}/>:<ShieldCheck size={14}/>}
-        {!data?'관측 대기':isBackoff?'수집 간격 완화 중':'기본 간격'}
+        {!data?'관측 대기':isLabBaseline?'고정 간격 · LAB':isBackoff?'수집 간격 완화 중':'기본 간격'}
       </span>
     </div>
     {data && <>
       <div className="rev-observer-guard-metrics">
+        <div><span>수집 정책</span><strong>{isLabBaseline?'고정 60초 A/B 실험':'자동 완화 활성'}</strong></div>
         <div><span>기준 수집 주기</span><strong>{fmt(data.baseIntervalMs/1000)}초</strong></div>
         <div><span>현재 유효 주기</span><strong>{fmt(data.effectiveIntervalMs/1000)}초</strong></div>
         <div><span>최근 JDBC 수집 소요</span><strong>{fmt(data.lastCollectorWallMs)}ms</strong></div>
