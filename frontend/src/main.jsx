@@ -509,7 +509,7 @@ function App() {
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
             <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
-            <span className="small-pill">60s collect</span>
+            <span className="small-pill">60s 기본 · 자동 완화</span>
           </div>
           <div className="query-state">
             분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
