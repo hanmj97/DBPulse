@@ -195,6 +195,61 @@ creating the table. Do not measure setup/index build inside A or B.
 The PowerShell workload now checks the fixture before its timed loop
 and fails with an actionable message if the table is missing.
 
+## 2026-10-20 — A baseline: fixed 60s, 10-minute workload (measured)
+
+The user completed the **A** run with \`policy=FIXED_BASELINE_LAB_ONLY\`,
+\`mode=NORMAL\` throughout, **1,200 synthetic client calls** in exactly
+~600 seconds, mean client latency **5.975 ms**, p95 **1.624 ms**,
+\`successfulCollectorDelta=9\`, \`failedCollectorDelta=0\`,
+\`skippedCycleDelta=0\`, \`JdbcWallMsDelta=2926\`,
+\`modeViolationSamples=0\`, \`apiStatusErrors=0\`,
+\`comparisonEligible=true\`.
+
+**Primary server-side XE baseline (628 seconds; 0 dropped events):**
+
+| XE category | Requests | CPU ms | Logical read pages | Physical read pages | Mean duration ms |
+|---|---:|---:|---:|---:|---:|
+| LAB_WORKLOAD | 1,202 | 2,123 | 19,053 | 563 | 5.67 |
+| OTHER_INTERNAL | 397 | 2,827 | 65,008 | 3,348 | 125.8 |
+| QUERY_STORE_COLLECTOR | 11 | 467 | 119,662 | 4,437 | 180.34 |
+| QUERY_STORE_STATE | 3 | 0 (rounded) | 6,366 | 287 | 83.94 |
+| **DBPulse internal sum** | **411** | **3,294** | **191,036** | **8,072** | — |
+
+The XE workload total includes **1,200 RPC + 2 completed SQL batches**,
+which is why the measured SQL request count is 1,202 while the scripted
+workload executed 1,200 timed client calls. The 628-second XE window
+started ~16 seconds before and ended ~12 seconds after the 600-second
+client-load window. This also explains why **11 XE Query Store requests
+must not be naively equated with the JVM's 9 completed polls over its
+shorter window**. For B, preserve the same timing and compare normalized
+per-minute XE rates: A internal ~314.7 CPU ms/min,
+~18,251.8 logical-read pages/min, ~39.27 calls/min;
+A Query Store collector ~44.62 CPU ms/min,
+~11,433 logical-read pages/min, ~1.05 calls/min.
+
+**Secondary SQL 09 Query Store baseline (634 seconds; incomplete):**
+\`OTHER_INTERNAL\` 266 executions, 4,829.11 ms CPU, 7,070 logical
+pages; \`QUERY_STORE_STATE\` 12 executions, 74.2 ms CPU, 26,732
+logical pages; \`QUERY_STORE_COLLECTOR\` 0 newly observed executions.
+\`invalid_or_disappeared_plans=0\` but
+\`newly_observed_plans_excluded=1\` for state. These results are **not
+strictly comparable to the XE totals**, and the missing Query Store
+collector row does not cancel the observed 11 XE calls.
+Do **not** claim successful Query Store-based A/B validation yet.
+
+**Latency caveat:** measured mean client/server duration exceeds p95,
+which can happen if a small number of extreme slow requests raises the
+mean. A/B results should report this distribution anomaly and avoid
+claiming a latency improvement from these summary metrics alone.
+No customer-production safety claim is supported.
+
+**Remaining gate:** Run **B** with the same code and scripted workload,
+wait for stable \`policy=ADAPTIVE\`, \`mode=THROTTLED\`,
+\`effectiveIntervalMs=120000\` *before* XE/SQL 09 START, and verify it
+remains so throughout the 10-minute client load. Do not modify fixture,
+Query Store settings, or SQL 11 instrumentation between A and B.
+
+
 ## Two comparable A/B windows (local lab only)
 
 1. Do not run high-volume SQL load, edit indexes or change the data
