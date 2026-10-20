@@ -15,13 +15,14 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
   const [error,setError] = useState('');
   const [selected,setSelected] = useState(null);
   const [filter,setFilter] = useState('ALL');
+  const [sort,setSort] = useState('recent');
   useEffect(() => {
     if (!targetId) return undefined;
     let active = true;
     setReport(null);
     const refresh = async () => {
       try {
-        const res = await fetch(`/api/v1/targets/${encodeURIComponent(targetId)}/query-performance/advisor?limit=20`);
+        const res = await fetch(`/api/v1/targets/${encodeURIComponent(targetId)}/query-performance/advisor?limit=40&sort=${encodeURIComponent(sort)}`);
         if(!res.ok) throw new Error('Advisor API failed');
         const data = await res.json();
         if(active) { setReport(data);setError(''); }
@@ -32,7 +33,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
     refresh();
     const timer = setInterval(refresh, 15000);
     return () => {active = false;clearInterval(timer);};
-  },[targetId]);
+  },[targetId,sort]);
 
   const rows = report?.candidates || [];
   const shown = rows.filter(row=>filter==='ALL'||row.priority===filter);
@@ -57,6 +58,17 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
           ['수집 시각',report.collectedAt ? new Date(report.collectedAt).toLocaleTimeString('ko-KR',{hour12:false}) : '—']
         ].map(([name,value])=><div key={name}><small>{name}</small><strong>{value}</strong></div>)}
       </div>
+      <div className="rev-tuning-controls">
+        <div className="rev-tuning-sort">
+          <label htmlFor="dbpulse-query-sort">정렬 기준</label>
+          <select id="dbpulse-query-sort" value={sort} onChange={event=>setSort(event.target.value)}>
+            <option value="recent">최근 실행순 (기본)</option>
+            <option value="priority">튜닝 우선순위순</option>
+            <option value="duration">평균 실행시간순</option>
+          </select>
+        </div>
+        <small>최근 실행 시각은 Query Store에 기록된 값이며 약간 늦게 반영될 수 있습니다.</small>
+      </div>
       <div className="rev-tuning-filters" role="group" aria-label="튜닝 후보 우선순위 필터">
         {[['ALL','전체'],['HIGH','우선 점검'],['MEDIUM','점검 권장'],['OBSERVE','관찰']].map(([code,label])=>
           <button type="button" className={filter===code?'active':''} aria-pressed={filter===code}
@@ -73,7 +85,10 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
             aria-expanded={open}>
             <span className={'rev-tuning-rank '+row.priority.toLowerCase()}>{LABELS[row.priority]||row.priority}</span>
             <span className="rev-tuning-title"><strong>Query #{row.queryId} · Plan #{row.planId}</strong>
-              <small>{SIGNALS[row.diagnosisCode]||row.diagnosisCode}</small></span>
+              <small>{SIGNALS[row.diagnosisCode]||row.diagnosisCode}</small>
+              <span className="rev-tuning-last-run">
+                최근 실행: {row.lastExecutedAt ? new Date(row.lastExecutedAt).toLocaleString('ko-KR',{hour12:false}) : '기록 없음'}
+              </span></span>
             <span className="rev-tuning-numeric"><small>평균 실행</small><strong>{fmt(row.metrics.avgDurationMs)} ms</strong></span>
             <span className="rev-tuning-numeric"><small>논리 읽기</small><strong>{fmt(row.metrics.avgLogicalReadsPages)} pages</strong></span>
             <ChevronDown className={open?'expanded':''} size={18}/>
@@ -95,7 +110,7 @@ export default function QueryTuningAdvisorPanel({ targetId }) {
       })}</div>
     </>}
     <p className="rev-tuning-footer"><ShieldCheck size={17}/>
-      Query Store 상위 20개 이내 query/plan 집계 기반입니다. 실행 횟수는 30초 간 증가량이 아닙니다.
+      최근 실행 20개 + 실행 비용 상위 20개(중복 제거, 최대 40개)의 Query Store 집계입니다. 실행 횟수는 30초 간 증가량이 아닙니다.
       실제 SQL 원문·실행계획 없이 특정 인덱스를 추천하거나 자동 생성하지 않습니다.</p>
   </section>;
 }

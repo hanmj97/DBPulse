@@ -715,3 +715,17 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .rev-plan-operator b{white-space:nowrap;color:var(--t-accent);font-size:13px}
 .rev-plan-disclaimer{margin-top:14px;color:var(--t-muted);font-size:11px;line-height:1.7}
 @media(max-width:700px){.rev-plan-evidence-heading{align-items:start;flex-direction:column}.rev-plan-operator{align-items:start}}
+
+/* Query execution recency: default recent first, optional analytical sorts. */
+.rev-tuning-controls{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:16px 0 13px}
+.rev-tuning-sort,.rev-query-table-toolbar{display:flex;align-items:center;gap:10px}
+.rev-tuning-sort label,.rev-query-table-toolbar label{font-size:12px;font-weight:700;color:var(--t-muted)}
+.rev-tuning-sort select,.rev-query-table-toolbar select{
+  padding:8px 12px;min-width:166px;border:1px solid var(--t-line);border-radius:7px;
+  background:var(--t-inner);color:var(--t-text);font-size:12px;cursor:pointer;
+}
+.rev-tuning-controls>small{font-size:11px;color:var(--t-muted);line-height:1.5}
+.rev-tuning-last-run{font-size:11px;color:var(--t-accent);font-variant-numeric:tabular-nums}
+.rev-query-table-toolbar{justify-content:flex-end;margin:0 0 13px}
+.rev-query-last-executed{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:650}
+@media(max-width:650px){.rev-tuning-controls{align-items:flex-start;flex-direction:column}.rev-query-table-toolbar{justify-content:flex-start;flex-wrap:wrap}}
