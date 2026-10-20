@@ -1,7 +1,46 @@
+## 2026-10-20 — Confirmed XE CPU time units and B workload correction
+
+The user re-ran SQL 13 and provided **actual SQL Server
+`sys.dm_xe_object_columns` metadata**. Both
+`rpc_completed.cpu_time` and `sql_batch_completed.cpu_time`
+are in **microseconds** on this server; both durations are also
+microseconds. The historical SQL 11 error multiplied batch CPU by
+1000, then treated it as microseconds.
+
+B workload corrected from **17,421 ms (INVALID)** to **1,437 ms
+(1,421 ms across 1,200 timed RPC calls + 16 ms across two setup
+batches)**. Both types are now divided by 1000 to report ms, while
+`LAB_SETUP_BATCH` is distinct from timed `LAB_WORKLOAD`.
+The earlier +720.6% A/B workload CPU claim is permanently withdrawn.
+
+Validated B timed RPC latency distribution: mean 11.082 ms,
+p50 1.076 ms, p95 1.339 ms, p99 44.457 ms, maximum
+4,180.761 ms. The four slowest requests (2.284–4.181 seconds)
+account for ~11.94 seconds of the total ~13.30 seconds of RPC
+elapsed time. XE request durations are **not** proof of a DBPulse-caused
+slowdown. The original A XE workload figure of 2,123 ms combined timed
+RPCs plus two inflated setup batches; **A timed RPC CPU is UNKNOWN**
+unless its XEL file was retained.
+
+Changes:
+- `sql/11_observer_ab_extended_events_lab_only.sql` now treats
+  both local XE CPU fields as microseconds, separates setup batches,
+  and reports workload p95 from only timed RPCs.
+- `sql/13_ab_xe_workload_spike_diagnostics_lab_only.sql` now
+  reports verified per-event CPU ms plus raw microseconds with a
+  distinct temp table name to avoid SSMS cached #temp column metadata.
+
+Next: if A's 2026-10-20 05:44:47–05:55:15 UTC XEL still exists,
+recover its timed RPC CPU (no need to rerun entire A); otherwise
+repeat a paired A/B comparison with equal XE windows. Check slow
+request outliers and normal DMV monitoring before merging PR #12.
+
 ## 2026-10-20 — SQL 13 long-tail diagnosis and workload CPU correction
 
 The B XEL contains **1,200 rpc_completed** and **2 sql_batch_completed**
 events for the synthetic `DBPulseLabWorkload` application.
+**Update:** SQL Server subsequently confirmed both CPU fields in microseconds:
+the two batch events represent 16 ms CPU, not 16,000 ms.
 From the RPC events **alone**:
 - total CPU **1,421 ms**, logical reads **18,439 pages**, physical
   reads **775 pages**;
@@ -152,9 +191,8 @@ The updated SQL 11 captures **`rpc_completed` and
 `sql_batch_completed` only** (request-level completions);
 do not sum these with nested statement-completed events. It reports
 counts per `event_name` and `app_name` before categorized totals
-and normalizes SQL-batch CPU milliseconds to microseconds, then to
-display milliseconds (RPC CPU is already microseconds on supported
-SQL Server 2012+). There is a separate `XE_SMOKE_PROBE` category
+and normalizes both RPC and batch CPU microseconds to displayed
+milliseconds (both confirmed by the actual SQL Server metadata). There is a separate `XE_SMOKE_PROBE` category
 for the local diagnostic client. Generic `DBPulseQueryStore` RPC calls
 without SQL text are `QUERY_STORE_UNATTRIBUTED` rather than falsely
 identified as stats or state requests.
@@ -457,7 +495,7 @@ Query Store settings simply to manufacture capture during an A/B window.
 The historic Query Store counter script is a cross-check, not the
 primary quantitative signal while the collector is unobserved.
 `sql/11_observer_ab_extended_events_lab_only.sql` can use a **local
-server-side Extended Events** `sql_statement_completed` event session
+server-side Extended Events** `rpc_completed` and `sql_batch_completed` event session
 filtered to client app names `DBPulse%`. It sums statement CPU in
 microseconds (reported in milliseconds), logical and physical 8KB
 pages, execution counts and call rate by SQL type; the experimental
@@ -477,7 +515,7 @@ collector while the JVM reports successful calls, the comparison is
 **inconclusive**, not zero overhead.
 
 The repeatable **synthetic** SQL client, `tools/run_observer_ab_workload_lab.ps1`,
-uses `dbo.Accounts` from `sql/03_prepare_load_test_data.sql`,
+uses `dbo.Accounts` from `sql/12_prepare_ab_accounts_lab_only.sql`,
 read-only indexed range queries through a local
 `Application Name=DBPulseLabWorkload` session, Windows integrated
 authentication, fixed input sequence and 500ms pacing over 10 minutes.
