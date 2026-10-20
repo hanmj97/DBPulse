@@ -51,8 +51,8 @@ public class QueryPlanOperatorController {
             || Duration.between(state.lastCollectedAt(), Instant.now()).compareTo(Duration.ofMinutes(2)) > 0) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
         }
-        // Never allow arbitrary plan lookup outside the most recently sampled bounded top-40 union set.
-        boolean sampled = repository.latest(id, state.lastCollectedAt(), 40).stream()
+        // Never allow arbitrary plan lookup outside the most recently sampled bounded sampled set.
+        boolean sampled = repository.latest(id, state.lastCollectedAt(), 50).stream()
             .anyMatch(row -> row.queryId() == queryId && row.planId() == planId);
         if (!sampled) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         try {

@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class QueryTuningAdvisorController {
     private static final String SOURCE = "QUERY_STORE_AGGREGATES";
     private static final String COVERAGE =
-        "Query Store 최근 실행 상위 20개 및 실행 비용 상위 20개를 중복 제거한 최대 40개 query/plan의 집계값입니다. " +
+        "Query Store 최근 실행 상위 20개 및 실행 비용 상위 20개를 중복 제거한 최대 40개 비모니터링 패턴 + 최대 10개 DBPulse 수집 패턴 query/plan의 집계값입니다. " +
         "실행 횟수는 폴링 사이 증분이나 정확히 최근 15분에 실행된 횟수를 뜻하지 않습니다.";
 
     private final MssqlTargetProperties target;
@@ -46,8 +46,8 @@ public class QueryTuningAdvisorController {
         if (!target.getId().equals(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-        if (limit < 1 || limit > 40) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be 1..40");
+        if (limit < 1 || limit > 50) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be 1..50");
         }
         if (!List.of("recent", "priority", "duration").contains(sort)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort must be recent, priority or duration");
@@ -66,7 +66,7 @@ public class QueryTuningAdvisorController {
                 "STALE", state.lastCollectedAt(), SOURCE, COVERAGE,
                 "QUERY_STORE_SAMPLE_STALE", List.of());
         }
-        var rows = repository.latest(id, state.lastCollectedAt(), 40);
+        var rows = repository.latest(id, state.lastCollectedAt(), 50);
         return new QueryTuningAdvisor.Report(
             state.status(), state.lastCollectedAt(), SOURCE, COVERAGE,
             null, advisor.advise(rows, limit, sort));

@@ -40,8 +40,8 @@ public class QueryPerformanceController {
     public List<QueryPerformanceSnapshot> list(@PathVariable String id,
                                                @RequestParam(defaultValue = "20") int limit) {
         requireTarget(id);
-        if (limit < 1 || limit > 40) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-            "limit must be between 1 and 40");
+        if (limit < 1 || limit > 50) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            "limit must be between 1 and 50");
         if (!"ONLINE".equals(service.state().status())
             && !"QUERY_STORE_READ_ONLY".equals(service.state().status())) return List.of();
         var analysisState = service.state();

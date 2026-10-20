@@ -68,7 +68,7 @@ public class QueryTuningAdvisor {
             "현재 규칙의 임계값을 넘지 않았습니다. 정상 동작을 보증하지 않으며 추세와 실행계획을 추가로 확인할 수 있습니다."));
 
         return new Candidate(row.queryId(), row.planId(), priority,
-            row.diagnosisCode(), row.lastExecutedAt(),
+            row.diagnosisCode(), row.lastExecutedAt(), row.sourceCategory(),
             new Metrics(row.executionCount(), duration, cpu, reads),
             List.copyOf(steps),
             "Query Store 집계 수치에서 도출한 점검 후보입니다. SQL 원문·실행계획 XML을 수집하지 않아 인덱스 생성이나 실행계획 개선 효과를 확정하지 않습니다.");
@@ -79,7 +79,7 @@ public class QueryTuningAdvisor {
                           double avgCpuMs, double avgLogicalReadsPages) {}
     public record Candidate(long queryId, long planId, String priority,
                             String diagnosisCode, Instant lastExecutedAt,
-                            Metrics metrics, List<Advice> actions, String limitation) {}
+                            String sourceCategory, Metrics metrics, List<Advice> actions, String limitation) {}
     public record Report(String status, Instant collectedAt, String source,
                          String coverage, String errorCode, List<Candidate> candidates) {}
 }
