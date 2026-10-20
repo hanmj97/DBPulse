@@ -11,8 +11,9 @@
  BEFORE START:
   1. Make D:\Projects\DBPulseLabXE on the SQL Server machine. Grant SQL Server
      SERVICE account write access. Remove old ObserverCost*.xel files.
-  2. Start this script in ONE SSMS tab; change @Phase START -> END after
-     10 min on the SAME SSMS session. Repeat A and B separately.
+  2. Smoke test: run START, wait at least 90 seconds, run END in the
+     SAME SSMS tab. A/B windows: use matching 10-minute capture periods.
+     Repeat A and B separately. Run CLEANUP after reviewing aggregates.
   3. Put repeatable synthetic workload in its own Application Name=
      DBPulseLabWorkload connection. Do not simulate customer personal data.
 */
