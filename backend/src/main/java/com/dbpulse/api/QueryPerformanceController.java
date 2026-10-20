@@ -4,6 +4,7 @@ import com.dbpulse.config.MssqlTargetProperties;
 import com.dbpulse.domain.QueryPerformanceSnapshot;
 import com.dbpulse.persistence.QueryPerformanceRepository;
 import com.dbpulse.service.QueryPerformanceService;
+import com.dbpulse.service.QueryStoreOverheadGuard;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -34,6 +35,16 @@ public class QueryPerformanceController {
     public QueryPerformanceService.AnalysisState status(@PathVariable String id) {
         requireTarget(id);
         return service.state();
+    }
+
+    /**
+     * No SQL Server query here; returns in-process guard observations only.
+     * Avoid exposing raw SQL, client identifiers or connection strings.
+     */
+    @GetMapping("/overhead")
+    public QueryStoreOverheadGuard.Snapshot overhead(@PathVariable String id) {
+        requireTarget(id);
+        return service.overhead();
     }
 
     @GetMapping
