@@ -271,3 +271,11 @@ docker compose up -d
 - `GET /api/v1/targets/local-mssql/query-performance/overhead`는 Java 프로세스 메모리 상태만 반환하며 MSSQL 추가 조회 없음.
 - Query Store 과거 통계의 집계값이므로 **실제 고객 DB 전체 부하나 성능 영향을 입증하지 못함**. 로컬 환경 외 사용 금지.
 - [설계, API, 로컬 검증 및 향후 제약](docs/PHASE13_MONITORING_OVERHEAD_GUARD.md)
+
+## v0.13 추가: 쿼리 CPU 시간 + 선택적 SQL Server CPU 사용률
+
+- 기존 Query Store 쿼리별 평균 CPU(ms), 실행횟수를 목록 상단에서 직접 확인. 집계 CPU 총량은 `avgCpuMs × executionCount`로 추정하며 60초 단위 실시간 실행횟수로 오해하지 않도록 표기.
+- 별도 **SQL Server 프로세스 CPU 사용률(%)** 카드: 인스턴스 전체 및 호스트 전체 사용률을 분리 표시. 개별 DB CPU%가 아님.
+- `DBPULSE_SQLSERVER_CPU_ENABLED=true` 로컬 명시 허용 시에만, 60초마다 진단 DMV를 조회. 기본 OFF, 권한 부족/데이터 미지원 시 수치 추측 금지.
+- Microsoft는 `sys.dm_os_ring_buffers.record`의 내부 XML 호환성을 보장하지 않으므로 실험적 로컬 기능으로 제한; 상용 서비스에는 지원되는 호스트 CPU 메트릭 도입 필요.
+- [기능·권한·보안·검증 방법](docs/PHASE13_SQLSERVER_CPU_METRICS.md)
