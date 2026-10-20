@@ -11,6 +11,7 @@ import { DashboardShell } from './DashboardShell.jsx';
 import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
+import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
 
 const fmt = (n) => (n == null ? '—' : new Intl.NumberFormat('ko-KR').format(n));
 const timeFmt = (iso) => iso ? new Date(iso).toLocaleTimeString('ko-KR', {hour12: false}) : '—';
@@ -364,7 +365,7 @@ function App() {
     waits:'실행 요청의 Wait Type과 리소스 종류를 분석합니다.',
     deadlocks:'system_health에서 수집한 데드락 이벤트를 조회합니다.',
     performance:'실제 DMV 요청 지표와 시점별 변화 추이를 확인합니다.',
-    queries:'Query Store의 쿼리·실행계획별 집계 통계를 확인합니다.'
+    queries:'Query Store 집계로 점검 후보를 찾고 실행계획 검토 방향을 확인합니다.'
   };
   const detailIntro = pageKey => <div className="rev-detail-intro">
     <div><span className="rev-detail-overline">ANALYSIS WORKSPACE</span>
@@ -481,6 +482,7 @@ function App() {
     </div>}
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
+      <QueryTuningAdvisorPanel targetId={target?.id}/>
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
             <div><h2>쿼리 성능 분석</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
