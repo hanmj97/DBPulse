@@ -5,8 +5,10 @@
  DBPulseLabWorkload client. Requires lab sysadmin/ALTER ANY EVENT SESSION.
  Captures rpc_completed (prepared/JDBC calls) and sql_batch_completed (batches).
  This avoids summing nested statement-completed events with their parent RPCs.
- On SQL Server 2012+, RPC cpu_time uses microseconds while batch cpu_time
- uses milliseconds; normalize them before reporting CPU in milliseconds.
+ XE event cpu_time metadata differs by event type/version. RPC CPU for
+ SQL Server 2012+ is in microseconds. Batch CPU is reported separately
+ and MUST NOT be combined with the 1,200 timed workload RPC calls.
+ Verify batch cpu_time units on the actual server before using its total.
  Records statement text inside a LOCAL XEL file (sensitive!); report
  returns aggregates only. Remove XEL after the experiment.
  Never execute on a customer/production SQL Server.
@@ -122,7 +124,9 @@ BEGIN
                THEN x.value('(/event/data[@name="statement"]/value)[1]','nvarchar(max)')
                ELSE x.value('(/event/data[@name="batch_text"]/value)[1]','nvarchar(max)')
           END AS statement_text,
-          -- RPC cpu_time is microseconds; sql_batch_completed cpu_time is ms.
+          -- RPC CPU is measured in microseconds on SQL Server 2012+.
+          -- Batch CPU is NOT used to compare timed workload requests;
+          -- verify batch metadata on the exact SQL Server before interpreting.
           CASE WHEN event_name=N'sql_batch_completed'
                THEN 1000 * x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint')
                ELSE x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint')
@@ -134,7 +138,8 @@ BEGIN
     )
     INSERT INTO #DBPulseXECosts
     SELECT app_name, event_name,
-           CASE WHEN app_name=N'DBPulseLabWorkload' THEN 'LAB_WORKLOAD'
+           CASE WHEN app_name=N'DBPulseLabWorkload' AND event_name=N'rpc_completed' THEN 'LAB_WORKLOAD'
+                WHEN app_name=N'DBPulseLabWorkload' AND event_name=N'sql_batch_completed' THEN 'LAB_SETUP_BATCH'
                 WHEN app_name=N'DBPulseXEProbe' THEN 'XE_SMOKE_PROBE'
                 WHEN app_name=N'DBPulseQueryStore'
                   AND (statement_text LIKE N'%DBPULSE_INTERNAL_QSTORE_STATS_V1%'
@@ -170,7 +175,8 @@ BEGIN
     GROUP BY sql_kind
     ORDER BY sql_kind;
 
-    -- Latency percentile is measured ONLY for synthetic workload statements.
+    -- Latency percentile includes ONLY the 1,200 timed synthetic RPC calls;
+    -- setup batches are separately labeled and excluded.
     ;WITH Workload AS (
         SELECT duration_us,
           PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_us)
@@ -186,7 +192,7 @@ BEGIN
            @Seconds AS elapsed_seconds, @DroppedEvents AS dropped_xe_events,
            CASE WHEN @DroppedEvents=0 THEN 'NO_REPORTED_XE_DROPS'
                 ELSE 'INVALID_XE_DROPPED_EVENTS' END AS capture_integrity,
-           'Only RPC and batch completion requests are counted. Query Store stats may miss JDBC calls, and RPC text may not identify prepared-plan reuse. Do not add to Query Store totals.' AS limitations;
+           'LAB_WORKLOAD counts timed RPC only, LAB_SETUP_BATCH is excluded from workload CPU/latency comparisons. Verify batch CPU XE units against server metadata. Do not add to Query Store totals.' AS limitations;
     -- KEEP session stopped until review; run CLEANUP later.
 END
 ELSE IF @Phase='CLEANUP'
