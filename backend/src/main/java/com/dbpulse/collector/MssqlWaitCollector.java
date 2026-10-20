@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class MssqlWaitCollector {
     private static final String SQL = """
+        /* DBPULSE_INTERNAL_WAITS_V1 */
         SELECT TOP (100)
             r.session_id, r.wait_type, CONVERT(BIGINT, r.wait_time) AS wait_ms,
             CONVERT(BIGINT, r.total_elapsed_time) AS elapsed_ms,

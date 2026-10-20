@@ -809,3 +809,120 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .rev-plan-finding-next p{font-size:11px;line-height:1.65;color:var(--t-muted);margin:0}
 .rev-plan-correlation .rev-plan-disclaimer{padding-top:13px;border-top:1px solid var(--t-line)}
 @media(max-width:670px){.rev-plan-correlation{padding:12px}.rev-plan-finding-next{flex-direction:column;gap:5px}}
+
+/* v0.12 plan comparison — theme variables inherited from DBPulse dark styles */
+.rev-plan-compare{border:1px solid var(--t-line);background:var(--t-card);
+  border-radius:10px;padding:16px;margin:17px 0}
+.rev-plan-compare-heading{display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px}
+.rev-plan-compare-heading h4{display:flex;align-items:center;gap:8px;
+  font-size:13px;color:var(--t-text);margin:0 0 6px}
+.rev-plan-compare-heading p{font-size:11px;color:var(--t-muted);line-height:1.6;margin:0}
+.rev-plan-compare-heading button{color:var(--t-accent);background:var(--t-accent-soft);
+  border:1px solid var(--t-accent);border-radius:7px;padding:9px 12px;
+  cursor:pointer;font-weight:700;font-size:11px}
+.rev-plan-compare-heading button:disabled{cursor:wait;opacity:.65}
+.rev-plan-compare-selected{margin-top:15px;padding:13px;background:var(--t-inner);
+  border:1px solid var(--t-line);border-radius:8px}
+.rev-plan-compare-selected>span{color:var(--t-muted);font-size:11px}
+.rev-plan-compare-selected strong{color:var(--t-text);font-size:12px;margin-left:6px}
+.rev-plan-compare-stats{display:flex;gap:8px 15px;flex-wrap:wrap;margin-top:11px}
+.rev-plan-compare-stats span{font-size:11px;color:var(--t-muted);line-height:1.7}
+.rev-plan-compare-stats b{font-size:12px;color:var(--t-text);margin-left:5px}
+.rev-plan-compare-list{display:grid;gap:10px;margin-top:12px}
+.rev-plan-compare-peer{background:var(--t-inner);border:1px solid var(--t-line);
+  border-radius:8px;padding:13px}
+.rev-plan-compare-peer-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rev-plan-compare-peer-head strong{font-size:12px;color:var(--t-text)}
+.rev-plan-compare-peer-head span{font-size:11px;color:var(--t-accent)}
+.rev-plan-compare-peer-head .rev-plan-compare-review{color:#ffcb91}
+.rev-plan-compare-next{border-top:1px solid var(--t-line);margin:12px 0 0;
+  padding-top:10px;color:var(--t-muted);font-size:11px;line-height:1.7}
+.rev-plan-compare-empty,.rev-plan-compare-warning{color:var(--t-muted);
+  border:1px dashed var(--t-line);border-radius:7px;padding:14px;
+  margin:12px 0;font-size:11px;line-height:1.65}
+.rev-plan-compare-warning{color:#ffc99a;border-color:#856445}
+.rev-plan-compare-limitation{display:flex;align-items:start;gap:8px;
+  color:var(--t-muted);font-size:11px;line-height:1.75;margin:15px 0 0}
+.rev-plan-compare-limitation svg{flex:0 0 15px;color:var(--t-accent);margin-top:2px}
+@media(max-width:680px){.rev-plan-compare{padding:12px}
+  .rev-plan-compare-heading{align-items:start;flex-direction:column}}
+
+/* v0.12 read-only opt-in SQL-text drawer. Uses both approved dark palettes. */
+.rev-tuning-row-actions{display:flex;align-items:stretch;gap:6px}
+.rev-tuning-row-actions .rev-tuning-toggle{width:auto;flex:1;min-width:0}
+.rev-query-sql-link{
+  display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;
+  border:1px solid var(--t-line);background:var(--t-accent-soft);color:var(--t-accent);
+  border-radius:7px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;
+  margin-top:5px
+}
+.rev-query-sql-link:hover{border-color:var(--t-accent);background:var(--t-hover)}
+.rev-tuning-row-sql{flex:0 0 auto;align-self:center;margin:0 12px 0 0}
+.rev-sql-drawer-root{position:fixed;inset:0;z-index:5000;isolation:isolate}
+.rev-sql-drawer-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.7);
+  width:100%;height:100%;border:0;cursor:pointer}
+.rev-sql-drawer{position:absolute;top:0;right:0;bottom:0;width:min(860px,86vw);
+  background:var(--t-card);color:var(--t-text);border-left:1px solid var(--t-line);
+  box-shadow:-20px 0 70px rgba(0,0,0,.36);display:flex;flex-direction:column;
+  overflow:hidden;animation:rev-sql-enter .18s ease-out}
+@keyframes rev-sql-enter{from{transform:translateX(20px);opacity:.7}
+  to{transform:translateX(0);opacity:1}}
+.rev-sql-drawer-head{display:flex;align-items:start;justify-content:space-between;
+  gap:20px;padding:25px 27px 18px;border-bottom:1px solid var(--t-line)}
+.rev-sql-drawer-eyebrow{color:var(--t-accent);font-size:10px;font-weight:800;
+  letter-spacing:1px;display:inline-flex;gap:7px;align-items:center}
+.rev-sql-drawer-head h2{color:var(--t-text);font-size:23px;margin:10px 0 6px}
+.rev-sql-drawer-head p{color:var(--t-muted);font-size:12px}
+.rev-sql-drawer-close{background:var(--t-inner);color:var(--t-text);
+  border:1px solid var(--t-line);border-radius:8px;cursor:pointer;padding:9px}
+.rev-sql-drawer-alert{display:flex;gap:10px;align-items:start;margin:17px 26px 0;
+  padding:13px 14px;border:1px solid #866545;background:rgba(140,92,45,.15);
+  color:#f5c597;border-radius:8px}
+.rev-sql-drawer-alert svg{flex:0 0 18px;margin-top:2px}
+.rev-sql-drawer-alert p{font-size:11px;line-height:1.8;margin:0}
+.rev-sql-drawer-content{flex:1;min-height:0;display:flex;flex-direction:column;
+  padding:20px 26px;overflow:auto}
+.rev-sql-drawer-summary{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:10px}
+.rev-sql-drawer-summary>span{color:var(--t-muted);font-size:12px;font-weight:750}
+.rev-sql-drawer-summary button{display:flex;gap:7px;align-items:center;
+  padding:8px 12px;background:var(--t-accent-soft);color:var(--t-accent);
+  border:1px solid var(--t-line);border-radius:7px;font-size:11px;cursor:pointer}
+.rev-sql-drawer-summary button:disabled{cursor:default;opacity:.5}
+.rev-sql-drawer-code{flex:1;min-height:150px;overflow:auto;
+  background:var(--t-inner);color:var(--t-text);padding:18px;
+  border:1px solid var(--t-line);border-radius:9px;font:12px/1.85 Consolas,monospace;
+  white-space:pre;tab-size:4;user-select:text}
+.rev-sql-drawer-truncated{display:flex;align-items:center;gap:8px;
+  font-size:11px;color:#f8bf8f;margin:4px 0 12px}
+.rev-sql-drawer-message{color:var(--t-muted);border:1px dashed var(--t-line);
+  border-radius:8px;padding:18px;font-size:12px;line-height:1.8}
+.rev-sql-drawer-message.error{color:#ffc49d}
+.rev-sql-drawer-footer{color:var(--t-muted);border-top:1px solid var(--t-line);
+  padding:15px 26px;font-size:11px;line-height:1.7}
+@media(max-width:710px){.rev-sql-drawer{width:100vw}.rev-sql-drawer-head{
+  padding:18px}.rev-sql-drawer-content{padding:14px 18px}
+  .rev-sql-drawer-alert{margin:12px 18px 0}
+  .rev-sql-drawer-footer{padding:12px 18px}
+  .rev-tuning-row-actions{flex-wrap:wrap}.rev-tuning-row-actions .rev-tuning-toggle{flex-basis:100%}
+  .rev-tuning-row-sql{margin:0 10px 10px auto}}
+@media(prefers-reduced-motion:reduce){.rev-sql-drawer{animation:none}}
+
+/* The drawer is portaled to document.body: explicitly inherit the two chosen theme palettes. */
+.rev-sql-drawer-root[data-theme="navy"]{
+  --t-card:#10233c;--t-inner:#172d49;--t-line:#2b486a;--t-text:#edf5ff;
+  --t-muted:#a3bad7;--t-secondary:#8fa9ca;--t-accent:#4da4ff;
+  --t-accent-soft:#173d68;--t-hover:#1c4166;
+}
+.rev-sql-drawer-root[data-theme="dark"]{
+  --t-card:#1c2d41;--t-inner:#243b50;--t-line:#3a526c;--t-text:#edf6fa;
+  --t-muted:#b3c9d8;--t-secondary:#94b0c2;--t-accent:#6fd2c5;
+  --t-accent-soft:#214640;--t-hover:#294a56;
+}
+
+/* Explicitly distinguish DBPulse collection load from customer SQL tuning urgency. */
+.rev-tuning-rank.internal{
+  background:var(--t-accent-soft);color:var(--t-accent);
+  border:1px solid var(--t-line)
+}

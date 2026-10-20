@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, CircleHelp, Sparkles, ShieldCheck } from 'lucide-react';
 import PlanOperatorEvidence from './PlanOperatorEvidence.jsx';
+import QueryPlanComparison from './QueryPlanComparison.jsx';
 import { filterQueryCandidates, filterQuerySources } from './queryCandidateFilters.js';
 
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
-const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰'};
+const LABELS = {HIGH:'우선 점검', MEDIUM:'점검 권장', OBSERVE:'관찰', INTERNAL:'수집 부하'};
 const SIGNALS = {
   SLOW_HIGH_READS:'실행 지연·논리 읽기 높음', SLOW_HIGH_CPU:'실행 지연·CPU 높음',
   SLOW_AVERAGE:'평균 실행 시간 높음', HIGH_READS:'논리 읽기 높음',
-  HIGH_CPU:'CPU 높음', OBSERVE:'현재 임계값 미만'
+  HIGH_CPU:'CPU 높음', OBSERVE:'현재 임계값 미만',
+  COLLECTOR_OVERHEAD:'DBPulse 내부 수집 SQL · 관측 전용'
 };
 
-export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'exclude-dbpulse' }) {
+export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'exclude-dbpulse', onShowSql }) {
   const [report,setReport] = useState(null);
   const [error,setError] = useState('');
   const [selected,setSelected] = useState(null);
@@ -49,7 +51,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
   return <section id="sql-tuning-advisor" className="card rev-tuning-panel">
     <div className="section-heading">
       <div><span className="rev-tuning-eyebrow"><Sparkles size={14}/>QUERY STORE INSIGHTS</span>
-        <h2>SQL Tuning Advisor <small>v0.10 alpha</small></h2>
+        <h2>SQL Tuning Advisor <small>v0.12 alpha</small></h2>
         <p>실제 집계 수치로 검토 우선순위를 정하고 점검할 항목을 제안합니다.</p>
       </div>
       <span className="small-pill">읽기 전용</span>
@@ -98,7 +100,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
         </div>
       </div>
       <div className="rev-tuning-filters" role="group" aria-label="튜닝 후보 우선순위 필터">
-        {[['ALL','전체'],['HIGH','우선 점검'],['MEDIUM','점검 권장'],['OBSERVE','관찰']].map(([code,label])=>
+        {[['ALL','전체'],['HIGH','우선 점검'],['MEDIUM','점검 권장'],['OBSERVE','관찰'],...(sourceFilter!=='exclude-dbpulse'?[['INTERNAL','수집 부하']]:[])].map(([code,label])=>
           <button type="button" className={filter===code?'active':''} aria-pressed={filter===code}
             key={code} onClick={()=>setFilter(code)}>{label}</button>)}
       </div>
@@ -106,13 +108,14 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
         {rows.length===0
           ? '현재 Query Store에서 수집된 후보가 없습니다. 수집기와 Query Store 상태를 확인해 주세요.'
           : hasIdSearch
-            ? '현재 수집된 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(약 30초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
+            ? '현재 수집된 후보에서 입력한 Query ID / Plan ID를 찾지 못했습니다. SQL Server Query Store 반영 후 다음 수집 주기(기본 약 60초)를 기다려 보거나 우선순위 필터를 전체로 선택해 주세요. 전체 Query Store를 직접 조회하는 검색은 아닙니다.'
             : '해당 우선순위의 후보가 없습니다.'}
       </p>}
       <div className="rev-tuning-candidates">{shown.map(row=>{
         const key = `${row.queryId}:${row.planId}`;
         const open = selected===key;
         return <article className="rev-tuning-item" key={key}>
+          <div className="rev-tuning-row-actions">
           <button type="button" className="rev-tuning-toggle" onClick={()=>setSelected(open?null:key)}
             aria-expanded={open}>
             <span className={'rev-tuning-rank '+row.priority.toLowerCase()}>{LABELS[row.priority]||row.priority}</span>
@@ -125,6 +128,12 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
             <span className="rev-tuning-numeric"><small>논리 읽기</small><strong>{fmt(row.metrics.avgLogicalReadsPages)} pages</strong></span>
             <ChevronDown className={open?'expanded':''} size={18}/>
           </button>
+          <button type="button" className="rev-query-sql-link rev-tuning-row-sql"
+            aria-label={`Query ${row.queryId}, Plan ${row.planId} SQL 원문 보기`}
+            onClick={()=>onShowSql?.(row.queryId,row.planId)}>
+            SQL 보기
+          </button>
+          </div>
           {open && <div className="rev-tuning-detail">
             <div className="rev-tuning-metrics">
               <span>평균 CPU <strong>{fmt(row.metrics.avgCpuMs)} ms</strong></span>
@@ -134,6 +143,8 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
             <h3>권장 점검 순서</h3>
             {(row.actions||[]).map((action,index)=><div className="rev-tuning-action" key={action.code}>
               <span>{index+1}</span><div><strong>{action.title}</strong><p>{action.description}</p></div></div>)}
+            <QueryPlanComparison key={'compare-'+key} targetId={targetId}
+              queryId={row.queryId} planId={row.planId}/>
             <PlanOperatorEvidence key={key} targetId={targetId}
               queryId={row.queryId} planId={row.planId}/>
             <p className="rev-tuning-disclaimer"><CircleHelp size={15}/>{row.limitation}</p>
@@ -142,7 +153,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
       })}</div>
     </>}
     <p className="rev-tuning-footer"><ShieldCheck size={17}/>
-      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 30초 간 증가량이 아닙니다.
-      실제 SQL 원문·실행계획 없이 특정 인덱스를 추천하거나 자동 생성하지 않습니다.</p>
+      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 수집 주기(기본 60초) 중 증가량이 아닙니다.
+      SQL 원문은 자동 저장하지 않으며, 보안 허용 시 버튼으로만 조회합니다. 인덱스를 자동 추천하거나 생성하지 않습니다.</p>
   </section>;
 }

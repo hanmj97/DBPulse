@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class MssqlDeadlockCollector {
     private static final String SQL = """
+        /* DBPULSE_INTERNAL_DEADLOCK_V1 */
         WITH recent AS (
             SELECT TOP (100)
                 e.file_name, e.file_offset, e.timestamp_utc,

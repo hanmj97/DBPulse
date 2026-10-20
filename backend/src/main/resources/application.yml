@@ -21,6 +21,10 @@ spring:
   jackson:
     time-zone: UTC
 dbpulse:
+  query-analytics:
+    interval-ms: ${DBPULSE_QUERY_ANALYTICS_INTERVAL_MS:60000}
+  query-text:
+    enabled: ${DBPULSE_QUERY_TEXT_ENABLED:false}
   collector:
     interval-ms: ${DBPULSE_COLLECT_INTERVAL_MS:5000}
     slow-threshold-ms: ${DBPULSE_SLOW_THRESHOLD_MS:1000}

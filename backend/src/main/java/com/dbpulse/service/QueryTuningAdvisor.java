@@ -44,6 +44,19 @@ public class QueryTuningAdvisor {
     }
 
     private Candidate classify(QueryPerformanceSnapshot row) {
+        if ("DBPULSE_PATTERN".equals(row.sourceCategory())) {
+            // Internal monitoring load must never be presented as customer SQL tuning.
+            return new Candidate(row.queryId(), row.planId(), "INTERNAL",
+                "COLLECTOR_OVERHEAD", row.lastExecutedAt(), row.sourceCategory(),
+                new Metrics(row.executionCount(), row.avgDurationMs(),
+                    row.avgCpuMs(), row.avgLogicalReadsPages()),
+                List.of(new Advice("MONITORING_OVERHEAD",
+                    "DBPulse 수집 쿼리 부하 확인",
+                    "DBPulse 자체 진단 SQL입니다. 업무 SQL에 대한 인덱스 튜닝 대상이 아닙니다. " +
+                    "모니터링 주기·호출 횟수·CPU·논리 읽기를 점검하고, 필요 시 수집 주기를 늘리거나 수집 SQL을 개선하세요.")),
+                "DBPulse 내부 SQL 패턴으로 추정한 쿼리입니다. 실행 주체가 확정된 것은 아닙니다. " +
+                "모니터링 부하는 별도로 측정해야 하며 고객의 인덱스 변경으로 해결하려고 해서는 안 됩니다.");
+        }
         List<Advice> steps = new ArrayList<>();
         double duration = row.avgDurationMs();
         double cpu = row.avgCpuMs();

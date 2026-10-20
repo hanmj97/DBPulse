@@ -113,7 +113,8 @@ export default function PlanOperatorEvidence({targetId,queryId,planId}) {
           </div>
           <span className={'rev-plan-correlation-state '+(report.correlation.status==='PARTIAL_EVIDENCE'?'partial':'')}>
             {report.correlation.status==='EVIDENCE_AVAILABLE'?'근거 연결 완료':
-              report.correlation.status==='PARTIAL_EVIDENCE'?'일부 연산만 확인':'연결 근거 부족'}
+              report.correlation.status==='PARTIAL_EVIDENCE'?'일부 연산만 확인':
+              report.correlation.status==='COLLECTOR_OVERHEAD_ONLY'?'DBPulse 수집 부하 관측':'연결 근거 부족'}
           </span>
         </div>
         <div className="rev-plan-findings">

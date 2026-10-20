@@ -90,4 +90,19 @@ class QueryTuningAdvisorTest {
             .containsExactlyInAnyOrder("OTHER_OR_UNKNOWN", "DBPULSE_PATTERN");
     }
 
+    @Test
+    void dbpulseCollectorIsReportedAsMonitoringOverheadNotUserTuningCandidate() {
+        var collector = new QueryPerformanceSnapshot(
+            NOW, 95, 29, 108, 45.76, 1.96, 1071.43,
+            NOW, "HIGH_READS", "DBPULSE_PATTERN");
+        var advice = new QueryTuningAdvisor().advise(List.of(collector), 10).getFirst();
+        assertThat(advice.priority()).isEqualTo("INTERNAL");
+        assertThat(advice.diagnosisCode()).isEqualTo("COLLECTOR_OVERHEAD");
+        assertThat(advice.actions())
+            .extracting(QueryTuningAdvisor.Advice::code)
+            .containsExactly("MONITORING_OVERHEAD")
+            .doesNotContain("REVIEW_LOGICAL_READS");
+        assertThat(advice.actions().getFirst().description()).contains("수집 주기");
+    }
+
 }

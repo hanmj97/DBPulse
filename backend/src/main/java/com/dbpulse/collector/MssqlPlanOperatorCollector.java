@@ -22,6 +22,7 @@ public class MssqlPlanOperatorCollector {
     private static final int MAX_OPERATOR_NODES = 100;
 
     private static final String METADATA_SQL = """
+        /* DBPULSE_INTERNAL_PLAN_METADATA_V1 */
         SELECT TOP (1) is_parallel_plan, is_forced_plan,
                DATALENGTH(query_plan) AS plan_bytes
         FROM sys.query_store_plan
@@ -30,6 +31,7 @@ public class MssqlPlanOperatorCollector {
 
     // TOP 101 detects truncation; never fetch XML or arbitrary attributes over JDBC.
     private static final String OPERATOR_SQL = """
+        /* DBPULSE_INTERNAL_PLAN_OPERATORS_V1 */
         WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
         SELECT TOP (101)
             op.node.value('(@PhysicalOp)[1]', 'nvarchar(100)') AS physical_op
