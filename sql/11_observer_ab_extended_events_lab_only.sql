@@ -68,6 +68,14 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM sys.server_event_sessions WHERE name=N'DBPulseLab_Observer_AB')
         THROW 51013, 'XE session missing.', 1;
 
+    -- A dropped-event count >0 invalidates exact statement-level totals.
+    DECLARE @DroppedEvents BIGINT = (
+        SELECT dropped_event_count
+        FROM sys.dm_xe_sessions WHERE name=N'DBPulseLab_Observer_AB'
+    );
+    IF @DroppedEvents IS NULL
+        THROW 51015, 'XE session was not running at END.', 1;
+
     ALTER EVENT SESSION [DBPulseLab_Observer_AB] ON SERVER STATE=STOP;
     DECLARE @StartedUtc DATETIME2(7)=(SELECT TOP (1) started_at_utc FROM #DBPulseXEWindow);
     DECLARE @EndedUtc DATETIME2(7)=SYSUTCDATETIME();
@@ -146,7 +154,9 @@ BEGIN
     FROM Workload;
 
     SELECT @StartedUtc AS started_at_utc,@EndedUtc AS ended_at_utc,
-           @Seconds AS elapsed_seconds,
+           @Seconds AS elapsed_seconds, @DroppedEvents AS dropped_xe_events,
+           CASE WHEN @DroppedEvents=0 THEN 'NO_REPORTED_XE_DROPS'
+                ELSE 'INVALID_XE_DROPPED_EVENTS' END AS capture_integrity,
            'Do NOT add these counts to Query Store totals; different sources overlap. Zero collector events must be checked against JVM attempts.' AS limitations;
     -- KEEP session stopped until review; run CLEANUP later.
 END
