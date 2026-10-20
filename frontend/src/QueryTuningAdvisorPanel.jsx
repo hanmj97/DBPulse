@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, CircleHelp, Sparkles, ShieldCheck } from 'lucide-react';
 import PlanOperatorEvidence from './PlanOperatorEvidence.jsx';
+import QueryPlanComparison from './QueryPlanComparison.jsx';
 import { filterQueryCandidates, filterQuerySources } from './queryCandidateFilters.js';
 
 const fmt = value => value == null ? '—' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
@@ -134,6 +135,8 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
             <h3>권장 점검 순서</h3>
             {(row.actions||[]).map((action,index)=><div className="rev-tuning-action" key={action.code}>
               <span>{index+1}</span><div><strong>{action.title}</strong><p>{action.description}</p></div></div>)}
+            <QueryPlanComparison key={'compare-'+key} targetId={targetId}
+              queryId={row.queryId} planId={row.planId}/>
             <PlanOperatorEvidence key={key} targetId={targetId}
               queryId={row.queryId} planId={row.planId}/>
             <p className="rev-tuning-disclaimer"><CircleHelp size={15}/>{row.limitation}</p>
