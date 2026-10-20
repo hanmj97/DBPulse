@@ -604,3 +604,75 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
  .rev-theme-picker>svg{width:13px}
  .rev-overview-secondary>.rev-panel{min-height:0}
 }
+
+/* Finish theme propagation through remaining legacy analysis panels. */
+.rev-layout[data-theme] .rev-wait-fill{background:var(--t-accent)}
+.rev-layout[data-theme] .rev-chart-legend i{outline:1px solid color-mix(in srgb,var(--t-accent) 12%,transparent)}
+.rev-layout[data-theme] .rev-detail-content .blocking-history-head,
+.rev-layout[data-theme] .rev-detail-content .deadlock-event-head strong,
+.rev-layout[data-theme] .rev-detail-content .blocking-chain-overview strong,
+.rev-layout[data-theme] .rev-detail-content .wait-history-head strong,
+.rev-layout[data-theme] .rev-detail-content .query-state strong,
+.rev-layout[data-theme] .rev-detail-content .wait-category-pill strong,
+.rev-layout[data-theme] .rev-detail-content .blocking-history-row strong,
+.rev-layout[data-theme] .rev-detail-content .wait-history-item strong,
+.rev-layout[data-theme] .rev-detail-content .blocking-chain-root{
+  color:var(--t-text);
+}
+.rev-layout[data-theme] .rev-detail-content .blocking-history-row,
+.rev-layout[data-theme] .rev-detail-content .wait-history-item,
+.rev-layout[data-theme] .rev-detail-content .query-state,
+.rev-layout[data-theme] .rev-detail-content .deadlock-stat-row,
+.rev-layout[data-theme] .rev-detail-content .blocking-chain-details{
+  color:var(--t-muted);
+}
+.rev-layout[data-theme] .rev-detail-content .blocking-chain-details strong,
+.rev-layout[data-theme] .rev-detail-content .deadlock-stat-row strong,
+.rev-layout[data-theme] .rev-detail-content .deadlock-participant strong{
+  color:var(--t-accent);
+}
+.rev-layout[data-theme] .rev-detail-content .investigation-wait-category{
+  background:var(--t-inner);border-color:var(--t-line);
+}
+.rev-layout[data-theme] .rev-detail-content .investigation-wait-category strong{
+  color:var(--t-text);
+}
+.rev-layout[data-theme] .rev-detail-content .investigation-wait-category span,
+.rev-layout[data-theme] .rev-detail-content .investigation-wait-category small,
+.rev-layout[data-theme] .rev-detail-content .investigation-wait-disclaimer{
+  color:var(--t-muted);
+}
+.rev-layout[data-theme] .rev-detail-content .blocking-history-empty,
+.rev-layout[data-theme] .rev-detail-content .wait-history-empty,
+.rev-layout[data-theme] .rev-detail-content .deadlock-empty,
+.rev-layout[data-theme] .rev-detail-content .incident-empty{
+  color:var(--t-muted);border-color:var(--t-line);
+}
+.rev-layout[data-theme] .rev-detail-content .metric,
+.rev-layout[data-theme] .rev-detail-content .graph,
+.rev-layout[data-theme] .rev-detail-content .activity-panel{
+  background:var(--t-card);border-color:var(--t-line);color:var(--t-text);
+}
+.rev-layout[data-theme] .rev-detail-content .metric-title,
+.rev-layout[data-theme] .rev-detail-content .metric-note,
+.rev-layout[data-theme] .rev-detail-content .chart-foot,
+.rev-layout[data-theme] .rev-detail-content .event p{color:var(--t-muted)}
+.rev-layout[data-theme] .rev-detail-content .metric-value,
+.rev-layout[data-theme] .rev-detail-content .event strong{
+  color:var(--t-text);
+}
+.rev-layout[data-theme] .rev-detail-content .chart{
+  border-color:var(--t-line);background:repeating-linear-gradient(to top,transparent 0px,transparent 41px,var(--t-chart-grid) 42px);
+}
+.rev-layout[data-theme] .rev-detail-content .chart-bar{
+  background:linear-gradient(180deg,var(--t-accent),var(--t-accent-soft));
+}
+.rev-layout[data-theme] .rev-detail-content .activity-panel .event{
+  border-top-color:var(--t-line);
+}
+@media(max-width:460px){
+ .rev-search{min-width:75px}
+ .rev-search input{min-width:0}
+ .rev-theme-picker select{max-width:76px}
+ .rev-brand{font-size:21px}
+}

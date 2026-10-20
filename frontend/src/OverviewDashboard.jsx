@@ -30,7 +30,7 @@ function KpiCard({icon:Icon, label, value, note, tone, onClick}) {
 function TrendChart({history, sampleLimit}) {
   const rows = history.slice(-sampleLimit);
   const lines = [
-    {name:'활성 요청',key:'activeRequests',color:'#3e99ff'},
+    {name:'활성 요청',key:'activeRequests',color:'var(--t-accent)'},
     {name:'Blocking',key:'blockedRequests',color:'#ff6582'},
     {name:'장시간 요청',key:'longRunningRequests',color:'#ae83ff'}
   ];
