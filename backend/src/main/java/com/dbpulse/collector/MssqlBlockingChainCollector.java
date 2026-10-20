@@ -26,6 +26,7 @@ public class MssqlBlockingChainCollector {
     // The monitored database is determined by this connection's databaseName.
     // Negative blocking_session_id special cases are not represented as session edges.
     private static final String SQL = """
+        /* DBPULSE_INTERNAL_BLOCKING_V1 */
         SELECT TOP (100)
             r.session_id AS blocked_session_id,
             r.blocking_session_id,

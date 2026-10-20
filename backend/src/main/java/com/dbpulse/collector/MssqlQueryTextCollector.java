@@ -18,6 +18,7 @@ public class MssqlQueryTextCollector {
     // Fetch at most MAX+1 UTF-16 code units; no full SQL text crosses JDBC
     // when the stored statement exceeds the UI's maximum display length.
     private static final String QUERY_TEXT_SQL = """
+        /* DBPULSE_INTERNAL_QUERY_TEXT_V1 */
         SELECT TOP (1)
             SUBSTRING(qt.query_sql_text, 1, ?) AS captured_text,
             DATALENGTH(qt.query_sql_text) AS original_bytes

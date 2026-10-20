@@ -19,6 +19,7 @@ public class MssqlCollector implements DatabaseCollector {
     // No SQL text or parameter values leave the monitored DB during phase 1.
     // sys.dm_exec_requests contains IN-FLIGHT requests, not all completed queries.
     private static final String METRIC_SQL = """
+        /* DBPULSE_INTERNAL_METRICS_V1 */
         SELECT
             COUNT_BIG(*) AS active_requests,
             COALESCE(SUM(CASE WHEN r.blocking_session_id > 0 THEN CONVERT(BIGINT, 1) ELSE 0 END), 0) AS blocked_requests,

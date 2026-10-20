@@ -22,6 +22,7 @@ public class MssqlQueryStoreCollector {
     private final MssqlTargetProperties props;
 
     private static final String STORE_STATE_SQL = """
+        /* DBPULSE_INTERNAL_QSTORE_STATE_V1 */
         SELECT actual_state_desc
         FROM sys.database_query_store_options
         """;
@@ -31,9 +32,20 @@ public class MssqlQueryStoreCollector {
     // Keep <=40 non-DBPulse-pattern candidates + <=10 classified monitor candidates.
     // Query Store runtime stats are interval aggregates and can be delayed.
     private static final String QUERY_STATS_SQL = """
+        /* DBPULSE_INTERNAL_QSTORE_STATS_V1 */
         WITH classified_queries AS (
           SELECT q.query_id,
             CASE
+              -- Prefer unique DBPulse internal SQL markers where Query Store retains comments.
+              -- SQL Server capture/normalization can omit comments; fallbacks below remain essential.
+              WHEN CHARINDEX(N'DBPULSE_INTERNAL_', qt.query_sql_text) > 0
+              THEN 'DBPULSE_PATTERN'
+              WHEN qt.query_sql_text LIKE N'%sys.query_store_query_text%'
+                AND qt.query_sql_text LIKE N'%SUBSTRING%'
+                AND qt.query_sql_text LIKE N'%captured_text%'
+                AND qt.query_sql_text LIKE N'%DATALENGTH%'
+                AND qt.query_sql_text LIKE N'%original_bytes%'
+              THEN 'DBPULSE_PATTERN'
               WHEN qt.query_sql_text LIKE N'%sys.database_query_store_options%'
                 AND qt.query_sql_text LIKE N'%actual_state_desc%'
               THEN 'DBPULSE_PATTERN'
