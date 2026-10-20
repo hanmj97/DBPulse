@@ -965,3 +965,35 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .rev-observer-guard{padding:14px}
   .rev-observer-guard-metrics{grid-template-columns:1fr}
 }
+
+/* Optional SQL Server CPU telemetry: instance-wide, never a per-DB %. */
+.rev-cpu-panel{border:1px solid var(--t-line);background:var(--t-card);
+  border-radius:10px;color:var(--t-text);padding:19px 21px}
+.rev-cpu-panel-heading{display:flex;gap:12px;align-items:start;
+  justify-content:space-between;flex-wrap:wrap}
+.rev-cpu-panel-heading h3{display:flex;align-items:center;gap:8px;
+  font-size:14px;margin:0 0 7px}
+.rev-cpu-panel-heading h3 small{font-size:10px;color:var(--t-accent)}
+.rev-cpu-panel-heading p{margin:0;color:var(--t-muted);font-size:11px;line-height:1.6}
+.rev-cpu-panel-status{padding:8px 11px;border:1px solid var(--t-line);
+  border-radius:6px;color:var(--t-accent);background:var(--t-accent-soft);
+  font-size:11px;font-weight:700}
+.rev-cpu-panel-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;margin-top:15px}
+.rev-cpu-panel-grid>div{padding:14px;border:1px solid var(--t-line);
+  background:var(--t-inner);border-radius:8px}
+.rev-cpu-panel-grid span{display:block;color:var(--t-muted);font-size:11px}
+.rev-cpu-panel-grid strong{display:block;font-size:25px;margin:8px 0;
+  font-variant-numeric:tabular-nums;color:var(--t-text)}
+.rev-cpu-panel-grid strong.rev-cpu-panel-date{font-size:18px}
+.rev-cpu-panel-grid small{display:block;color:var(--t-muted);font-size:10px}
+.rev-cpu-panel-note{display:flex;align-items:start;gap:8px;color:#edc494;
+  font-size:11px;line-height:1.7;margin:12px 0}
+.rev-cpu-panel-note svg{flex-shrink:0;margin-top:2px}
+.rev-cpu-panel-limitation{border-top:1px solid var(--t-line);padding-top:11px;
+  margin:15px 0 0;color:var(--t-muted);font-size:11px;line-height:1.7}
+.rev-tuning-numeric{min-width:80px}
+@media(max-width:1100px){.rev-tuning-row-actions .rev-tuning-toggle{flex-wrap:wrap}
+  .rev-tuning-numeric{min-width:70px}}
+@media(max-width:640px){.rev-cpu-panel-grid{grid-template-columns:1fr}
+  .rev-cpu-panel{padding:14px}}

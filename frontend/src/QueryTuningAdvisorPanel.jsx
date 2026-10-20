@@ -52,7 +52,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
     <div className="section-heading">
       <div><span className="rev-tuning-eyebrow"><Sparkles size={14}/>QUERY STORE INSIGHTS</span>
         <h2>SQL Tuning Advisor <small>v0.12 alpha</small></h2>
-        <p>실제 집계 수치로 검토 우선순위를 정하고 점검할 항목을 제안합니다.</p>
+        <p>실행시간·평균 CPU 시간·집계 실행 횟수·논리 읽기를 함께 비교해 점검할 항목을 제안합니다.</p>
       </div>
       <span className="small-pill">읽기 전용</span>
     </div>
@@ -125,6 +125,8 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
                 최근 실행: {row.lastExecutedAt ? new Date(row.lastExecutedAt).toLocaleString('ko-KR',{hour12:false}) : '기록 없음'}
               </span></span>
             <span className="rev-tuning-numeric"><small>평균 실행</small><strong>{fmt(row.metrics.avgDurationMs)} ms</strong></span>
+            <span className="rev-tuning-numeric"><small>평균 CPU</small><strong>{fmt(row.metrics.avgCpuMs)} ms</strong></span>
+            <span className="rev-tuning-numeric"><small>집계 실행 횟수</small><strong>{fmt(row.metrics.executionCount)}회</strong></span>
             <span className="rev-tuning-numeric"><small>논리 읽기</small><strong>{fmt(row.metrics.avgLogicalReadsPages)} pages</strong></span>
             <ChevronDown className={open?'expanded':''} size={18}/>
           </button>
@@ -136,8 +138,8 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
           </div>
           {open && <div className="rev-tuning-detail">
             <div className="rev-tuning-metrics">
-              <span>평균 CPU <strong>{fmt(row.metrics.avgCpuMs)} ms</strong></span>
-              <span>집계 실행 횟수 <strong>{fmt(row.metrics.executionCount)}</strong></span>
+              <span>집계 CPU 총량 추정 <strong>{fmt(Number(row.metrics.avgCpuMs)*Number(row.metrics.executionCount))} ms</strong></span>
+              <span>CPU 시간/전체 경과시간과 인스턴스 CPU(%)는 별도 지표</span>
               <span>최근 실행 <strong>{row.lastExecutedAt?new Date(row.lastExecutedAt).toLocaleString('ko-KR'):'—'}</strong></span>
             </div>
             <h3>권장 점검 순서</h3>
@@ -153,7 +155,7 @@ export default function QueryTuningAdvisorPanel({ targetId, sourceFilter = 'excl
       })}</div>
     </>}
     <p className="rev-tuning-footer"><ShieldCheck size={17}/>
-      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수는 수집 주기(기본 60초) 중 증가량이 아닙니다.
+      DBPulse 수집 SQL 패턴을 기본적으로 숨깁니다. 나머지는 최근 실행 20개 + 실행 비용 상위 20개, DBPulse 패턴은 최근 10개까지 수집합니다. 실행 횟수와 CPU 총량은 Query Store 집계 범위(최근 15분 필터) 기준이며 수집 주기(기본 60초)의 증가량이 아닙니다. CPU 총량은 평균 CPU×집계 횟수의 추정치입니다.
       SQL 원문은 자동 저장하지 않으며, 보안 허용 시 버튼으로만 조회합니다. 인덱스를 자동 추천하거나 생성하지 않습니다.</p>
   </section>;
 }

@@ -13,6 +13,7 @@ import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
 import QueryObserverOverheadPanel from './QueryObserverOverheadPanel.jsx';
+import InstanceCpuPanel from './InstanceCpuPanel.jsx';
 import QuerySqlDrawer from './QuerySqlDrawer.jsx';
 import { filterQuerySources } from './queryCandidateFilters.js';
 
@@ -490,6 +491,7 @@ function App() {
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
       <QueryObserverOverheadPanel targetId={target?.id}/>
+      <InstanceCpuPanel targetId={target?.id}/>
       <div className="rev-query-source-filter">
         <div>
           <strong>표시할 쿼리</strong>
@@ -522,15 +524,20 @@ function App() {
               <option value="recent">최근 실행순 (기본)</option>
               <option value="duration">평균 실행시간순</option>
               <option value="reads">평균 논리 읽기순</option>
+              <option value="cpu">평균 CPU 시간순</option>
+              <option value="cpuTotal">집계 CPU 사용 총량순</option>
             </select>
           </div>
           <div className="query-table-scroll"><table className="query-table"><thead><tr>
-            <th>Query ID / Plan</th><th>최근 실행</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>논리 읽기</th><th>분석 신호</th>
+            <th>Query ID / Plan</th><th>최근 실행</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>CPU 총량 추정*</th><th>논리 읽기</th><th>분석 신호</th>
           </tr></thead><tbody>
           {filterQuerySources(queryAnalysis, querySourceFilter).length ?
             filterQuerySources(queryAnalysis, querySourceFilter).sort((a,b)=>
             queryTableSort==='duration' ? Number(b.avgDurationMs)-Number(a.avgDurationMs)
             : queryTableSort==='reads' ? Number(b.avgLogicalReadsPages)-Number(a.avgLogicalReadsPages)
+            : queryTableSort==='cpu' ? Number(b.avgCpuMs)-Number(a.avgCpuMs)
+            : queryTableSort==='cpuTotal' ? Number(b.avgCpuMs)*Number(b.executionCount)-
+               Number(a.avgCpuMs)*Number(a.executionCount)
             : (Date.parse(b.lastExecutedAt)||0)-(Date.parse(a.lastExecutedAt)||0)
           ).map(row => {
             const [label, suggestion] = DIAGNOSIS[row.diagnosisCode] || DIAGNOSIS.OBSERVE;
@@ -545,6 +552,7 @@ function App() {
               <td>{fmt(row.executionCount)}</td>
               <td>{Number(row.avgDurationMs).toFixed(2)} ms</td>
               <td>{Number(row.avgCpuMs).toFixed(2)} ms</td>
+              <td>{(Number(row.avgCpuMs)*Number(row.executionCount)).toLocaleString('ko-KR',{maximumFractionDigits:2})} ms</td>
               <td>{Number(row.avgLogicalReadsPages).toFixed(1)} pages</td>
               <td><span className={row.diagnosisCode === 'OBSERVE' ? 'hint hint-neutral' : 'hint'}>{label}</span><small>{suggestion}</small></td>
             </tr>;
