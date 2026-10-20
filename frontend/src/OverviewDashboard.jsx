@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowRight, Bell, CircleAlert, CheckCircle2,
-  Clock3, Database, GitBranch, LockKeyhole, Search, ShieldAlert, Sparkles
+  Clock3, Database, GitBranch, LockKeyhole, Search, ShieldAlert, Sparkles,
+  Server, Gauge, ArrowUpRight
 } from 'lucide-react';
 
 const num = value => value == null ? '—' : new Intl.NumberFormat('ko-KR').format(value);
@@ -28,47 +29,92 @@ function KpiCard({icon:Icon, label, value, note, tone, onClick}) {
 }
 
 function TrendChart({history, sampleLimit}) {
+  const [highlightedIndex, setHighlightedIndex] = useState(null);
   const rows = history.slice(-sampleLimit);
   const lines = [
     {name:'활성 요청',key:'activeRequests',color:'var(--t-accent)'},
     {name:'Blocking',key:'blockedRequests',color:'#ff6582'},
     {name:'장시간 요청',key:'longRunningRequests',color:'#ae83ff'}
   ];
-  const peak = Math.max(1, ...rows.flatMap(r => lines.map(l=>Number(r[l.key]) || 0)));
-  // Integer request counts: do not round fractional tick positions into duplicate labels.
-  const tickIntervals = Math.min(4, Math.max(1, Math.floor(peak)));
-  const yTicks = [...new Set(Array.from({length:tickIntervals + 1}, (_, i) =>
-    Math.round(peak * i / tickIntervals)))].reverse();
-  const sx = index => 35 + index * (690 / Math.max(1,rows.length - 1));
-  const sy = val => 185 - ((Number(val)||0) / peak)*150;
+  const peak = Math.max(1, ...rows.flatMap(r => lines.map(l => Number(l.key in r ? r[l.key] : 0) || 0)));
+  const step = Math.max(1, Math.ceil(peak / 4));
+  const yTicks = Array.from({length:Math.floor(peak/step) + 1},(_,i)=>i*step).reverse();
+  if(yTicks[0] !== peak) yTicks.unshift(peak);
+  const plotLeft = 42;
+  const plotRight = 730;
+  const sx = index => plotLeft + index * ((plotRight-plotLeft) / Math.max(1,rows.length-1));
+  const sy = value => 187 - ((Number(value)||0) / peak) * 149;
   const path = key => rows.map((row,index) => (index === 0 ? 'M':'L') +
     sx(index).toFixed(1)+','+sy(row[key]).toFixed(1)).join(' ');
-  return <article className="rev-panel rev-performance-chart">
+  const focusIndex = highlightedIndex != null && highlightedIndex < rows.length
+    ? highlightedIndex : rows.length - 1;
+  const focused = rows[focusIndex];
+  const pickIndex = event => {
+    if (!rows.length) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width) return;
+    const point = (event.clientX - rect.left) * (760 / rect.width);
+    const index = Math.round((point - plotLeft) * (rows.length-1) / (plotRight-plotLeft));
+    setHighlightedIndex(Math.max(0,Math.min(rows.length-1,index)));
+  };
+  const handleKey = event => {
+    if (!rows.length || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key==='Home') setHighlightedIndex(0);
+    else if(event.key==='End') setHighlightedIndex(rows.length-1);
+    else setHighlightedIndex(Math.max(0,Math.min(rows.length-1,
+      focusIndex + (event.key==='ArrowRight' ? 1 : -1))));
+  };
+  return <article className="rev-panel rev-performance-chart rev-ops-trend">
     <div className="rev-panel-heading">
-      <div><h2>데이터베이스 성능 현황</h2>
-        <p>SQL Server DMV 기반 · 최근 {rows.length}개 관측 시점</p></div>
-      <span className="rev-panel-tag">실제 수집 데이터</span>
+      <div><h2>실시간 성능 추이</h2>
+        <p>SQL Server DMV · 최근 {rows.length}개 샘플 · 5초 기본 수집</p></div>
+      <span className="rev-panel-tag">실제 관측</span>
     </div>
-    <div className="rev-chart-legend">
+    <div className="rev-chart-legend" aria-label="그래프 범례">
       {lines.map(l => <span key={l.key}><i style={{background:l.color}}/>{l.name}</span>)}
     </div>
-    {rows.length ? <div className="rev-chart-area">
-      <svg viewBox="0 0 760 208" preserveAspectRatio="none" role="img"
-        aria-label={'최근 수집된 활성 요청, Blocking, 장시간 요청 추이. 최대 관측 요청 ' + peak + '건'}>
-        {yTicks.map(value => <g key={value}>
-          <line x1="35" x2="725" y1={sy(value)} y2={sy(value)} stroke="#2a3b58" strokeWidth="0.8"/>
-          <text x="28" y={sy(value)+4} fill="#92adcd" fontSize="11" textAnchor="end">{value}</text>
-        </g>)}
-        {[0,1,2,3,4,5].map(i=>
-          <line key={i} x1={35+i*138} x2={35+i*138} y1="35" y2="185"
-            stroke="#263750" strokeWidth=".8"/>)}
-        {lines.map(l=><path key={l.key} d={path(l.key)}
-          stroke={l.color} strokeWidth="2.65" strokeLinejoin="round" strokeLinecap="round"
-          fill="none" opacity=".97"/>)}
-      </svg>
-      <div className="rev-chart-times"><span>{clock(rows[0].collectedAt)}</span><span>{clock(rows.at(-1).collectedAt)}</span></div>
-    </div> : <div className="rev-overview-empty">아직 성능 샘플이 없습니다. 연결 상태와 수집기 설정을 확인해 주세요.</div>}
-    <p className="rev-chart-caution">CPU 사용률·논리적 읽기량은 현재 이 API에서 수집하지 않으므로 표시하지 않습니다.</p>
+    {rows.length ? <>
+      <div className="rev-chart-area rev-ops-chart-area">
+        <svg viewBox="0 0 760 208" preserveAspectRatio="none" role="img"
+          tabIndex={0} onMouseMove={pickIndex} onMouseLeave={()=>setHighlightedIndex(null)}
+          onKeyDown={handleKey} onBlur={()=>setHighlightedIndex(null)}
+          aria-label={'활성 요청, Blocking, 장시간 요청의 수집 시점별 실제 추이. 좌우 화살표로 시점을 선택할 수 있습니다. 최대 값 '+peak+'건'}>
+          {yTicks.map((value,index) => <g key={value+'-'+index}>
+            <line x1={plotLeft} x2={plotRight} y1={sy(value)} y2={sy(value)}
+              stroke="var(--t-chart-grid)" strokeDasharray="3 5" strokeWidth="0.8"/>
+            <text x="33" y={sy(value)+4} textAnchor="end" fontSize="11">{value}</text>
+          </g>)}
+          {[0,1,2,3,4,5].map(i=>
+            <line key={i} x1={plotLeft+i*(plotRight-plotLeft)/5}
+              x2={plotLeft+i*(plotRight-plotLeft)/5} y1="38" y2="187"
+              stroke="var(--t-chart-grid)" strokeWidth=".7"/>)}
+          {rows.length===1
+            ? lines.map(l=><circle key={l.key} cx={sx(0)} cy={sy(rows[0][l.key])}
+                r="3.5" fill={l.color}/>)
+            : lines.map(l=><path key={l.key} d={path(l.key)}
+                stroke={l.color} strokeWidth="2.5" strokeLinejoin="round"
+                strokeLinecap="round" fill="none"/>)}
+          {focused && <>
+            <line x1={sx(focusIndex)} x2={sx(focusIndex)} y1="38" y2="187"
+              stroke="var(--t-muted)" strokeOpacity=".65" strokeDasharray="4 4"/>
+            {lines.map(l=><circle key={l.key} cx={sx(focusIndex)}
+              cy={sy(focused[l.key])} r="4" fill={l.color}
+              stroke="var(--t-card)" strokeWidth="1.5"/>)}
+          </>}
+        </svg>
+        <div className="rev-chart-times">
+          <span>{clock(rows[0].collectedAt)}</span>
+          <span>{clock(rows.at(-1).collectedAt)}</span>
+        </div>
+      </div>
+      <div className="rev-ops-chart-readout" aria-live="polite">
+        <span className="rev-ops-chart-at">{highlightedIndex===null?'최신':'선택'} · {clock(focused?.collectedAt)}</span>
+        {lines.map(l=><span key={l.key}>{l.name} <strong>{num(focused?.[l.key])}건</strong></span>)}
+      </div>
+      <p className="rev-ops-chart-hint">그래프에 마우스를 올리거나 키보드 좌우 화살표를 누르면 관측 시점별 수치를 확인할 수 있습니다.</p>
+    </> : <div className="rev-overview-empty">아직 성능 샘플이 없습니다. 수집기 연결 상태를 확인해 주세요.</div>}
+    <p className="rev-chart-caution">이 그래프는 활성·차단·장시간 요청 수이며 CPU 사용률이나 누적 Wait 통계가 아닙니다.</p>
   </article>;
 }
 
