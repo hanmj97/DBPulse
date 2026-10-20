@@ -188,7 +188,8 @@ public class MssqlQueryStoreCollector {
                             rs.getLong("query_id"), rs.getLong("plan_id"),
                             rs.getLong("execution_count"), duration, cpu, reads,
                             Instant.ofEpochSecond(rs.getLong("last_executed_epoch")),
-                            QueryDiagnosis.classify(duration, cpu, reads),
+                            "DBPULSE_PATTERN".equals(rs.getString("source_category"))
+                                ? "COLLECTOR_OVERHEAD" : QueryDiagnosis.classify(duration, cpu, reads),
                             rs.getString("source_category")));
                     }
                 }

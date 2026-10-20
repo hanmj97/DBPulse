@@ -345,6 +345,7 @@ function App() {
     SLOW_AVERAGE: ['평균 실행 시간 증가', '대기·Blocking·실행계획을 확인할 후보'],
     HIGH_READS: ['논리 읽기량 높음', '필터 조건과 인덱스 효율을 확인할 후보'],
     HIGH_CPU: ['CPU 사용량 높음', '연산·정렬 및 쿼리 형태를 확인할 후보'],
+    COLLECTOR_OVERHEAD: ['DBPulse 수집 부하', 'DBPulse 자체 수집 주기·비용 점검 (업무 SQL 튜닝 대상 아님)'],
     OBSERVE: ['관찰 대상', '현재 임계값 기준 문제를 확정할 수 없음'],
   };
 
