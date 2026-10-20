@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.11.0-alpha / SQL 성능 지표 × 실행계획 연계 분석 (로컬 검증 전)
+## 현재 개발 버전: v0.12.0-alpha / 실행계획별 집계 성능 비교 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -243,3 +243,14 @@ docker compose up -d
 - 실행계획 수집 실패 및 100연산 제한 시 추측 결과 금지. **관측의 상관관계만 제공**하고 원인 확정·자동 인덱스 변경은 하지 않음.
 - 기존 확정 UI(네이비/미드나잇 다크), Query ID 검색, 모니터링 SQL 패턴 제외 및 모든 수집 API 유지.
 - [설계·안전 경계·로컬 통합 검증](docs/PHASE11_PLAN_METRIC_CORRELATION.md).
+
+## Phase 12 — 동일 Query ID의 Plan별 성능 비교 (개발 중)
+
+- 현재 Query Store 수집 범위 내 같은 Query ID의 **여러 Plan ID**를 비교합니다.
+- 기존 평균 실행시간·CPU·논리 읽기·집계 실행 횟수를 선택한 계획 기준으로 나란히 보여줍니다.
+- 단일 계획만 수집됐을 때는 비교 불가 상태를 명확히 표시합니다.
+- 5회 미만 표본, 5ms 미만 평균 실행시간은 비교 신뢰도 부족을 표시합니다.
+- **실행계획별 집계값의 차이는 시간순 성능 회귀가 확정됐다는 뜻이 아닙니다.**
+- API: `GET /api/v1/targets/local-mssql/query-performance/plan-comparison/{queryId}/{planId}`
+- [개발·검증 상세](docs/PHASE12_QUERY_PLAN_COMPARISON.md).
+- 아직 Draft PR / 로컬 MSSQL 검증 전; v0.11.0이 main 기준 버전.
