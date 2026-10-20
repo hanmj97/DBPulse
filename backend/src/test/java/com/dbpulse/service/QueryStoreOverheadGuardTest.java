@@ -119,6 +119,27 @@ class QueryStoreOverheadGuardTest {
     }
 
     @Test
+    void fixedBaselineNeverSkipsEvenWithExpensiveCallsOrFailures() {
+        var g = new QueryStoreOverheadGuard(60_000, false);
+        g.recordSuccess(2_500, List.of(internal(200, 5000)), NOW);
+        g.recordSuccess(2_700, List.of(internal(200, 5000)), NOW.plusSeconds(60));
+        g.recordFailure(2_000, NOW.plusSeconds(120));
+        g.recordFailure(2_000, NOW.plusSeconds(180));
+        assertThat(g.snapshot().mode()).isEqualTo("NORMAL");
+        assertThat(g.snapshot().policy()).isEqualTo("FIXED_BASELINE_LAB_ONLY");
+        assertThat(g.snapshot().effectiveIntervalMs()).isEqualTo(60_000);
+        assertThat(g.shouldSkipScheduledTick()).isFalse();
+        assertThat(g.snapshot().skippedCycles()).isZero();
+        assertThat(g.snapshot().totalCollectorAttempts()).isEqualTo(4);
+        assertThat(g.snapshot().cumulativeJdbcWallMs()).isEqualTo(9_200);
+    }
+
+    @Test
+    void adaptiveModeIsDefaultAndExplicit() {
+        assertThat(new QueryStoreOverheadGuard(60_000).snapshot().policy()).isEqualTo("ADAPTIVE");
+    }
+
+    @Test
     void totalsSurviveCounterStateResetDuringDisabledTargetPeriod() {
         var g = new QueryStoreOverheadGuard(60_000);
         g.recordSuccess(100, List.of(), NOW);
