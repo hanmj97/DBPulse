@@ -3,7 +3,10 @@
  Captures ONLY applications with names beginning DBPulse (including
  DBPulseQueryStore, DBPulseCollector, DBPulseWaits) and a synthetic
  DBPulseLabWorkload client. Requires lab sysadmin/ALTER ANY EVENT SESSION.
- Uses statement_completed only: NO duplicate RPC/batch + statement sums.
+ Captures rpc_completed (prepared/JDBC calls) and sql_batch_completed (batches).
+ This avoids summing nested statement-completed events with their parent RPCs.
+ On SQL Server 2012+, RPC cpu_time uses microseconds while batch cpu_time
+ uses milliseconds; normalize them before reporting CPU in milliseconds.
  Records statement text inside a LOCAL XEL file (sensitive!); report
  returns aggregates only. Remove XEL after the experiment.
  Never execute on a customer/production SQL Server.
@@ -34,9 +37,17 @@ BEGIN
         THROW 51011, 'Existing XE session. Run CLEANUP and delete old XEL before START.', 1;
 
     -- CREATE EVENT SESSION must execute in its own batch.
+    -- RPC is essential for JDBC PreparedStatement / sp_executesql calls.
     EXEC(N'
         CREATE EVENT SESSION [DBPulseLab_Observer_AB] ON SERVER
-        ADD EVENT sqlserver.sql_statement_completed
+        ADD EVENT sqlserver.rpc_completed
+        (
+          SET collect_statement=(1)
+          ACTION(sqlserver.client_app_name)
+          WHERE ([sqlserver].[like_i_sql_unicode_string]
+                    ([sqlserver].[client_app_name],N''DBPulse%''))
+        ),
+        ADD EVENT sqlserver.sql_batch_completed
         (
           ACTION(sqlserver.client_app_name)
           WHERE ([sqlserver].[like_i_sql_unicode_string]
@@ -88,6 +99,7 @@ BEGIN
     IF OBJECT_ID('tempdb..#DBPulseXECosts') IS NOT NULL DROP TABLE #DBPulseXECosts;
     CREATE TABLE #DBPulseXECosts (
         app_name NVARCHAR(128) NOT NULL,
+        event_name VARCHAR(40) NOT NULL,
         sql_kind VARCHAR(40) NOT NULL,
         cpu_us BIGINT NULL,
         duration_us BIGINT NULL,
@@ -96,24 +108,32 @@ BEGIN
     );
 
     ;WITH RawEvents AS (
-        SELECT TRY_CONVERT(XML,event_data) AS x
+        SELECT object_name AS event_name, TRY_CONVERT(XML,event_data) AS x
         FROM sys.fn_xe_file_target_read_file(
             N'D:\Projects\DBPulseLabXE\ObserverCost*.xel',NULL,NULL,NULL)
-        WHERE object_name=N'sql_statement_completed'
+        WHERE object_name IN (N'rpc_completed',N'sql_batch_completed')
           AND timestamp_utc>=@StartedUtc AND timestamp_utc<=@EndedUtc
     ),
     Extracted AS (
         SELECT
+          event_name,
           x.value('(/event/action[@name="client_app_name"]/value)[1]','nvarchar(128)') AS app_name,
-          x.value('(/event/data[@name="statement"]/value)[1]','nvarchar(max)') AS statement_text,
-          x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint') AS cpu_us,
+          CASE WHEN event_name=N'rpc_completed'
+               THEN x.value('(/event/data[@name="statement"]/value)[1]','nvarchar(max)')
+               ELSE x.value('(/event/data[@name="batch_text"]/value)[1]','nvarchar(max)')
+          END AS statement_text,
+          -- RPC cpu_time is microseconds; sql_batch_completed cpu_time is ms.
+          CASE WHEN event_name=N'sql_batch_completed'
+               THEN 1000 * x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint')
+               ELSE x.value('(/event/data[@name="cpu_time"]/value)[1]','bigint')
+          END AS cpu_us,
           x.value('(/event/data[@name="duration"]/value)[1]','bigint') AS duration_us,
           x.value('(/event/data[@name="logical_reads"]/value)[1]','bigint') AS logical_reads,
           x.value('(/event/data[@name="physical_reads"]/value)[1]','bigint') AS physical_reads
         FROM RawEvents WHERE x IS NOT NULL
     )
     INSERT INTO #DBPulseXECosts
-    SELECT app_name,
+    SELECT app_name, event_name,
            CASE WHEN app_name=N'DBPulseLabWorkload' THEN 'LAB_WORKLOAD'
                 WHEN app_name=N'DBPulseQueryStore'
                   AND (statement_text LIKE N'%DBPULSE_INTERNAL_QSTORE_STATS_V1%'
@@ -124,14 +144,21 @@ BEGIN
                   AND (statement_text LIKE N'%DBPULSE_INTERNAL_QSTORE_STATE_V1%'
                     OR statement_text LIKE N'%sys.database_query_store_options%')
                   THEN 'QUERY_STORE_STATE'
-                WHEN app_name=N'DBPulseQueryStore' THEN 'QUERY_STORE_OTHER'
+                WHEN app_name=N'DBPulseQueryStore' THEN 'QUERY_STORE_UNATTRIBUTED'
                 ELSE 'OTHER_INTERNAL' END,
            cpu_us,duration_us,logical_reads,physical_reads
     FROM Extracted
     WHERE app_name LIKE N'DBPulse%';
 
+    -- Diagnostic counts reveal which client calls are RPCs vs SQL batches.
+    -- These are request-level completions; never add nested statement events.
+    SELECT event_name, app_name, COUNT_BIG(*) AS recorded_requests
+    FROM #DBPulseXECosts
+    GROUP BY event_name, app_name
+    ORDER BY app_name, event_name;
+
     SELECT sql_kind, @Seconds AS elapsed_seconds,
-           COUNT_BIG(*) AS completed_statements,
+           COUNT_BIG(*) AS completed_requests,
            ROUND(SUM(CONVERT(FLOAT,cpu_us))/1000.0,2) AS total_cpu_ms,
            SUM(logical_reads) AS total_logical_read_pages,
            SUM(physical_reads) AS total_physical_read_pages,
@@ -158,7 +185,7 @@ BEGIN
            @Seconds AS elapsed_seconds, @DroppedEvents AS dropped_xe_events,
            CASE WHEN @DroppedEvents=0 THEN 'NO_REPORTED_XE_DROPS'
                 ELSE 'INVALID_XE_DROPPED_EVENTS' END AS capture_integrity,
-           'Do NOT add these counts to Query Store totals; different sources overlap. Zero collector events must be checked against JVM attempts.' AS limitations;
+           'Only RPC and batch completion requests are counted. Query Store stats may miss JDBC calls, and RPC text may not identify prepared-plan reuse. Do not add to Query Store totals.' AS limitations;
     -- KEEP session stopped until review; run CLEANUP later.
 END
 ELSE IF @Phase='CLEANUP'
