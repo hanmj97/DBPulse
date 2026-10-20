@@ -648,3 +648,47 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
  .rev-theme-picker select{max-width:76px}
  .rev-brand{font-size:21px}
 }
+
+/* v0.9 SQL Tuning Advisor—theme-aware cards */
+.rev-tuning-panel{padding:24px}
+.rev-tuning-eyebrow{display:inline-flex;gap:6px;align-items:center;color:var(--t-accent);font-weight:800;font-size:10px;letter-spacing:1.3px;margin-bottom:9px}
+.rev-tuning-panel h2 small{font-size:11px;color:var(--t-accent);background:var(--t-accent-soft);border:1px solid var(--t-line);padding:5px 8px;border-radius:6px;vertical-align:middle;margin-left:7px}
+.rev-tuning-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:17px 0}
+.rev-tuning-stats>div{display:grid;gap:7px;background:var(--t-inner);border:1px solid var(--t-line);border-radius:9px;padding:14px}
+.rev-tuning-stats small{font-size:11px;color:var(--t-muted)}
+.rev-tuning-stats strong{color:var(--t-text);font-size:20px}
+.rev-tuning-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.rev-tuning-filters button{cursor:pointer;background:var(--t-inner);border:1px solid var(--t-line);border-radius:7px;color:var(--t-muted);padding:8px 12px;font-size:12px}
+.rev-tuning-filters button.active{background:var(--t-accent-soft);border-color:var(--t-accent);color:var(--t-accent)}
+.rev-tuning-candidates{display:grid;gap:8px}
+.rev-tuning-item{border:1px solid var(--t-line);border-radius:10px;background:var(--t-inner);overflow:hidden}
+.rev-tuning-toggle{display:flex;align-items:center;gap:13px;width:100%;padding:15px;text-align:left;background:none;border:0;color:var(--t-text);cursor:pointer}
+.rev-tuning-toggle:hover{background:var(--t-hover)}
+.rev-tuning-rank{flex:0 0 72px;padding:8px 5px;text-align:center;border-radius:6px;font-size:10px;font-weight:800;border:1px solid var(--t-line)}
+.rev-tuning-rank.high{color:#ffc5d2;background:#673b51}
+.rev-tuning-rank.medium{color:#ffcf87;background:#604b35}
+.rev-tuning-rank.observe{color:var(--t-accent);background:var(--t-accent-soft)}
+.rev-tuning-title{flex:1;display:grid;gap:5px;min-width:0}
+.rev-tuning-title strong{font-size:13px;color:var(--t-text)}
+.rev-tuning-title small{font-size:11px;color:var(--t-muted)}
+.rev-tuning-numeric{min-width:95px;display:grid;gap:5px}
+.rev-tuning-numeric small{color:var(--t-muted);font-size:10px}
+.rev-tuning-numeric strong{font-size:12px;color:var(--t-text);font-variant-numeric:tabular-nums}
+.rev-tuning-toggle>svg{color:var(--t-accent);transition:transform .2s}
+.rev-tuning-toggle>svg.expanded{transform:rotate(180deg)}
+.rev-tuning-detail{padding:17px 20px;border-top:1px solid var(--t-line)}
+.rev-tuning-metrics{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:17px}
+.rev-tuning-metrics>span{padding:8px 10px;border:1px solid var(--t-line);border-radius:6px;font-size:11px;color:var(--t-muted)}
+.rev-tuning-metrics strong{color:var(--t-text)}
+.rev-tuning-detail h3{font-size:13px;color:var(--t-text);margin:0 0 12px}
+.rev-tuning-action{display:flex;gap:11px;margin:12px 0}
+.rev-tuning-action>span{flex:0 0 24px;height:24px;display:grid;place-items:center;border:1px solid var(--t-accent);background:var(--t-accent-soft);border-radius:7px;font-size:11px;color:var(--t-accent)}
+.rev-tuning-action strong{color:var(--t-text);font-size:12px}
+.rev-tuning-action p{font-size:11px;line-height:1.7;color:var(--t-muted);margin:5px 0}
+.rev-tuning-disclaimer,.rev-tuning-footer{display:flex;gap:9px;align-items:start;color:var(--t-muted);font-size:11px;line-height:1.8}
+.rev-tuning-disclaimer{border:1px solid var(--t-line);border-radius:7px;padding:12px;margin-top:16px}
+.rev-tuning-footer{border-top:1px solid var(--t-line);padding-top:15px;margin-top:20px}
+.rev-tuning-disclaimer svg,.rev-tuning-footer svg{color:var(--t-accent);flex-shrink:0}
+.rev-tuning-empty{padding:23px;border:1px dashed var(--t-line);border-radius:8px;color:var(--t-muted);font-size:12px;line-height:1.8;background:var(--t-inner)}
+@media(max-width:900px){.rev-tuning-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.rev-tuning-panel{padding:15px}.rev-tuning-toggle{flex-wrap:wrap;gap:9px}.rev-tuning-title{flex-basis:calc(100% - 95px)}.rev-tuning-numeric{min-width:0;flex:1}}
