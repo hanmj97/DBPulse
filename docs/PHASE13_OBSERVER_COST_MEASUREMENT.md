@@ -1,3 +1,47 @@
+## 2026-10-20 — SQL 15 temporal-overlap results (completed)
+
+The user ran `sql/15_ab_xe_temporal_overlap_lab_only.sql`
+on the privately archived A and B XEL files. Results confirmed:
+- A: **1,612** XE events, **1,200** timed workload RPCs, **2**
+  setup batches, **12** Query Store-related requests, zero unknown
+  interval starts.
+- B: **1,670** XE events, **1,200** timed workload RPCs, **2**
+  setup batches, **8** Query Store-related requests, zero unknown
+  interval starts.
+- Slow requests (>=100 ms): **A 17**, **B 5**.
+- Fixed ±100ms comparison window around each timed RPC completion:
+  * A fast <10ms: 171/1,155 (**14.81%**) near any monitor;
+    A slow >=100ms: 10/17 (**58.82%**) near any monitor.
+  * B fast <10ms: 189/1,171 (**16.14%**) near any monitor;
+    B slow >=100ms: 5/5 (**100%**) near any monitor.
+  * A slow near Query Store: **0/17**; B slow near Query Store:
+    **1/5**. The B slowest **4,180.761ms** request had no
+    Query Store execution interval overlap.
+- Monitor-overlap pairs among slow RPCs:
+  * A: DBPulseCollector **3**, DBPulseCpuSample **3**,
+    DBPulseDeadlocks **2**, DBPulseWaits **1**.
+  * B: DBPulseCollector **2**, DBPulseDeadlocks **2**,
+    DBPulseQueryStore **1**.
+
+**Interpretation:** It is valid to describe temporal co-occurrence,
+but **not** a lock-wait finding or proof that DBPulse caused any slow
+query. B slow cohort has only five observations; a 4.18-second query
+can overlap periodic monitoring by chance. Even when using a fixed
+±100ms endpoint-centered window, observational time clustering and
+unmeasured system load are confounders. No wait-type/scheduler
+causality was recorded with these RPC-completion XEvents.
+
+**Decision:** no release-blocking code defect in the adaptive guard was
+established by SQL 15. However, these two short synthetic lab trials
+do not prove customer-query nonregression; keep limitations explicit.
+Next, restore default `ADAPTIVE` policy (fixed baseline is LAB ONLY),
+run `tools/check_v013_api_regression_lab.ps1` against loopback backend
+(GET-only health, 5s metrics, Blocking, Deadlocks, Waits, incidents,
+Query Store, advisor, overhead, optional CPU), then manually review
+Query ID/Plan ID detail, SQL drawer with exclusion rules, incident
+investigation and navy/midnight UI. Record actual results rather than
+marking tests passed before execution.
+
 ## 2026-10-20 — Step 15: archived A/B XEL temporal overlap investigation
 
 The archive-path contract is:
