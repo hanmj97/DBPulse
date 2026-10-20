@@ -20,3 +20,9 @@ test('widget clearly separates heuristic cost indications from server-side impac
   assert.match(widget,/표본 없음/);
   assert.match(widget,/수집 간격 완화 중/);
 });
+
+test('lab-only fixed baseline policy is labelled without changing the dark theme layout',()=>{
+  assert.match(widget,/FIXED_BASELINE_LAB_ONLY/);
+  assert.match(widget,/고정 간격 · LAB/);
+  assert.match(widget,/rev-observer-guard-status/);
+});
