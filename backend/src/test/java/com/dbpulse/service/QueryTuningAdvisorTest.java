@@ -79,4 +79,15 @@ class QueryTuningAdvisorTest {
             .containsExactly(2L, 1L);
     }
 
+    @Test
+    void tuningAdvisorPreservesOnlyCoarseSourceCategoryWithoutSqlText() {
+        var sql = new QueryPerformanceSnapshot(
+            NOW, 247, 191, 1, 1, 1, 2, NOW, "OBSERVE", "OTHER_OR_UNKNOWN");
+        var collector = new QueryPerformanceSnapshot(
+            NOW, 72, 6, 4, 1, 1, 3, NOW, "OBSERVE", "DBPULSE_PATTERN");
+        var result = new QueryTuningAdvisor().advise(List.of(sql, collector), 2, "recent");
+        assertThat(result).extracting(QueryTuningAdvisor.Candidate::sourceCategory)
+            .containsExactlyInAnyOrder("OTHER_OR_UNKNOWN", "DBPULSE_PATTERN");
+    }
+
 }
