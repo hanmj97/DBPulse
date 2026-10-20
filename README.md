@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.8.0-alpha / Phase 8 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.9.0-alpha / SQL Tuning Advisor 개발 브랜치 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -208,3 +208,13 @@ docker compose up -d
 - `GET /api/v1/targets/local-mssql/incidents/{incidentId}/investigation` 에 `waitEvidence` 추가.
 - [설계 및 검증 절차](docs/PHASE8_INCIDENT_WAIT_CORRELATION.md)
 - 개발 브랜치에 있으며 로컬 MSSQL 통합 검증 전. 기존 v0.7.0은 main에 유지.
+
+## Phase 9 — SQL Tuning Advisor (metric-based triage, 개발 중)
+
+- 기존 SQL Server Query Store 수집값을 사용해 query_id/plan_id별 **우선 점검 / 점검 권장 / 관찰** 분류.
+- 실제 관측값: 평균 실행 시간, CPU, 논리 읽기, Query Store 집계 실행 횟수.
+- 읽기 전용 `GET /api/v1/targets/local-mssql/query-performance/advisor?limit=10` 추가.
+- React **쿼리** 메뉴에서 후보 정렬, 우선순위 필터, 점검 근거·권장 확인 순서 제공.
+- **SQL 원문·실행계획·파라미터 미수집**. Key Lookup·Scan·인덱스 변경을 확인된 원인이나 확정된 해결책으로 주장하지 않음.
+- [설계·제한사항·로컬 통합 검증](docs/PHASE9_SQL_TUNING_ADVISOR.md).
+- 현재 개발 브랜치이며 사용자 로컬 검증 전. v0.8.0은 `main`에 병합됨.
