@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS query_performance_snapshots (
     last_executed_at TIMESTAMPTZ NOT NULL,
     diagnosis_code VARCHAR(32) NOT NULL
 );
+-- Local additive migration; retains prior Query Store snapshots unchanged.
+-- UNKNOWN is used for rows captured before coarse pattern classification.
+ALTER TABLE query_performance_snapshots
+    ADD COLUMN IF NOT EXISTS source_category VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN';
 CREATE INDEX IF NOT EXISTS idx_query_perf_target_time
   ON query_performance_snapshots (target_id, collected_at DESC);
 

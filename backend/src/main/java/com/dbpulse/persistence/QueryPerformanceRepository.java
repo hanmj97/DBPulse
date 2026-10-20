@@ -18,8 +18,8 @@ public class QueryPerformanceRepository {
             INSERT INTO query_performance_snapshots
               (target_id, collected_at, query_id, plan_id, execution_count,
                avg_duration_ms, avg_cpu_ms, avg_logical_reads_pages,
-               last_executed_at, diagnosis_code)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               last_executed_at, diagnosis_code, source_category)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, rows, rows.size(), (ps, row) -> {
                 ps.setString(1, targetId);
                 ps.setTimestamp(2, Timestamp.from(row.collectedAt()));
@@ -31,6 +31,7 @@ public class QueryPerformanceRepository {
                 ps.setDouble(8, row.avgLogicalReadsPages());
                 ps.setTimestamp(9, Timestamp.from(row.lastExecutedAt()));
                 ps.setString(10, row.diagnosisCode());
+                ps.setString(11, row.sourceCategory());
             });
     }
 
@@ -43,7 +44,7 @@ public class QueryPerformanceRepository {
     public List<QueryPerformanceSnapshot> latest(String targetId, java.time.Instant sampledAt, int limit) {
         return jdbc.query("""
             SELECT collected_at, query_id, plan_id, execution_count, avg_duration_ms,
-                   avg_cpu_ms, avg_logical_reads_pages, last_executed_at, diagnosis_code
+                   avg_cpu_ms, avg_logical_reads_pages, last_executed_at, diagnosis_code, source_category
             FROM query_performance_snapshots
             WHERE target_id = ?
               AND collected_at = ?
@@ -56,7 +57,7 @@ public class QueryPerformanceRepository {
                 rs.getLong("execution_count"), rs.getDouble("avg_duration_ms"),
                 rs.getDouble("avg_cpu_ms"), rs.getDouble("avg_logical_reads_pages"),
                 rs.getTimestamp("last_executed_at").toInstant(),
-                rs.getString("diagnosis_code")
+                rs.getString("diagnosis_code"), rs.getString("source_category")
             ), targetId, Timestamp.from(sampledAt), limit);
     }
 }

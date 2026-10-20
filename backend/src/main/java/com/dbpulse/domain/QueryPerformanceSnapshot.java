@@ -15,5 +15,16 @@ public record QueryPerformanceSnapshot(
     double avgCpuMs,
     double avgLogicalReadsPages,
     Instant lastExecutedAt,
-    String diagnosisCode
-) {}
+    String diagnosisCode,
+    String sourceCategory
+) {
+    /** Compatibility for historical unit tests and callers without source classification. */
+    public QueryPerformanceSnapshot(
+        Instant collectedAt, long queryId, long planId, long executionCount,
+        double avgDurationMs, double avgCpuMs, double avgLogicalReadsPages,
+        Instant lastExecutedAt, String diagnosisCode
+    ) {
+        this(collectedAt, queryId, planId, executionCount, avgDurationMs,
+            avgCpuMs, avgLogicalReadsPages, lastExecutedAt, diagnosisCode, "UNKNOWN");
+    }
+}

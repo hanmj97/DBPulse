@@ -692,3 +692,94 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .rev-tuning-empty{padding:23px;border:1px dashed var(--t-line);border-radius:8px;color:var(--t-muted);font-size:12px;line-height:1.8;background:var(--t-inner)}
 @media(max-width:900px){.rev-tuning-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.rev-tuning-panel{padding:15px}.rev-tuning-toggle{flex-wrap:wrap;gap:9px}.rev-tuning-title{flex-basis:calc(100% - 95px)}.rev-tuning-numeric{min-width:0;flex:1}}
+
+/* Phase 10: bounded and explicit SQL Server estimated plan operator evidence. */
+.rev-plan-evidence{background:var(--t-card);border:1px solid var(--t-line);border-radius:10px;padding:16px;margin:19px 0 16px}
+.rev-plan-evidence-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rev-plan-evidence-heading h4{color:var(--t-text);font-size:13px;margin:0 0 7px}
+.rev-plan-evidence-heading p{color:var(--t-muted);font-size:11px;line-height:1.6}
+.rev-plan-evidence-heading button{display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;background:var(--t-accent-soft);color:var(--t-accent);border:1px solid var(--t-accent);border-radius:7px;padding:9px 12px;font-size:11px;font-weight:750}
+.rev-plan-evidence-heading button:disabled{cursor:wait;opacity:.7}
+.rev-plan-status,.rev-plan-warning{display:flex;align-items:center;gap:8px;padding:11px;border-radius:7px;font-size:11px;line-height:1.65;margin-top:13px}
+.rev-plan-status{border:1px solid #35846a;background:#17493e;color:#a5efce}
+.rev-plan-warning{border:1px solid #855d3d;background:#4b352b;color:#ffcf9c}
+.rev-plan-status svg,.rev-plan-warning svg{flex-shrink:0}
+.rev-plan-metadata{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.rev-plan-metadata span{font-size:11px;border:1px solid var(--t-line);padding:8px 10px;color:var(--t-muted);border-radius:7px}
+.rev-plan-metadata strong{color:var(--t-text)}
+.rev-plan-operator-list{display:grid;gap:7px}
+.rev-plan-operator{display:flex;align-items:center;justify-content:space-between;gap:13px;background:var(--t-inner);border:1px solid var(--t-line);border-radius:8px;padding:12px}
+.rev-plan-operator-name{display:grid;gap:5px}
+.rev-plan-operator-name strong{font-size:12px;color:var(--t-text)}
+.rev-plan-operator-name small{font-size:11px;line-height:1.65;color:var(--t-muted)}
+.rev-plan-operator b{white-space:nowrap;color:var(--t-accent);font-size:13px}
+.rev-plan-disclaimer{margin-top:14px;color:var(--t-muted);font-size:11px;line-height:1.7}
+@media(max-width:700px){.rev-plan-evidence-heading{align-items:start;flex-direction:column}.rev-plan-operator{align-items:start}}
+
+/* Query execution recency: default recent first, optional analytical sorts. */
+.rev-tuning-controls{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:16px 0 13px}
+.rev-tuning-sort,.rev-query-table-toolbar{display:flex;align-items:center;gap:10px}
+.rev-tuning-sort label,.rev-query-table-toolbar label{font-size:12px;font-weight:700;color:var(--t-muted)}
+.rev-tuning-sort select,.rev-query-table-toolbar select{
+  padding:8px 12px;min-width:166px;border:1px solid var(--t-line);border-radius:7px;
+  background:var(--t-inner);color:var(--t-text);font-size:12px;cursor:pointer;
+}
+.rev-tuning-controls>small{font-size:11px;color:var(--t-muted);line-height:1.5}
+.rev-tuning-last-run{font-size:11px;color:var(--t-accent);font-variant-numeric:tabular-nums}
+.rev-query-table-toolbar{justify-content:flex-end;margin:0 0 13px}
+.rev-query-last-executed{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:650}
+@media(max-width:650px){.rev-tuning-controls{align-items:flex-start;flex-direction:column}.rev-query-table-toolbar{justify-content:flex-start;flex-wrap:wrap}}
+
+/* Advisor ID filter: exact Query Store query_id / plan_id matching; preserve theme. */
+.rev-tuning-id-search{
+  background:var(--t-inner);border:1px solid var(--t-line);
+  border-radius:10px;padding:14px 15px;margin-bottom:14px;
+}
+.rev-tuning-id-fields{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px}
+.rev-tuning-id-fields label{
+  display:grid;gap:7px;color:var(--t-muted);font-size:12px;font-weight:750;
+}
+.rev-tuning-id-fields input{
+  width:155px;max-width:100%;border:1px solid var(--t-line);border-radius:7px;
+  padding:10px 12px;background:var(--t-card);color:var(--t-text);
+  font-size:13px;font-variant-numeric:tabular-nums;outline-offset:2px;
+}
+.rev-tuning-id-fields input:focus{
+  border-color:var(--t-accent);outline:2px solid var(--t-accent-soft);
+}
+.rev-tuning-id-fields input::placeholder{color:var(--t-secondary)}
+.rev-tuning-clear-search{
+  background:var(--t-card);color:var(--t-accent);
+  border:1px solid var(--t-line);border-radius:7px;
+  padding:10px 12px;font-size:12px;cursor:pointer;
+}
+.rev-tuning-clear-search:not(:disabled):hover{background:var(--t-hover)}
+.rev-tuning-clear-search:disabled{opacity:.4;cursor:default}
+.rev-tuning-search-caption{
+  display:flex;gap:9px 16px;flex-wrap:wrap;align-items:center;
+  margin-top:12px;line-height:1.55;
+}
+.rev-tuning-search-caption span{color:var(--t-accent);font-size:12px;font-weight:750}
+.rev-tuning-search-caption small{color:var(--t-muted);font-size:11px}
+@media(max-width:650px){
+  .rev-tuning-id-fields label{flex:1;min-width:110px}
+  .rev-tuning-id-fields input{width:100%}
+  .rev-tuning-clear-search{width:100%}
+}
+
+/* Query Store origin: inferred collector SQL shape, not app identity. */
+.rev-query-source-filter{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;
+  background:var(--t-card);border:1px solid var(--t-line);border-radius:11px;
+  padding:17px 20px;flex-wrap:wrap;
+}
+.rev-query-source-filter strong{color:var(--t-text);font-size:14px}
+.rev-query-source-filter p{color:var(--t-muted);font-size:11px;line-height:1.65;margin:6px 0 0}
+.rev-query-source-filter select{
+  background:var(--t-inner);color:var(--t-text);padding:10px 12px;
+  border:1px solid var(--t-line);border-radius:7px;cursor:pointer;font-size:12px;
+}
+@media(max-width:670px){
+  .rev-query-source-filter{align-items:stretch}
+  .rev-query-source-filter select{width:100%}
+}

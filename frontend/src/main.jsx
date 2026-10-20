@@ -12,6 +12,7 @@ import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
+import { filterQuerySources } from './queryCandidateFilters.js';
 
 const fmt = (n) => (n == null ? '—' : new Intl.NumberFormat('ko-KR').format(n));
 const timeFmt = (iso) => iso ? new Date(iso).toLocaleTimeString('ko-KR', {hour12: false}) : '—';
@@ -142,7 +143,7 @@ function DeadlockHistoryPanel({ targetId }) {
       try {
         const base = `/api/v1/targets/${encodeURIComponent(targetId)}/deadlocks`;
         const [statusResult, eventsResult] = await Promise.all([
-          fetch(`${base}/status`), fetch(`${base}?limit=20`)
+          fetch(`${base}/status`), fetch(`${base}?limit=40`)
         ]);
         if (!statusResult.ok || !eventsResult.ok) throw new Error('deadlock API failure');
         const [nextStatus, nextEvents] = await Promise.all([
@@ -221,6 +222,8 @@ function App() {
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
   const [queryAnalysis, setQueryAnalysis] = useState([]);
+  const [queryTableSort,setQueryTableSort] = useState('recent');
+  const [querySourceFilter,setQuerySourceFilter] = useState('exclude-dbpulse');
   const [queryState, setQueryState] = useState(null);
   const [queryError, setQueryError] = useState('');
   const [incidents, setIncidents] = useState([]);
@@ -292,7 +295,7 @@ function App() {
       try {
         const base = `/api/v1/targets/${encodeURIComponent(target.id)}/query-performance`;
         const [statusRes, rowsRes] = await Promise.all([
-          fetch(`${base}/status`), fetch(`${base}?limit=20`)
+          fetch(`${base}/status`), fetch(`${base}?limit=50`)
         ]);
         if (!statusRes.ok || !rowsRes.ok) throw new Error('query performance API error');
         const [status, rows] = await Promise.all([statusRes.json(), rowsRes.json()]);
@@ -482,10 +485,22 @@ function App() {
     </div>}
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
-      <QueryTuningAdvisorPanel targetId={target?.id}/>
+      <div className="rev-query-source-filter">
+        <div>
+          <strong>표시할 쿼리</strong>
+          <p>SQL Server 안에서 SQL 형태가 DBPulse 수집기와 일치하는지 분류합니다. 실행 주체를 확정하는 값은 아닙니다.</p>
+        </div>
+        <select aria-label="쿼리 출처 패턴 표시 기준" value={querySourceFilter}
+          onChange={event=>setQuerySourceFilter(event.target.value)}>
+          <option value="exclude-dbpulse">DBPulse 수집 패턴 제외 (기본)</option>
+          <option value="all">전체 수집 쿼리</option>
+          <option value="dbpulse-only">DBPulse 수집 패턴만</option>
+        </select>
+      </div>
+      <QueryTuningAdvisorPanel targetId={target?.id} sourceFilter={querySourceFilter}/>
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
-            <div><h2>쿼리 성능 분석</h2><p>최근 15분의 SQL Server Query Store 실행 통계 · 상위 20개 쿼리/실행계획</p></div>
+            <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
             <span className="small-pill">30s collect</span>
           </div>
           <div className="query-state">
@@ -494,20 +509,35 @@ function App() {
           </div>
           {queryError && <div className="banner error"><AlertCircle size={16}/>{queryError}</div>}
           {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>DBPulseLab에서 Query Store를 활성화해야 완료된 쿼리 통계를 분석할 수 있어요.</div>}
+          <div className="rev-query-table-toolbar">
+            <label htmlFor="dbpulse-query-table-sort">기존 Query Store 표 정렬</label>
+            <select id="dbpulse-query-table-sort" value={queryTableSort}
+              onChange={event=>setQueryTableSort(event.target.value)}>
+              <option value="recent">최근 실행순 (기본)</option>
+              <option value="duration">평균 실행시간순</option>
+              <option value="reads">평균 논리 읽기순</option>
+            </select>
+          </div>
           <div className="query-table-scroll"><table className="query-table"><thead><tr>
-            <th>Query ID / Plan</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>논리 읽기</th><th>분석 신호</th>
+            <th>Query ID / Plan</th><th>최근 실행</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>논리 읽기</th><th>분석 신호</th>
           </tr></thead><tbody>
-          {queryAnalysis.length ? queryAnalysis.map(row => {
+          {filterQuerySources(queryAnalysis, querySourceFilter).length ?
+            filterQuerySources(queryAnalysis, querySourceFilter).sort((a,b)=>
+            queryTableSort==='duration' ? Number(b.avgDurationMs)-Number(a.avgDurationMs)
+            : queryTableSort==='reads' ? Number(b.avgLogicalReadsPages)-Number(a.avgLogicalReadsPages)
+            : (Date.parse(b.lastExecutedAt)||0)-(Date.parse(a.lastExecutedAt)||0)
+          ).map(row => {
             const [label, suggestion] = DIAGNOSIS[row.diagnosisCode] || DIAGNOSIS.OBSERVE;
             return <tr key={`${row.queryId}-${row.planId}-${row.collectedAt}`}>
               <td><strong>#{row.queryId}</strong><small>plan {row.planId}</small></td>
+              <td className="rev-query-last-executed">{row.lastExecutedAt ? new Date(row.lastExecutedAt).toLocaleString('ko-KR',{hour12:false}) : '—'}</td>
               <td>{fmt(row.executionCount)}</td>
               <td>{Number(row.avgDurationMs).toFixed(2)} ms</td>
               <td>{Number(row.avgCpuMs).toFixed(2)} ms</td>
               <td>{Number(row.avgLogicalReadsPages).toFixed(1)} pages</td>
               <td><span className={row.diagnosisCode === 'OBSERVE' ? 'hint hint-neutral' : 'hint'}>{label}</span><small>{suggestion}</small></td>
             </tr>;
-          }) : <tr><td className="query-empty" colSpan="6">아직 분석할 쿼리가 없습니다. Query Store 설정과 테스트 쿼리 실행 여부를 확인하세요.</td></tr>}
+          }) : <tr><td className="query-empty" colSpan="7">선택한 패턴 분류에 해당하는 쿼리가 없습니다. 전체 수집 쿼리 보기 또는 Query Store 상태를 확인해 주세요.</td></tr>}
           </tbody></table></div>
           <p className="query-note">* 실행 횟수는 최근 15분 Query Store 통계의 집계값이며 30초 동안 새로 발생한 건수가 아닙니다. 분석 신호는 수치 기반 점검 후보이지 확정된 원인이나 인덱스 추천이 아닙니다. SQL 원문·파라미터는 수집하지 않습니다.</p>
         </section>

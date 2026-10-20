@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.9.0-alpha / SQL Tuning Advisor 개발 브랜치 (로컬 검증 전)
+## 현재 개발 버전: v0.10.0-alpha / Query Store 실행계획 연산 분석 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -218,3 +218,19 @@ docker compose up -d
 - **SQL 원문·실행계획·파라미터 미수집**. Key Lookup·Scan·인덱스 변경을 확인된 원인이나 확정된 해결책으로 주장하지 않음.
 - [설계·제한사항·로컬 통합 검증](docs/PHASE9_SQL_TUNING_ADVISOR.md).
 - 현재 개발 브랜치이며 사용자 로컬 검증 전. v0.8.0은 `main`에 병합됨.
+
+## Phase 10 — Query Store Plan Operator Evidence (개발 중)
+
+- v0.9 SQL Tuning Advisor의 후보를 선택해 **연산 정보 확인**을 누를 때만 실제 Query Store 계획의 연산을 분석.
+- `GET /api/v1/targets/local-mssql/query-performance/plan-evidence/{queryId}/{planId}`
+- MSSQL 서버 내부에서 ShowPlan XML을 파싱하고 안전하게 분류된 연산 종류·개수만 전달.
+- 최대 계획 1MB / 100개 연산, 상위 20개 Query Store 후보 한정, 최신 수집 데이터 요구.
+- **SQL 원문, 파라미터, 인덱스/테이블명, 계획 XML을 수집·저장하지 않음.**
+- [v0.10 설계·한계 및 실제 SQL Server 검증 방법](docs/PHASE10_PLAN_OPERATOR_EVIDENCE.md).
+- 별도 개발 브랜치로 사용자 로컬 통합 테스트 전이며, v0.9.0은 main에 유지.
+
+### 쿼리 화면 최신 실행순 정렬 (v0.10 개선)
+- 기본: `DBPULSE / 쿼리`에서 `lastExecutedAt` 최근 실행순
+- 선택: 튜닝 우선순위순·평균 실행시간순 (Query Store 표는 읽기량순도 가능)
+- 수집: 최근 실행 상위 20개 + 실행 비용 상위 20개, 중복 제거(최대 40개)
+- Query Store 수집 및 통계 반영 지연에 따라 방금 실행한 SQL이 보이지 않을 수 있음
