@@ -9,7 +9,7 @@
  Never execute on a customer/production SQL Server.
 
  BEFORE START:
-  1. Make C:\DBPulseLabXE on the SQL Server machine. Grant SQL Server
+  1. Make D:\Projects\DBPulseLabXE on the SQL Server machine. Grant SQL Server
      SERVICE account write access. Remove old ObserverCost*.xel files.
   2. Start this script in ONE SSMS tab; change @Phase START -> END after
      10 min on the SAME SSMS session. Repeat A and B separately.
@@ -43,7 +43,7 @@ BEGIN
         )
         ADD TARGET package0.event_file
         (
-          SET filename=N''C:\DBPulseLabXE\ObserverCost.xel'',
+          SET filename=N''D:\Projects\DBPulseLabXE\ObserverCost.xel'',
               max_file_size=(10),
               max_rollover_files=(4)
         )
@@ -97,7 +97,7 @@ BEGIN
     ;WITH RawEvents AS (
         SELECT TRY_CONVERT(XML,event_data) AS x
         FROM sys.fn_xe_file_target_read_file(
-            N'C:\DBPulseLabXE\ObserverCost*.xel',NULL,NULL,NULL)
+            N'D:\Projects\DBPulseLabXE\ObserverCost*.xel',NULL,NULL,NULL)
         WHERE object_name=N'sql_statement_completed'
           AND timestamp_utc>=@StartedUtc AND timestamp_utc<=@EndedUtc
     ),
@@ -169,6 +169,6 @@ BEGIN
         DROP EVENT SESSION [DBPulseLab_Observer_AB] ON SERVER;
     END;
     SELECT 'XE_SESSION_DROPPED' AS state,
-           'Delete C:\DBPulseLabXE\ObserverCost*.xel after preserving aggregates.' AS next_step;
+           'Delete D:\Projects\DBPulseLabXE\ObserverCost*.xel after preserving aggregates.' AS next_step;
 END;
 GO
