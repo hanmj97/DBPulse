@@ -10,7 +10,7 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.10.0-alpha / Query Store 실행계획 연산 분석 (로컬 검증 전)
+## 현재 개발 버전: v0.11.0-alpha / SQL 성능 지표 × 실행계획 연계 분석 (로컬 검증 전)
 
 작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
 
@@ -234,3 +234,12 @@ docker compose up -d
 - 선택: 튜닝 우선순위순·평균 실행시간순 (Query Store 표는 읽기량순도 가능)
 - 수집: 최근 실행 상위 20개 + 실행 비용 상위 20개, 중복 제거(최대 40개)
 - Query Store 수집 및 통계 반영 지연에 따라 방금 실행한 SQL이 보이지 않을 수 있음
+
+## Phase 11 — Query Store × Execution Plan Correlation (개발 중)
+
+- Query Store의 실측 평균 실행 시간·CPU·논리 읽기와 **동일 query_id/plan_id의 확인된 실행계획 연산**을 연결.
+- 기존 `GET .../plan-evidence/{queryId}/{planId}` JSON에 `correlation` 항목을 추가해 하위 호환성 유지.
+- `Lookup+높은 읽기량`, `Scan+높은 읽기량`, `Sort/Hash+높은 CPU`, `실행 지연`, `DML 관측` 등 근거별 안전한 점검 안내.
+- 실행계획 수집 실패 및 100연산 제한 시 추측 결과 금지. **관측의 상관관계만 제공**하고 원인 확정·자동 인덱스 변경은 하지 않음.
+- 기존 확정 UI(네이비/미드나잇 다크), Query ID 검색, 모니터링 SQL 패턴 제외 및 모든 수집 API 유지.
+- [설계·안전 경계·로컬 통합 검증](docs/PHASE11_PLAN_METRIC_CORRELATION.md).

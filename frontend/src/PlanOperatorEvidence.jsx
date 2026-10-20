@@ -72,7 +72,7 @@ export default function PlanOperatorEvidence({targetId,queryId,planId}) {
       setReport(await response.json());
     }catch(err){
       setError(err.message==='404'
-        ? '해당 Query/Plan이 최근 수집된 최신·고비용 최대 40개 목록에 없거나 더 이상 존재하지 않습니다.'
+        ? '해당 Query/Plan이 최근 수집된 최신·고비용 및 수집 패턴 최대 50개 목록에 없거나 더 이상 존재하지 않습니다.'
         : '실행계획 연산을 조회하지 못했습니다. 수집기 상태·Query Store 권한·백엔드 로그를 확인해 주세요.');
     }finally{setLoading(false);}
   };
@@ -105,6 +105,33 @@ export default function PlanOperatorEvidence({targetId,queryId,planId}) {
           </div>)}
         </div>
       </>}
+      {report.correlation && <section className="rev-plan-correlation" aria-label="성능 지표와 실행계획 연계 분석">
+        <div className="rev-plan-correlation-title">
+          <div>
+            <h4>성능 지표 × 실행계획 연계 분석</h4>
+            <p>같은 Query ID·Plan ID의 Query Store 집계와 확인된 연산을 연결합니다.</p>
+          </div>
+          <span className={'rev-plan-correlation-state '+(report.correlation.status==='PARTIAL_EVIDENCE'?'partial':'')}>
+            {report.correlation.status==='EVIDENCE_AVAILABLE'?'근거 연결 완료':
+              report.correlation.status==='PARTIAL_EVIDENCE'?'일부 연산만 확인':'연결 근거 부족'}
+          </span>
+        </div>
+        <div className="rev-plan-findings">
+          {(report.correlation.findings||[]).map(item =>
+            <article key={item.code} className="rev-plan-finding">
+              <div className="rev-plan-finding-heading">
+                <span className={'rev-plan-finding-kind '+(item.kind==='REVIEW'?'review':'info')}>
+                  {item.kind==='REVIEW'?'추가 점검':'관측 안내'}
+                </span>
+                <strong>{item.title}</strong>
+              </div>
+              <p className="rev-plan-finding-evidence">{item.evidence}</p>
+              <div className="rev-plan-finding-next"><b>다음 확인</b><p>{item.nextCheck}</p></div>
+            </article>
+          )}
+        </div>
+        <p className="rev-plan-disclaimer">{report.correlation.limitation}</p>
+      </section>}
       <p className="rev-plan-disclaimer">{report.interpretation}</p>
     </>}
   </div>;

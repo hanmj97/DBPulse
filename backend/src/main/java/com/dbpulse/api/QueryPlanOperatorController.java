@@ -4,6 +4,9 @@ import com.dbpulse.collector.MssqlPlanOperatorCollector;
 import com.dbpulse.config.MssqlTargetProperties;
 import com.dbpulse.persistence.QueryPerformanceRepository;
 import com.dbpulse.service.QueryPerformanceService;
+import com.dbpulse.service.PlanMetricCorrelationService;
+import com.dbpulse.service.PlanMetricCorrelationService.Correlation;
+import com.dbpulse.service.PlanOperatorSummary;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -28,19 +31,22 @@ public class QueryPlanOperatorController {
     private final QueryPerformanceService queryStore;
     private final QueryPerformanceRepository repository;
     private final MssqlPlanOperatorCollector collector;
+    private final PlanMetricCorrelationService correlation;
 
     public QueryPlanOperatorController(MssqlTargetProperties target,
                                        QueryPerformanceService queryStore,
                                        QueryPerformanceRepository repository,
-                                       MssqlPlanOperatorCollector collector) {
+                                       MssqlPlanOperatorCollector collector,
+                                       PlanMetricCorrelationService correlation) {
         this.target = target;
         this.queryStore = queryStore;
         this.repository = repository;
         this.collector = collector;
+        this.correlation = correlation;
     }
 
     @GetMapping(value = "/{queryId}/{planId}", produces = "application/json;charset=UTF-8")
-    public MssqlPlanOperatorCollector.PlanReport inspect(@PathVariable String id,
+    public PlanEvidenceResponse inspect(@PathVariable String id,
                                                           @PathVariable long queryId,
                                                           @PathVariable long planId) {
         if (!target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -52,15 +58,37 @@ public class QueryPlanOperatorController {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
         }
         // Never allow arbitrary plan lookup outside the most recently sampled bounded sampled set.
-        boolean sampled = repository.latest(id, state.lastCollectedAt(), 50).stream()
-            .anyMatch(row -> row.queryId() == queryId && row.planId() == planId);
-        if (!sampled) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        var sample = repository.latest(id, state.lastCollectedAt(), 50).stream()
+            .filter(row -> row.queryId() == queryId && row.planId() == planId)
+            .findFirst().orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND));
         try {
-            return collector.examine(queryId, planId);
+            var plan = collector.examine(queryId, planId);
+            return PlanEvidenceResponse.from(plan, correlation.review(sample, plan));
         } catch (Exception ex) {
             // Do not emit SQL exception text or raw plan details to the client/log.
             log.warn("Read-only plan operator inspection failed ({})", ex.getClass().getSimpleName());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
+    /**
+     * Backward-compatible top-level fields; the new "correlation" is additive.
+     * No raw SQL text, plan XML, object names or other sensitive plan attributes.
+     */
+    public record PlanEvidenceResponse(
+        long queryId, long planId, String status, Instant collectedAt,
+        Boolean parallelPlan, Boolean forcedPlan, long planBytes,
+        int sampledOperators, List<PlanOperatorSummary.OperatorCount> operators,
+        String interpretation, Correlation correlation
+    ) {
+        static PlanEvidenceResponse from(
+            MssqlPlanOperatorCollector.PlanReport plan, Correlation correlation) {
+            return new PlanEvidenceResponse(
+                plan.queryId(), plan.planId(), plan.status(), plan.collectedAt(),
+                plan.parallelPlan(), plan.forcedPlan(), plan.planBytes(),
+                plan.sampledOperators(), plan.operators(),
+                plan.interpretation(), correlation);
+        }
+    }
+
 }
