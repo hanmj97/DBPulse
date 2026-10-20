@@ -184,3 +184,24 @@ Perform the user-supplied query in **DBPulseLab**, wait at least one
 Query Store collection cycle, and check matching query/plan IDs in SSMS.
 The latest Query Store sample should place it among the most recent
 captured plans if Query Store actually captured it.
+
+## DML physical operators (follow-up improvement)
+
+The first DBPulseLab comparison confirmed that Query #239 / Plan #178 is
+available and has one `RelOp` reported as `OTHER_OPERATOR` in v0.10.
+SSMS showed the `Clustered Index Update` operator for the tested statement.
+
+A conservative physical-operator allowlist now additionally recognizes:
+- `Table Insert`, `Clustered Index Insert`, `Index Insert`
+- `Table Update`, `Clustered Index Update`, `Index Update`
+- `Table Delete`, `Clustered Index Delete`, `Index Delete`
+
+A result matching one of these exact SQL Server `@PhysicalOp` values is
+returned as a fixed enum such as `CLUSTERED_INDEX_UPDATE`. Unrecognized
+values continue to be reported as `OTHER_OPERATOR`, and raw plan/operator
+attributes and object names are still not transferred.
+
+When queryId=239 / planId=178 remains in the latest sampled candidate
+set, verify `CLUSTERED_INDEX_UPDATE: 1`. Since Query Store captures change
+over time, use fresh IDs from SSMS/Advisor if the pair is no longer available.
+This is classification coverage, **not** proof of any performance regression.

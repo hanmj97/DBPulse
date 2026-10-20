@@ -24,7 +24,16 @@ public final class PlanOperatorSummary {
         Map.entry("Merge Join", "MERGE_JOIN"),
         Map.entry("Index Seek", "INDEX_SEEK"),
         Map.entry("Clustered Index Seek", "CLUSTERED_INDEX_SEEK"),
-        Map.entry("Filter", "FILTER")
+        Map.entry("Filter", "FILTER"),
+        Map.entry("Table Insert", "TABLE_INSERT"),
+        Map.entry("Clustered Index Insert", "CLUSTERED_INDEX_INSERT"),
+        Map.entry("Index Insert", "INDEX_INSERT"),
+        Map.entry("Table Update", "TABLE_UPDATE"),
+        Map.entry("Clustered Index Update", "CLUSTERED_INDEX_UPDATE"),
+        Map.entry("Index Update", "INDEX_UPDATE"),
+        Map.entry("Table Delete", "TABLE_DELETE"),
+        Map.entry("Clustered Index Delete", "CLUSTERED_INDEX_DELETE"),
+        Map.entry("Index Delete", "INDEX_DELETE")
     );
 
     public static Result summarize(List<String> physicalOps, int maxOps) {

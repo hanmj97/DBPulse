@@ -37,4 +37,24 @@ class PlanOperatorSummaryTest {
         assertThat(summary.sampledNodes()).isEqualTo(2);
         assertThat(summary.operators().getFirst().count()).isEqualTo(2);
     }
+    @Test
+    void recognizesStructuralDmlOperatorsWithoutLeakingTableOrIndexNames() {
+        var summary = PlanOperatorSummary.summarize(
+            List.of("Clustered Index Update", "Index Update", "Table Update",
+                "Clustered Index Insert", "Index Insert", "Table Insert",
+                "Clustered Index Delete", "Index Delete", "Table Delete"), 100);
+
+        assertThat(summary.truncated()).isFalse();
+        assertThat(summary.sampledNodes()).isEqualTo(9);
+        assertThat(summary.operators())
+            .extracting(PlanOperatorSummary.OperatorCount::type)
+            .containsExactlyInAnyOrder(
+                "CLUSTERED_INDEX_UPDATE", "INDEX_UPDATE", "TABLE_UPDATE",
+                "CLUSTERED_INDEX_INSERT", "INDEX_INSERT", "TABLE_INSERT",
+                "CLUSTERED_INDEX_DELETE", "INDEX_DELETE", "TABLE_DELETE")
+            .doesNotContain("OTHER_OPERATOR");
+        assertThat(summary.operators()).allSatisfy(item ->
+            assertThat(item.count()).isEqualTo(1));
+    }
+
 }

@@ -14,6 +14,15 @@ const label = {
   INDEX_SEEK:'Index Seek',
   CLUSTERED_INDEX_SEEK:'Clustered Index Seek',
   FILTER:'Filter',
+  TABLE_INSERT:'Table Insert',
+  CLUSTERED_INDEX_INSERT:'Clustered Index Insert',
+  INDEX_INSERT:'Index Insert',
+  TABLE_UPDATE:'Table Update',
+  CLUSTERED_INDEX_UPDATE:'Clustered Index Update',
+  INDEX_UPDATE:'Index Update',
+  TABLE_DELETE:'Table Delete',
+  CLUSTERED_INDEX_DELETE:'Clustered Index Delete',
+  INDEX_DELETE:'Index Delete',
   OTHER_OPERATOR:'기타 연산'
 };
 const explanation = {
@@ -29,6 +38,15 @@ const explanation = {
   INDEX_SEEK:'Index Seek 연산이 있습니다. Seek 존재만으로 충분한 성능을 보장하지 않습니다.',
   CLUSTERED_INDEX_SEEK:'Clustered Index Seek 연산이 있습니다. 실제 읽기량과 반환 행 수를 확인하세요.',
   FILTER:'Filter 연산이 확인됐습니다. 필터가 어느 단계에서 적용되는지 확인하세요.',
+  TABLE_INSERT:'테이블 Insert 연산이 존재합니다. 해당 연산만으로 쓰기 병목을 확정할 수 없습니다.',
+  CLUSTERED_INDEX_INSERT:'Clustered Index Insert 연산이 존재합니다. 실제 처리량 및 잠금·로그 지표와 함께 확인하세요.',
+  INDEX_INSERT:'Index Insert 연산이 존재합니다. 인덱스 유지 비용은 별도 근거를 통해 검토해야 합니다.',
+  TABLE_UPDATE:'Table Update 연산이 존재합니다. 실제 행 수와 트랜잭션 영향을 추가 확인하세요.',
+  CLUSTERED_INDEX_UPDATE:'Clustered Index Update 연산이 확인됐습니다. UPDATE 작업의 구조이며 이 연산만으로 튜닝 필요 여부를 판단하지 않습니다.',
+  INDEX_UPDATE:'Index Update 연산이 존재합니다. 실제 변경 행 수와 다른 인덱스 유지 작업을 추가 확인하세요.',
+  TABLE_DELETE:'Table Delete 연산이 존재합니다. 삭제 처리량 및 트랜잭션 상황과 함께 확인하세요.',
+  CLUSTERED_INDEX_DELETE:'Clustered Index Delete 연산이 존재합니다. 실제 비용은 추가 측정이 필요합니다.',
+  INDEX_DELETE:'Index Delete 연산이 존재합니다. 해당 연산만으로 비용이나 문제를 확정하지 않습니다.',
   OTHER_OPERATOR:'기타 연산이 집계됐습니다. 해당 연산의 원문 이름은 전송하지 않습니다.'
 };
 const statusMessage={
@@ -54,7 +72,7 @@ export default function PlanOperatorEvidence({targetId,queryId,planId}) {
       setReport(await response.json());
     }catch(err){
       setError(err.message==='404'
-        ? '해당 Query/Plan이 최근 수집된 상위 20개 목록에 없거나 더 이상 존재하지 않습니다.'
+        ? '해당 Query/Plan이 최근 수집된 최신·고비용 최대 40개 목록에 없거나 더 이상 존재하지 않습니다.'
         : '실행계획 연산을 조회하지 못했습니다. 수집기 상태·Query Store 권한·백엔드 로그를 확인해 주세요.');
     }finally{setLoading(false);}
   };
