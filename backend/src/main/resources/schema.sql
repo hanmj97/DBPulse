@@ -126,3 +126,19 @@ CREATE TABLE IF NOT EXISTS wait_observations (
 );
 CREATE INDEX IF NOT EXISTS idx_wait_observations_sample
     ON wait_observations (sample_id);
+
+-- Phase 14 local Windows-owned target registry. No password or JDBC URL stored.
+-- Registration confirms network/auth but deliberately does NOT start a collector.
+CREATE TABLE IF NOT EXISTS local_target_registry (
+    id VARCHAR(36) PRIMARY KEY,
+    display_name VARCHAR(100) NOT NULL,
+    server_host VARCHAR(253) NOT NULL,
+    server_port INTEGER NOT NULL CHECK (server_port BETWEEN 1 AND 65535),
+    database_name VARCHAR(128) NOT NULL,
+    login_name VARCHAR(128) NOT NULL,
+    status VARCHAR(32) NOT NULL CHECK (status = 'REGISTERED_INACTIVE'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (server_host, server_port, database_name, login_name)
+);
+CREATE INDEX IF NOT EXISTS idx_local_target_registry_created
+    ON local_target_registry (created_at DESC);
