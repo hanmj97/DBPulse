@@ -47,7 +47,7 @@ test('the target is clearly inactive and sensitive password is cleared after reg
   assert.match(form,/password:''/);
   assert.match(form,/선택하여 연결/);
   assert.match(form,/chooseRegistered\(item\)/);
-  assert.match(form,/비밀번호는 디스크에 저장하지 않으며/);
+  assert.match(form,/비밀번호는 기본적으로 저장하지 않습니다/);
   assert.match(form,/\/api\/v1\/local-targets\/start-monitoring/);
   assert.match(form,/ACTIVE_IN_MEMORY/);
   assert.match(form,/선택한 DB 모니터링 시작/);
