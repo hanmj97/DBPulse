@@ -139,7 +139,8 @@ jobs:
             'tools/run_dbpulse_windows_ui.ps1',
             'tools/run_dbpulse_windows_host_lab.ps1',
             'tools/build_dbpulse_windows_app_image.ps1',
-            'tools/provision_dbpulse_windows_app.ps1'
+            'tools/provision_dbpulse_windows_app.ps1',
+            'tools/diagnose_dbpulse_windows_app.ps1'
           )
           $allErrors = @()
           foreach ($file in $files) {
