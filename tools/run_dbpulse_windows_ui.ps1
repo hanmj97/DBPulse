@@ -1,136 +1,91 @@
-# DBPulse Windows integrated UI DEVELOPMENT launcher.
-# Frontend is built once and embedded into the Spring Boot JAR.
-# Runtime uses 127.0.0.1:18081 only; Vite/5174 is not required.
-# Existing Docker PostgreSQL volume is NEVER reset or deleted.
+# DBPulse Windows React + Spring Boot single-process development launcher.
+# PostgreSQL continues in Docker, and existing metadata/data are not deleted.
+# Each bundled JAR gets a unique filename to avoid Windows file-lock conflicts.
 param([switch]$SkipTests)
 
-$ErrorActionPreference='Stop'
+$ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'Windows is required.' }
-$root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-Set-Location $root
 
-# Node/npm are needed to BUILD React, not to run the integrated JAR.
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+Set-Location $root
+$frontend = Join-Path $root 'frontend'
+
 if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
-    throw 'Node.js/npm are required to build the React dashboard.'
+    throw 'Node.js/npm is required to build the React dashboard.'
 }
 if (-not (Get-Command jar.exe -ErrorAction SilentlyContinue)) {
-    throw 'JDK 21 (jar.exe) is required to verify the complete Spring Boot bundle.'
+    throw 'Java 21 JDK (jar.exe) is required to verify the bundled dashboard.'
 }
 
-$frontend=Join-Path $root 'frontend'
-$dist=Join-Path $frontend 'dist'
-# Runtime JAR path is assigned after building to a unique versioned file.
+# An older Windows Java backend may still hold port 18081. Require the
+# operator to close that DBPulse window first; never stop unrelated Java.
+$owners = @(Get-NetTCPConnection -LocalPort 18081 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique)
+foreach ($listenerPid in $owners) {
+    $processInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $listenerPid" -ErrorAction SilentlyContinue
+    if ($null -eq $processInfo) { continue }
+    $commandLine = [string]$processInfo.CommandLine
+    $javaProcess = @('java.exe','javaw.exe') -contains $processInfo.Name.ToLowerInvariant()
+    $dbpulseProcess = $commandLine.Contains('dbpulse-api.jar') -or
+        $commandLine.Contains('dbpulse-desktop-')
+    if ($javaProcess -and $dbpulseProcess) {
+        throw "Windows DBPulse backend PID $listenerPid is still running. Press Ctrl+C in its original window, wait until it exits, and retry."
+    }
+}
 
+# Build the React production assets. The Vite dev server is NOT launched.
 Push-Location $frontend
 try {
-    # This project currently has no committed package-lock.json.
-    # Do not write a new lockfile or any secrets into the repository.
     npm.cmd install --no-package-lock --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw 'React dependency install failed.' }
     if (-not $SkipTests) {
         npm.cmd run test
         if ($LASTEXITCODE -ne 0) { throw 'React regression tests failed.' }
     }
-    # Vite rebuilds dist from source. Never ship the Vite dev server.
     npm.cmd run build
     if ($LASTEXITCODE -ne 0) { throw 'React production build failed.' }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+}
+$dist = Join-Path $frontend 'dist'
 if (-not (Test-Path (Join-Path $dist 'index.html'))) {
-    throw 'Vite dist/index.html is missing.'
+    throw 'React build did not generate index.html.'
 }
 
-# Detect only a known DBPulse Windows JVM. Never terminate other Java processes.
-# A running local DBPulse instance has an active database connection and may
-# still be polling; the operator should close its original window with Ctrl+C.
-$listenerPids=@(Get-NetTCPConnection -LocalPort 18081 -State Listen -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty OwningProcess -Unique)
-foreach ($listenerPid in $listenerPids) {
-    $proc=Get-CimInstance Win32_Process -Filter "ProcessId = $listenerPid" -ErrorAction SilentlyContinue
-    if ($null -eq $proc) { continue }
-    $cmdLine=[string]$proc.CommandLine
-    if ($proc.Name -match '^javaw?\.exe -and
-        ($cmdLine.IndexOf('dbpulse-api.jar',[System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-         $cmdLine.IndexOf('dbpulse-desktop-',[System.StringComparison]::OrdinalIgnoreCase) -ge 0)) {
-        throw "An existing Windows DBPulse backend (PID $listenerPid) is using port 18081. Press Ctrl+C in its original PowerShell window, wait for exit, then rerun this launcher. No other Java process was stopped."
-    }
-}
-
-# Build into a UNIQUE VERSIONED FILE instead of replacing dbpulse-api.jar.
-# Windows keeps the JAR locked while the old Spring Boot Java process runs.
-# Docker is already a prerequisite for the existing PostgreSQL container,
-# so the isolated Maven builder is used consistently (even if Maven exists).
-# Root .dockerignore permits sources + React dist ONLY, never the .env file.
-$bundleDir=Join-Path $root 'backend\target\desktop-bundles'
+# Docker is already needed for the existing PostgreSQL metadata container.
+# .dockerignore restricts the build context to backend sources + React dist.
+# Build a bundled JAR in a temporary builder container; never overwrite a
+# JAR that might still be locked by a running native Windows Java process.
+$bundleDir = Join-Path (Join-Path (Join-Path $root 'backend') 'target') 'desktop-bundles'
 if (-not (Test-Path $bundleDir)) {
     New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
 }
-$jar=Join-Path $bundleDir ('dbpulse-desktop-' + [guid]::NewGuid().ToString('N') + '.jar')
+$jar = Join-Path $bundleDir ('dbpulse-desktop-' + [guid]::NewGuid().ToString('N') + '.jar')
+
 docker build -f tools/Dockerfile.windows-ui-bundle --tag dbpulse-windows-ui-builder .
 if ($LASTEXITCODE -ne 0) { throw 'Docker desktop-bundle build failed.' }
-$cid=(docker create dbpulse-windows-ui-builder).Trim()
-if (-not $cid) { throw 'Could not create temporary build container.' }
+$cid = (docker create dbpulse-windows-ui-builder).Trim()
+if (-not $cid) { throw 'Could not create the temporary builder container.' }
 try {
     docker cp ("${cid}:/workspace/backend/target/dbpulse-api.jar") $jar
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Could not copy desktop-bundle JAR into a new versioned file.'
-    }
+    if ($LASTEXITCODE -ne 0) { throw 'Could not copy the new JAR into its unique bundle path.' }
 } finally {
     docker rm -f $cid | Out-Null
 }
 
-if (-not (Test-Path $jar)) { throw 'Bundled JAR is missing.' }
-$entries=jar.exe tf $jar
+# Verify that this version contains both the React HTML and JS bundle.
+if (-not (Test-Path $jar)) { throw 'New bundled JAR is missing.' }
+$entries = jar.exe tf $jar
 if ($LASTEXITCODE -ne 0 -or
     -not ($entries | Where-Object { $_ -eq 'BOOT-INF/classes/static/index.html' }) -or
-    -not ($entries | Where-Object { $_ -match '^BOOT-INF/classes/static/assets/.*\.js$' })) {
-    throw 'JAR does not contain a complete React production build.'
-}
-Write-Host 'One-process DBPulse Java + React bundle verified.'
-Write-Host 'Stopping only the Docker backend; existing PostgreSQL remains intact.'
-
-# Reuse proven Windows-native DPAPI and metadata configuration.
-# This launcher opens the browser automatically AFTER the UI responds.
-& (Join-Path $PSScriptRoot 'run_dbpulse_windows_host_lab.ps1') -SkipBuild -BundledUi -JarPath $jar
- -and
-        ($cmdLine.IndexOf('dbpulse-api.jar',[System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-         $cmdLine.IndexOf('dbpulse-desktop-',[System.StringComparison]::OrdinalIgnoreCase) -ge 0)) {
-        throw "An existing Windows DBPulse backend (PID $listenerPid) is using port 18081. Press Ctrl+C in its original PowerShell window, wait for exit, then rerun this launcher. No other Java process was stopped."
-    }
+    -not ($entries | Where-Object { $_ -match '^BOOT-INF/classes/static/assets/.+[.]js$' })) {
+    throw 'New JAR does not contain a complete production React dashboard.'
 }
 
-# Build into a UNIQUE VERSIONED FILE instead of replacing dbpulse-api.jar.
-# Windows keeps the JAR locked while the old Spring Boot Java process runs.
-# Docker is already a prerequisite for the existing PostgreSQL container,
-# so the isolated Maven builder is used consistently (even if Maven exists).
-# Root .dockerignore permits sources + React dist ONLY, never the .env file.
-$bundleDir=Join-Path $root 'backend\\target\\desktop-bundles'
-if (-not (Test-Path $bundleDir)) {
-    New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
-}
-$jar=Join-Path $bundleDir ('dbpulse-desktop-' + [guid]::NewGuid().ToString('N') + '.jar')
-docker build -f tools/Dockerfile.windows-ui-bundle --tag dbpulse-windows-ui-builder .
-if ($LASTEXITCODE -ne 0) { throw 'Docker desktop-bundle build failed.' }
-$cid=(docker create dbpulse-windows-ui-builder).Trim()
-if (-not $cid) { throw 'Could not create temporary build container.' }
-try {
-    docker cp ("${cid}:/workspace/backend/target/dbpulse-api.jar") $jar
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Could not copy desktop-bundle JAR into a new versioned file.'
-    }
-} finally {
-    docker rm -f $cid | Out-Null
-}
+Write-Host 'One-process Windows DBPulse React + Java JAR is ready.'
+Write-Host 'The original JAR and PostgreSQL data have not been replaced or removed.'
 
-if (-not (Test-Path $jar)) { throw 'Bundled JAR is missing.' }
-$entries=jar.exe tf $jar
-if ($LASTEXITCODE -ne 0 -or
-    -not ($entries | Where-Object { $_ -eq 'BOOT-INF/classes/static/index.html' }) -or
-    -not ($entries | Where-Object { $_ -match '^BOOT-INF/classes/static/assets/.*\.js$' })) {
-    throw 'JAR does not contain a complete React production build.'
-}
-Write-Host 'One-process DBPulse Java + React bundle verified.'
-Write-Host 'Stopping only the Docker backend; existing PostgreSQL remains intact.'
-
-# Reuse proven Windows-native DPAPI and metadata configuration.
-# This launcher opens the browser automatically AFTER the UI responds.
+# Run this JAR as the current Windows user to retain DPAPI access.
+# The host script stops only the legacy Docker backend and launches browser
+# after the new UI answers on 127.0.0.1:18081.
 & (Join-Path $PSScriptRoot 'run_dbpulse_windows_host_lab.ps1') -SkipBuild -BundledUi -JarPath $jar
