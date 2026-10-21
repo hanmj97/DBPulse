@@ -3,6 +3,7 @@ package com.dbpulse;
 import com.dbpulse.config.MssqlTargetProperties;
 import com.dbpulse.desktop.WindowsDesktopBoot;
 import com.dbpulse.desktop.DesktopStartupDiagnostics;
+import com.dbpulse.desktop.DesktopInstanceHandoff;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,8 +25,21 @@ public class DbpulseApplication {
             return;
         }
         boolean desktop = Boolean.getBoolean("dbpulse.desktop.enabled");
-        if (desktop) DesktopStartupDiagnostics.record("STARTING");
         try {
+            if (desktop) {
+                // Probe BEFORE DPAPI/Postgres/collector startup. Reopening an
+                // already-running local DBPulse must not bind port 18081 again.
+                DesktopInstanceHandoff.Result existing = DesktopInstanceHandoff.inspect();
+                if (existing == DesktopInstanceHandoff.Result.DBPULSE_RUNNING) {
+                    DesktopStartupDiagnostics.record("REOPENED_EXISTING_APP");
+                    WindowsDesktopBoot.openDashboard();
+                    return;
+                }
+                if (existing == DesktopInstanceHandoff.Result.OTHER_SERVICE_ON_PORT) {
+                    throw new IllegalStateException("PORT_18081_ALREADY_IN_USE");
+                }
+                DesktopStartupDiagnostics.record("STARTING");
+            }
             SpringApplication app = new SpringApplication(DbpulseApplication.class);
             if (desktop) {
                 WindowsDesktopBoot.configure(app);
