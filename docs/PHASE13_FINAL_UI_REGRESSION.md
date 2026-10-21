@@ -1,3 +1,49 @@
+## Overview right-rail growth fix (2026-10-21; local visual feedback)
+
+The owner observed that multiple "현재 관측 신호" entries could
+extend the right panel beyond the adjacent DMV chart, forcing the
+entire CSS grid row to grow and leaving a large blank area under
+the graph. The existing unbounded right-rail list is therefore
+unsuitable for a concise operational overview.
+
+Implementation (React/CSS only; no new SQL query or backend API):
+- The overview shows **up to two** current-signal rows. Live
+  Blocking/long-running DMV signals get preview priority;
+  open Incident rows remain available through the separate
+  incident timeline, table and Incidents detail page.
+- When more signals exist, an "추가 신호 N개" summary links to
+  Incident history. The KPI buttons above continue to navigate
+  to live Blocking and Performance information.
+- The overview shows **up to two** current Wait categories; any
+  additional categories are summarized and linked to the full
+  Wait Diagnostics page. It never misstates the full count.
+- Constrain preview rows to consistent height and truncate overly
+  long labels *in the overview only*; detailed pages still show the
+  original information.
+- Empty and unavailable states remain distinct. Do not show an
+  "all clear" indicator when collection is stale or missing.
+- No changes to Navy/Midnight Dark colors, stored metrics,
+  incidents, Query Store, collector timing, or backend services.
+
+New manual visual acceptance:
+- [ ] Open `http://127.0.0.1:5174/#overview`, with one to
+      many live/current signals. Current-signals card shows
+      at most **two** rows even when 4+ exist; parent row does
+      not grow excessively relative to the DMV trend card.
+- [ ] When the signal count exceeds two, the remaining count is
+      visible, and incident navigation plus existing KPI shortcuts
+      lead to full applicable views.
+- [ ] When more than two Wait categories exist, the "다른 대기
+      유형" link is correct.
+- [ ] The right rail remains compact at 1920px and 1366px,
+      and becomes a single column on narrow mobile widths.
+- [ ] Navy/Midnight Dark theme, tooltip/keyboard chart controls
+      and existing incident investigation links still work.
+
+Keep the v0.13 PR Draft until the actual browser changes are
+confirmed. Prior submitted screenshot documented the defect; it
+is not acceptance evidence for the newer code.
+
 ## Operations-centered Overview revision (2026-10-20; user requested)
 
 This is an **actual React/CSS code change** on PR #12, not an image
