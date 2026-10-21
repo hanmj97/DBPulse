@@ -51,18 +51,88 @@
 @media(max-width:1050px){.dbp-local-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:670px){.dbp-local-form{grid-template-columns:1fr}.dbp-local-item{flex-wrap:wrap}.dbp-local-item>span{margin-left:30px}}
 
-.dbp-local-form .dbp-local-tls-option{
-  display:flex;flex-direction:row;gap:10px;align-items:flex-start;
-  grid-column:1/-1;font-weight:650;line-height:1.55;
-  padding:10px 12px;border:1px solid var(--t-line);border-radius:8px;
-  background:var(--t-inner)
-}
-.dbp-local-form .dbp-local-tls-option input{
-  flex:0 0 auto;min-width:16px;width:16px;height:16px;margin:2px 0 0;padding:0
-}
-.dbp-local-form .dbp-local-tls-option span{display:flex;flex-direction:column;gap:4px}
-.dbp-local-form .dbp-local-tls-option small{font-size:11px;font-weight:400;color:var(--t-secondary)}
 
+/* Hidden by default: Windows lab-only certificate exception is not a
+ * required step for users with a trusted SQL Server certificate. */
+.dbp-local-form .dbp-local-advanced {
+  grid-column:1/-1;
+  border:1px solid var(--t-line);
+  border-radius:9px;
+  background:var(--t-inner);
+  min-width:0;
+}
+.dbp-local-advanced>summary {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:12px 14px;
+  cursor:pointer;
+  color:var(--t-text);
+  font-size:12px;
+  font-weight:800;
+  list-style:none;
+}
+.dbp-local-advanced>summary::-webkit-details-marker {display:none}
+.dbp-local-advanced>summary small {
+  font-size:11px;
+  color:var(--t-secondary);
+  font-weight:400;
+  margin-left:auto;
+}
+.dbp-local-advanced>summary .dbp-local-advanced-chevron {
+  transition:transform .15s ease;
+}
+.dbp-local-advanced[open]>summary .dbp-local-advanced-chevron {transform:rotate(180deg)}
+.dbp-local-advanced>summary:focus-visible {
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+  border-radius:8px;
+}
+.dbp-local-advanced-content {
+  border-top:1px solid var(--t-line);
+  padding:12px 14px;
+  display:grid;
+  gap:9px;
+}
+.dbp-local-advanced-content p {
+  margin:0;
+  font-size:11px;
+  color:var(--t-secondary);
+  line-height:1.6;
+}
+.dbp-local-form .dbp-local-tls-option {
+  display:flex;
+  flex-direction:row;
+  gap:10px;
+  align-items:flex-start;
+  line-height:1.55;
+  font-weight:700;
+}
+.dbp-local-form .dbp-local-tls-option input {
+  flex:0 0 auto;
+  width:16px;
+  min-width:16px;
+  height:16px;
+  padding:0;
+  margin:3px 0 0;
+  accent-color:var(--t-accent);
+}
+.dbp-local-form .dbp-local-tls-option span {
+  display:flex;flex-direction:column;gap:5px;
+}
+.dbp-local-form .dbp-local-tls-option small {
+  font-size:11px;
+  font-weight:400;
+  color:var(--t-secondary);
+}
+.dbp-local-collector-status {
+  color:var(--t-text);
+  font-weight:800;
+}
+@media(max-width:670px){
+  .dbp-local-advanced>summary{flex-wrap:wrap}
+  .dbp-local-advanced>summary small{order:3;width:100%;margin-left:25px}
+}
 .dbp-local-actions button.dbp-local-start {
   background:var(--t-accent-soft);
   border:1px solid var(--t-accent);
