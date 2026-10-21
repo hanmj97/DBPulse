@@ -100,7 +100,8 @@ public class WaitRepository {
 
     public int deleteOldSamples() {
         return jdbc.update(
-            "DELETE FROM wait_samples WHERE collected_at < now() - interval '7 days'");
+            "DELETE FROM wait_samples WHERE collected_at < ?",
+            Timestamp.from(java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
     }
 
     private record SampleHeader(java.time.Instant collectedAt, int observedCount,
