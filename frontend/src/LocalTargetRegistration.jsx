@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown,Unplug} from 'lucide-react';
+import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown,Unplug,Pencil,Trash2} from 'lucide-react';
 import './local-target-registration.css';
 
 const INITIAL = {
@@ -19,7 +19,9 @@ const CODES={
   TARGET_ALREADY_REGISTERED:'같은 서버·DB·로그인 대상이 이미 등록되어 있습니다.',
   CREDENTIAL_NOT_STORED_COLLECTOR_NOT_STARTED:'대상 정보만 등록되었습니다. 비밀번호는 저장되지 않았고 아직 모니터링하지 않습니다.',
   MONITORING_STARTED_SESSION_ONLY:'선택한 DB 모니터링 시작 요청을 완료했습니다. 실제 수집 ONLINE 여부를 확인해 주세요.',
-  MONITORING_STOPPED:'현재 DB 수집을 중지하고 연결을 해제했습니다. 등록된 DB를 선택하고 비밀번호를 다시 입력하면 다른 DB에 연결할 수 있습니다.'
+  MONITORING_STOPPED:'현재 DB 수집을 중지하고 연결을 해제했습니다. 등록된 DB를 선택하고 비밀번호를 다시 입력하면 다른 DB에 연결할 수 있습니다.',
+  TARGET_DISPLAY_NAME_UPDATED:'등록 대상의 표시 이름을 변경했습니다. DB 접속 정보와 기존 수집 기록은 그대로입니다.',
+  TARGET_UNREGISTERED_HISTORY_PRESERVED:'등록 목록에서 삭제했습니다. SQL Server DB와 기존 수집 기록은 삭제되지 않았습니다.'
 };
 
 export default function LocalTargetRegistration(){
@@ -82,6 +84,54 @@ export default function LocalTargetRegistration(){
     setVerified(false);
     setFeedback(null);
   };
+  const manageTarget=async(action,item)=>{
+    if(busy||item.status==='ACTIVE_IN_MEMORY')return;
+    let newName='';
+    if(action==='rename'){
+      const typed=window.prompt('새로운 연결 표시 이름을 입력하세요.',item.name);
+      if(typed===null)return;
+      newName=typed.trim();
+      if(!newName||newName.length>100){
+        setFeedback({ok:false,text:'연결 이름을 1~100자로 입력해 주세요.'});
+        return;
+      }
+    }else if(!window.confirm(
+      '이 DB를 로컬 등록 목록에서 삭제할까요? 실제 SQL Server 데이터베이스와 과거 DBPulse 수집 기록은 삭제되지 않습니다.'
+    ))return;
+
+    setBusy(true);setFeedback(null);
+    try{
+      const url='/api/v1/local-targets/'+encodeURIComponent(item.id)+'/'+
+        (action==='rename'?'rename':'unregister');
+      const response=await fetch(url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-DBPulse-Local-Request':'1'},
+        body:action==='rename'?JSON.stringify({name:newName}):'{}'
+      });
+      if(response.status===409)throw Error('현재 모니터링 중인 DB입니다. 먼저 연결을 해제해 주세요.');
+      if(response.status===404)throw Error('이미 삭제됐거나 찾을 수 없는 등록 대상입니다.');
+      if(response.status===400)throw Error('변경 요청 또는 연결 이름이 유효하지 않습니다.');
+      if(!response.ok)throw Error('등록 대상 관리 요청이 실패했습니다.');
+      const result=await response.json();
+      if(!['RENAMED','UNREGISTERED'].includes(result.status))
+        throw Error('변경 결과를 확인하지 못했습니다.');
+      if(selectedId===item.id){
+        if(action==='unregister'){
+          setSelectedId(null);
+          setForm(INITIAL);
+          setVerified(false);
+        }else{
+          setForm(previous=>({...previous,name:newName}));
+        }
+      }
+      await load();
+      setFeedback({ok:true,text:CODES[result.code]});
+    }catch(error){
+      setFeedback({ok:false,text:error.message||'등록 대상 변경에 실패했습니다.'});
+      await load();
+    }finally{setBusy(false);}
+  };
+
   const stopCurrent=async()=>{
     if(busy||!activeItem)return;
     if(!window.confirm('현재 DB 수집을 중지하고 연결을 해제할까요? 기존 수집 이력은 삭제되지 않습니다.'))return;
@@ -241,20 +291,34 @@ export default function LocalTargetRegistration(){
       <a href="#overview">개요에서 확인 →</a>
     </div>}
     {items.length ? <div className="dbp-local-list">
-      {items.map(item=><button type="button" className={
+      {items.map(item=><div className="dbp-local-registry-entry" key={item.id}>
+        <button type="button" className={
           'dbp-local-item dbp-local-selectable'+(selectedId===item.id?' selected':'')
-        } key={item.id} aria-pressed={selectedId===item.id}
-        onClick={()=>chooseRegistered(item)} disabled={busy}>
-        <Database size={18}/>
-        <div><strong>{item.databaseName}</strong>
-          <small>{item.name} · {item.host}:{item.port}</small></div>
-        <span className={item.status==='ACTIVE_IN_MEMORY'?'active':''}>
-          {item.status==='ACTIVE_IN_MEMORY'?'현재 모니터링 대상':'선택하여 연결'}
-        </span>
-      </button>)}
+        } aria-pressed={selectedId===item.id} onClick={()=>chooseRegistered(item)}
+          disabled={busy}>
+          <Database size={18}/>
+          <div><strong>{item.databaseName}</strong>
+            <small>{item.name} · {item.host}:{item.port}</small></div>
+          <span className={item.status==='ACTIVE_IN_MEMORY'?'active':''}>
+            {item.status==='ACTIVE_IN_MEMORY'?'현재 모니터링 대상':'선택하여 연결'}
+          </span>
+        </button>
+        <div className="dbp-local-registry-actions">
+          <button type="button" onClick={()=>manageTarget('rename',item)}
+            disabled={busy||item.status==='ACTIVE_IN_MEMORY'}
+            title="등록 대상 표시 이름 수정" aria-label={item.databaseName+' 표시 이름 수정'}>
+            <Pencil size={14}/>수정
+          </button>
+          <button type="button" className="danger" onClick={()=>manageTarget('unregister',item)}
+            disabled={busy||item.status==='ACTIVE_IN_MEMORY'}
+            title="등록 대상 목록에서만 삭제" aria-label={item.databaseName+' 등록 해제'}>
+            <Trash2 size={14}/>삭제
+          </button>
+        </div>
+      </div>)}
     </div>:<div className="dbp-local-empty">
       등록한 대상이 없습니다. 연결을 검사한 다음 대상 정보를 등록해 보세요.
     </div>}
-    <p className="dbp-local-foot">등록 목록의 DB를 클릭하면 연결 정보가 자동 입력됩니다. 비밀번호는 보안상 저장하지 않으므로 다시 입력해야 하며, ‘모니터링 시작’이 연결 검증도 자동 수행합니다. 현재 DB는 화면에서 안전하게 연결 해제할 수 있고 수집 이력은 유지됩니다.</p>
+    <p className="dbp-local-foot">등록된 DB를 클릭하면 연결 정보를 자동 입력합니다. 표시 이름 수정·등록 목록 삭제는 수집 중이 아닌 대상만 가능합니다. 실제 SQL Server DB나 과거 수집 이력은 삭제하지 않습니다. 비밀번호는 저장하지 않으므로 연결 시 다시 입력해야 합니다.</p>
   </section>;
 }
