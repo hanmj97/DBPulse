@@ -10,8 +10,12 @@
 export function nonZeroSegments(samples, readValue, readTime, maxGapMs) {
   const segments = [];
   for (let i = 1; i < samples.length; i += 1) {
-    const previous = Number(readValue(samples[i - 1]));
-    const current = Number(readValue(samples[i]));
+    const rawPrevious = readValue(samples[i - 1]);
+    const rawCurrent = readValue(samples[i]);
+    // An omitted sample is unknown, not a measured zero.
+    if (rawPrevious == null || rawCurrent == null) continue;
+    const previous = Number(rawPrevious);
+    const current = Number(rawCurrent);
     if (!Number.isFinite(previous) || !Number.isFinite(current) ||
         previous < 0 || current < 0 || (previous === 0 && current === 0)) continue;
     if (readTime && Number.isFinite(maxGapMs)) {
