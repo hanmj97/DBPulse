@@ -22,8 +22,8 @@ test('time-series chart remains bound to DMV samples and offers keyboard inspect
   for(const metric of ['activeRequests','blockedRequests','longRunningRequests']) {
     assert.ok(overview.includes(metric));
   }
-  assert.match(overview,/onMouseMove=\{pickIndex\}/);
-  assert.match(overview,/onKeyDown=\{handleKey\}/);
+  assert.match(overview,/onMouseMove=\{event=>setSelectedIndex\(pickChartIndex\(event,rows\.length\)\)\}/);
+  assert.match(overview,/onKeyDown=\{event=>chartArrowIndex\(event,currentIndex,rows\.length,setSelectedIndex\)\}/);
   assert.match(overview,/ArrowLeft/);
   assert.match(overview,/ArrowRight/);
   assert.match(overview,/rev-ops-chart-readout/);
