@@ -90,7 +90,7 @@ test('Windows DPAPI controls are opt-in, unavailable in Docker, and never leak s
   assert.match(form,/\/start-saved/);
   assert.match(form,/secureStorage && item\.savedCredential/);
   assert.match(form,/secureStorage && <button/);
-  assert.match(form,/WINDOWS 사용자 계정/);
+  assert.match(form,/Windows 사용자 계정/);
   assert.match(form,/password:''/);
   assert.match(form,/body:'\{\}'/);
   assert.match(form,/window\.confirm/);
