@@ -32,7 +32,7 @@ public class ApiController {
 
     @GetMapping("/health")
     public Map<String, Object> health() {
-        return Map.of("service", "DBPulse", "version", "0.13.0-alpha", "status", "UP", "phase", 13);
+        return Map.of("service", "DBPulse", "version", "0.14.0-alpha", "status", "UP", "phase", 14);
     }
 
     @GetMapping("/targets")
@@ -51,6 +51,8 @@ public class ApiController {
         if (!target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if (limit < 1 || limit > 360) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
             "limit must be between 1 and 360");
+        // Disabling the old .env target must not surface stale DBPulseLab samples.
+        if (!target.isEnabled()) return List.of();
         return metrics.history(id, limit);
     }
 
