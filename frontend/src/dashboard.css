@@ -1596,3 +1596,121 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     grid-template-columns:minmax(0,1fr);
   }
 }
+
+
+/* v0.13 overview polish 2026-10-21: readable undistorted SVG and
+   strictly bounded previews, with NO independent drag/scroll bars.
+   The overview displays two items and exposes full details by links;
+   incident/Wait data remains unchanged in the detail pages. */
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame{
+  width:100%;
+  max-width:940px;
+  margin:0 auto;
+  min-width:0;
+}
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame svg{
+  width:100%;
+  max-width:100%;
+  height:auto;
+  aspect-ratio:760 / 208;
+  display:block;
+  overflow:visible;
+}
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame .rev-chart-times{
+  padding-left:5.53%;
+  padding-right:3.95%;
+  margin-top:0;
+}
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame .rev-ops-metric-segment,
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame .rev-ops-cpu-line{
+  stroke-opacity:1;
+  pointer-events:none;
+}
+.rev-layout[data-theme] .rev-ops-trend .rev-chart-area line.rev-ops-neutral-zero{
+  stroke:#718ca9;
+  stroke-width:2.1;
+  stroke-opacity:.95;
+}
+/* Older shared CSS applies grid color to ALL <line> nodes. All real
+   measured series are now separate SVG paths, never gridline <line>s. */
+.rev-ops-dashboard .rev-ops-unified-grid{
+  grid-template-rows:220px;
+  overflow:hidden;
+}
+.rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell{
+  box-sizing:border-box;
+  height:220px;
+  min-height:0;
+  max-height:220px;
+  overflow:hidden;
+  overscroll-behavior:auto;
+  padding:12px 15px !important;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-panel-heading{
+  margin-bottom:8px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list{
+  gap:6px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list button{
+  box-sizing:border-box;
+  height:42px;
+  min-height:42px;
+  max-height:42px;
+  overflow:hidden;
+  padding:6px 9px;
+  gap:9px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list button small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-alert-preview .rev-alert-item{
+  box-sizing:border-box;
+  height:43px;
+  min-height:43px;
+  max-height:43px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-more-signals{
+  padding-top:7px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-card-foot{
+  display:none;
+}
+@media(max-width:1150px){
+  .rev-ops-dashboard .rev-ops-unified-grid{
+    grid-template-rows:212px 142px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell{
+    height:212px;
+    max-height:212px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:nth-child(3){
+    height:142px;
+    max-height:142px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list button{
+    width:100%;
+  }
+}
+@media(max-width:670px){
+  .rev-ops-dashboard .rev-ops-unified-grid{
+    grid-template-rows:180px 210px 220px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:first-child{
+    height:180px;
+    max-height:180px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:nth-child(2){
+    height:210px;
+    max-height:210px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:nth-child(3){
+    height:220px;
+    max-height:220px;
+  }
+  .rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame{
+    max-width:100%;
+  }
+}
