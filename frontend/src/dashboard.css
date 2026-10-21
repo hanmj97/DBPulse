@@ -1203,3 +1203,61 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     font-size:11px;
   }
 }
+
+
+/* v0.13: independent lower panels and honest dual-scale CPU chart.
+   The operator shortcuts must NOT stretch to the incident timeline height. */
+.rev-ops-secondary{
+  align-items:start;
+  grid-auto-rows:min-content;
+}
+.rev-ops-secondary>.rev-panel{
+  align-self:start;
+  height:auto;
+  min-height:0;
+}
+.rev-ops-secondary>.rev-ops-action-panel{
+  height:fit-content;
+  min-height:0;
+  padding-bottom:17px;
+}
+.rev-ops-secondary .rev-ops-action-list{
+  gap:7px;
+}
+.rev-ops-secondary .rev-ops-action-list button{
+  min-height:49px;
+  padding:10px 12px;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend{
+  color:#ffc06f;
+  gap:6px;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend small{
+  color:var(--t-secondary);
+}
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-title,
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-tick{
+  fill:#ffc06f;
+}
+.rev-ops-cpu-line{
+  pointer-events:none;
+}
+.rev-ops-cpu-readout{
+  display:inline-flex;
+  align-items:baseline;
+  gap:5px;
+  color:#ffc06f;
+}
+.rev-ops-cpu-readout strong{
+  color:#ffc06f;
+}
+.rev-ops-cpu-readout small{
+  color:var(--t-secondary);
+  font-size:10px;
+}
+@media(max-width:1150px){
+  .rev-ops-secondary>.rev-panel{
+    height:auto;
+    align-self:start;
+  }
+}
