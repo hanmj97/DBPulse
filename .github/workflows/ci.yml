@@ -201,8 +201,8 @@ jobs:
         shell: pwsh
         working-directory: backend
         run: |
-          mvn.cmd -B --no-transfer-progress '-Dtest=DesktopInstanceHandoffTest,DesktopStartupDiagnosticsTest' test
-          if ($LASTEXITCODE -ne 0) { throw 'Windows desktop handoff regression tests failed' }
+          mvn.cmd -B --no-transfer-progress '-Dtest=DesktopInstanceHandoffTest,DesktopStartupDiagnosticsTest,SqliteMetadataCompatibilityTest,SqliteSpringStartupTest,MetadataInventoryTest' test
+          if ($LASTEXITCODE -ne 0) { throw 'Windows desktop handoff or SQLite compatibility tests failed' }
       - name: Create native Windows app-image with private Java runtime
         shell: pwsh
         run: |
