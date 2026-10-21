@@ -153,7 +153,8 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
     </div>
     {rows.length ? <>
       <div className="rev-chart-area rev-ops-chart-area">
-        <svg viewBox="0 0 760 208" preserveAspectRatio="none" role="img"
+        <div className="rev-ops-chart-frame">
+        <svg viewBox="0 0 760 208" preserveAspectRatio="xMidYMid meet" role="img"
           tabIndex={0} onMouseMove={pickIndex} onMouseLeave={()=>setHighlightedIndex(null)}
           onKeyDown={handleKey} onBlur={()=>setHighlightedIndex(null)}
           aria-label={'활성 요청, Blocking, 장시간 요청의 수집 시점별 실제 추이. 좌우 화살표로 시점을 선택할 수 있습니다. 최대 값 '+peak+'건'}>
@@ -175,15 +176,17 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
                 <circle key={l.key} cx={sx(0)} cy={sy(rows[0][l.key])}
                   r="3.5" fill={l.color}/>)
             : lines.flatMap(l=>requestSegments(l.key).map(([a,b])=>
-                <line key={l.key+'-'+a} x1={sx(a)} y1={sy(rows[a][l.key])}
-                  x2={sx(b)} y2={sy(rows[b][l.key])}
-                  stroke={l.color} strokeWidth="2.5" strokeLinecap="round"/>))}
+                <path key={l.key+'-'+a} className="rev-ops-metric-segment"
+                  d={'M'+sx(a).toFixed(2)+' '+sy(rows[a][l.key]).toFixed(2)+
+                     ' L'+sx(b).toFixed(2)+' '+sy(rows[b][l.key]).toFixed(2)}
+                  stroke={l.color} strokeWidth="2.8" fill="none"
+                  strokeLinecap="round" strokeLinejoin="round"/>))}
           {cpuReady && cpuVisibleSegments.map(([a,b])=>
-            <line className="rev-ops-cpu-line" key={'cpu-'+a}
-              x1={cpuX(cpuPoints[a].at)} y1={cpuY(cpuPoints[a].cpu)}
-              x2={cpuX(cpuPoints[b].at)} y2={cpuY(cpuPoints[b].cpu)}
-              stroke="#ffc06f" strokeDasharray="5 4" strokeWidth="2.4"
-              strokeLinecap="round"/>)}
+            <path className="rev-ops-cpu-line" key={'cpu-'+a}
+              d={'M'+cpuX(cpuPoints[a].at).toFixed(2)+' '+cpuY(cpuPoints[a].cpu).toFixed(2)+
+                 ' L'+cpuX(cpuPoints[b].at).toFixed(2)+' '+cpuY(cpuPoints[b].cpu).toFixed(2)}
+              stroke="#ffbd60" strokeDasharray="5 4" strokeWidth="2.7"
+              fill="none" strokeLinejoin="round" strokeLinecap="round"/>)}
           {cpuReady && cpuPoints.filter(p=>p.cpu>0).map(p=>
             <circle key={p.at} cx={cpuX(p.at)} cy={cpuY(p.cpu)}
               r="3.5" fill="#ffc06f" stroke="var(--t-card)" strokeWidth="1.3"/>)}
@@ -209,6 +212,7 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
         <div className="rev-chart-times">
           <span>{clock(rows[0].collectedAt)}</span>
           <span>{clock(rows.at(-1).collectedAt)}</span>
+        </div>
         </div>
       </div>
       <div className="rev-ops-chart-readout" aria-live="polite">
