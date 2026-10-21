@@ -27,6 +27,8 @@ public class MonitorService {
         this.collector = collector;
         this.metrics = metrics;
         this.incidents = incidents;
+        target.onTargetChanged(() ->
+            state.set(new CollectorState("INITIALIZING", null, null)));
         if (target.isEnabled()) {
             state.set(new CollectorState("INITIALIZING", null, null));
         }
@@ -34,6 +36,7 @@ public class MonitorService {
 
     @Scheduled(fixedDelayString = "${dbpulse.collector.interval-ms:5000}", initialDelay = 2000)
     public void poll() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
             state.set(new CollectorState("NOT_CONFIGURED", null, "MSSQL_NOT_CONFIGURED"));
             return;
@@ -70,6 +73,8 @@ public class MonitorService {
                 );
             }
         }
+    
+        });
     }
 
     public CollectorState state() {
