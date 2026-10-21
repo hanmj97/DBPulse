@@ -44,6 +44,7 @@ services:
       DBPULSE_COLLECT_INTERVAL_MS: 5000
       # The browser form is opt-in and accepts only explicitly allowed SQL hosts.
       DBPULSE_LOCAL_TARGETS_ENABLED: ${DBPULSE_LOCAL_TARGETS_ENABLED:-false}
+      DBPULSE_LOCAL_TRUST_SELF_SIGNED: ${DBPULSE_LOCAL_TRUST_SELF_SIGNED:-false}
       DBPULSE_LOCAL_ALLOWED_DB_HOSTS: ${DBPULSE_LOCAL_ALLOWED_DB_HOSTS:-host.docker.internal,localhost,127.0.0.1}
     ports:
       - "127.0.0.1:18081:8081"
