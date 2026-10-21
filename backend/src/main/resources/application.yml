@@ -24,6 +24,8 @@ dbpulse:
   # Manual localhost onboarding; default disabled until operator opts in.
   local-targets:
     enabled: ${DBPULSE_LOCAL_TARGETS_ENABLED:false}
+    # Only local DBPulseLab developer certificates; never use for remote hosts.
+    allow-self-signed-lab: ${DBPULSE_LOCAL_TRUST_SELF_SIGNED:false}
     allowed-hosts: ${DBPULSE_LOCAL_ALLOWED_DB_HOSTS:host.docker.internal,localhost,127.0.0.1}
   cpu:
     enabled: ${DBPULSE_SQLSERVER_CPU_ENABLED:false}
