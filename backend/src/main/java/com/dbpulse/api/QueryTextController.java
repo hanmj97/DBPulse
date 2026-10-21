@@ -46,7 +46,8 @@ public class QueryTextController {
     @GetMapping(value="/{queryId}/{planId}", produces="application/json;charset=UTF-8")
     public ResponseEntity<QueryTextSnippet.Result> read(@PathVariable String id,
             @PathVariable long queryId, @PathVariable long planId) {
-        if (!target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return target.withReadLease(() -> {
+        if (!target.isEnabled() || !target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if (!enabled) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "QUERY_TEXT_DISABLED");
         if (queryId <= 0 || planId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
@@ -73,5 +74,7 @@ public class QueryTextController {
             .header("X-Content-Type-Options", "nosniff")
             .header("Referrer-Policy", "no-referrer")
             .body(response);
+    
+        });
     }
 }
