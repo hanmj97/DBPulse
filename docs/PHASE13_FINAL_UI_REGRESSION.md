@@ -1,3 +1,54 @@
+## 2026-10-21 — Separate request-count and instance CPU charts
+
+**Reason:** The prior graph overlaid 5-second request counts (units:
+requests) with SQL Server process CPU (units: percent), using left and
+right vertical axes. When a purple long-running request spiked near
+the right-hand 100% tick, it could visually resemble 100% CPU.
+
+**Implemented:** The Overview performance band is a **two-card,
+side-by-side chart grid** on desktop and a vertically stacked pair
+on smaller screens:
+- Left: `실시간 요청 현황`, three measured DMV request count
+  series (active, Blocking, long-running) and count-only vertical
+  axis. 0-only periods stay a neutral baseline, measured spikes
+  retain blue/red/violet strokes. Existing 5-second backend collection
+  and incident routes remain unchanged.
+- Right: `SQL Server CPU 사용률`, one separately labeled orange
+  SQL Server **instance-wide process CPU (%)** series, fixed 0–100%
+  axis, *no* request-count series. Distinct cached ~60s CPU samples
+  keep their own real timestamps; gaps exceeding 150 seconds are
+  not connected. Even a measured CPU value of 0% is still a valid
+  zero reading. If CPU collection is disabled, denied, offline,
+  or warming up, don't invent a percentage.
+- Each chart has its **own** 560:210 SVG viewBox/aspect ratio,
+  time labels, legend, hover/keyboard selection and readout.
+  Browser chart CSS retains aspect ratio so axis font shapes are
+  not stretched. Hover hit testing uses actual CPU sample positions,
+  not a 5-second DMV interpolation.
+- This is a frontend-only change: no new SQL queries, DB access
+  permissions, API routes or monitoring intervals.
+
+**Visual acceptance required** before merging PR #12:
+- [ ] On a 1920px desktop screen, request counts on the **left**
+      and CPU on the **right** in two visible cards. No CPU ticks
+      on the request-count chart; no purple/red request series on CPU.
+- [ ] In a controlled local-only blocking/long-running scenario,
+      purple/red count spikes have correct **count axes** only,
+      while a distinct orange CPU reading stays correctly labeled.
+- [ ] CPU 0%, unknown/disabled, one stored sample and multiple
+      samples are visually distinguishable and not interpolated
+      across missing time windows.
+- [ ] Both axes, labels and empty-state copy render with readable,
+      unstretched type; keyboard arrows and hover select each
+      panel's actual sample timestamp.
+- [ ] Navy/Midnight Dark and narrower viewports have no clipping
+      (the two charts stack at <=1150px).
+- [ ] Unified operations summary below remains bounded with no
+      inner scrollbar; incident history toggle remains functional.
+
+Source-level regression tests and GitHub CI do not substitute for
+the local browser check. Keep PR #12 as Draft until verified.
+
 ## 2026-10-21 — third visual correction: colored measurements, readable chart axes, no summary scrollbar
 
 The user reviewed the *stable-band* layout and accepted the overall
