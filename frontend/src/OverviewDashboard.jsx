@@ -28,7 +28,50 @@ function KpiCard({icon:Icon, label, value, note, tone, onClick}) {
   </button>;
 }
 
-function TrendChart({history, sampleLimit}) {
+// This GET returns a cached JVM snapshot only (no MSSQL query per page refresh).
+// Keep an in-memory history of distinct server samples while Overview is open.
+// Never use these instance-wide percentages as per-database CPU utilization.
+function useOverviewCpuSamples(targetId) {
+  const [cpuState,setCpuState] = useState({status:'INITIALIZING',samples:[]});
+  useEffect(()=>{
+    setCpuState({status:targetId?'INITIALIZING':'NOT_CONFIGURED',samples:[]});
+    if (!targetId) return undefined;
+    let active=true;
+    const refresh=async()=>{
+      try {
+        const response=await fetch(
+          `/api/v1/targets/${encodeURIComponent(targetId)}/instance-cpu`,
+          {cache:'no-store'}
+        );
+        if(!response.ok)throw new Error('instance cpu cache unavailable');
+        const data=await response.json();
+        if(!active)return;
+        const at=Date.parse(data?.collectedAt || '');
+        const cpu=Number(data?.sqlProcessCpuPercent);
+        const valid=data?.status==='ONLINE' &&
+          data.sqlProcessCpuPercent != null &&
+          Number.isFinite(at) &&
+          Number.isFinite(cpu) && cpu>=0 && cpu<=100 &&
+          at>=Date.now()-180000 && at<=Date.now()+10000;
+        setCpuState(previous=>{
+          const prev=previous.samples;
+          const next=valid && !prev.some(item=>item.at===at)
+            ? [...prev,{at,cpu}].slice(-60)
+            : prev;
+          return {status:data?.status || 'UNAVAILABLE',samples:next};
+        });
+      } catch {
+        if(active)setCpuState(previous=>({...previous,status:'UNAVAILABLE'}));
+      }
+    };
+    refresh();
+    const timer=setInterval(refresh,15000);
+    return ()=>{active=false;clearInterval(timer);};
+  },[targetId]);
+  return cpuState;
+}
+
+function TrendChart({history, sampleLimit, cpuState}) {
   const [highlightedIndex, setHighlightedIndex] = useState(null);
   const rows = history.slice(-sampleLimit);
   const lines = [
@@ -36,6 +79,22 @@ function TrendChart({history, sampleLimit}) {
     {name:'Blocking',key:'blockedRequests',color:'#ff6582'},
     {name:'장시간 요청',key:'longRunningRequests',color:'#ae83ff'}
   ];
+  const cpuSamples = cpuState?.samples || [];
+  const firstMs=rows.length ? Date.parse(rows[0].collectedAt) : NaN;
+  const lastMs=rows.length ? Date.parse(rows.at(-1).collectedAt) : NaN;
+  const cpuPoints = Number.isFinite(firstMs) && Number.isFinite(lastMs) && lastMs>firstMs
+    ? cpuSamples.filter(p=>p.at>=firstMs && p.at<=lastMs)
+    : [];
+  const cpuReady = cpuState?.status==='ONLINE';
+  // Distinct right-hand scale: requests use dynamic 0..peak, CPU uses 0..100%.
+  const cpuY = percent=>187-(percent/100)*149;
+  const cpuX = at=>42+((at-firstMs)/(lastMs-firstMs))*688;
+  const cpuPath=cpuPoints.reduce((acc,p,index)=>{
+    const previous=cpuPoints[index-1];
+    // Never imply a continuous 60s series over an unobserved long gap.
+    const move=index===0 || p.at-previous.at>150000;
+    return acc+(move?'M':'L')+cpuX(p.at).toFixed(1)+','+cpuY(p.cpu).toFixed(1)+' ';
+  },'').trim();
   const peak = Math.max(1, ...rows.flatMap(r => lines.map(l => Number(l.key in r ? r[l.key] : 0) || 0)));
   const step = Math.max(1, Math.ceil(peak / 4));
   const yTicks = Array.from({length:Math.floor(peak/step) + 1},(_,i)=>i*step).reverse();
@@ -49,6 +108,15 @@ function TrendChart({history, sampleLimit}) {
   const focusIndex = highlightedIndex != null && highlightedIndex < rows.length
     ? highlightedIndex : rows.length - 1;
   const focused = rows[focusIndex];
+  const focusTime=focused?.collectedAt ? Date.parse(focused.collectedAt) : NaN;
+  const focusCpu=cpuReady && Number.isFinite(focusTime)
+    ? cpuPoints.reduce((closest,p)=>{
+        return !closest || Math.abs(p.at-focusTime)<Math.abs(closest.at-focusTime)?p:closest;
+      },null)
+    : null;
+  // A CPU point may be about a minute apart; explicitly mark the sample time
+  // rather than pretending it was recorded every 5s with DMV metrics.
+  const shownCpu=focusCpu && Math.abs(focusCpu.at-focusTime)<=90000 ? focusCpu : null;
   const pickIndex = event => {
     if (!rows.length) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -73,6 +141,11 @@ function TrendChart({history, sampleLimit}) {
     </div>
     <div className="rev-chart-legend" aria-label="그래프 범례">
       {lines.map(l => <span key={l.key}><i style={{background:l.color}}/>{l.name}</span>)}
+      <span className="rev-ops-cpu-legend">
+        <i style={{background:'#ffc06f'}}/>
+        SQL Server 프로세스 CPU (%) · 60초 표본
+        {!cpuReady && <small>({cpuState?.status==='DISABLED'?'수집 비활성':'표본 확인 중'})</small>}
+      </span>
     </div>
     {rows.length ? <>
       <div className="rev-chart-area rev-ops-chart-area">
@@ -95,6 +168,19 @@ function TrendChart({history, sampleLimit}) {
             : lines.map(l=><path key={l.key} d={path(l.key)}
                 stroke={l.color} strokeWidth="2.5" strokeLinejoin="round"
                 strokeLinecap="round" fill="none"/>)}
+          {cpuReady && cpuPoints.length>1 &&
+            <path className="rev-ops-cpu-line" d={cpuPath} stroke="#ffc06f"
+              strokeDasharray="5 4" strokeWidth="2.4" fill="none"
+              strokeLinejoin="round" strokeLinecap="round"/>}
+          {cpuReady && cpuPoints.map(p=><circle key={p.at}
+            cx={cpuX(p.at)} cy={cpuY(p.cpu)} r="3.5" fill="#ffc06f"
+            stroke="var(--t-card)" strokeWidth="1.3"/>)}
+          {cpuReady && cpuPoints.length>0 && <>
+            <text className="rev-ops-cpu-axis-title" x="754" y="26"
+              textAnchor="end" fill="#ffc06f" fontSize="10">CPU %</text>
+            {[0,50,100].map(n=><text key={'cpu-'+n} x="754" y={cpuY(n)+4}
+              textAnchor="end" fill="#ffc06f" fontSize="10">{n}%</text>)}
+          </>}
           {focused && <>
             <line x1={sx(focusIndex)} x2={sx(focusIndex)} y1="38" y2="187"
               stroke="var(--t-muted)" strokeOpacity=".65" strokeDasharray="4 4"/>
@@ -111,10 +197,14 @@ function TrendChart({history, sampleLimit}) {
       <div className="rev-ops-chart-readout" aria-live="polite">
         <span className="rev-ops-chart-at">{highlightedIndex===null?'최신':'선택'} · {clock(focused?.collectedAt)}</span>
         {lines.map(l=><span key={l.key}>{l.name} <strong>{num(focused?.[l.key])}건</strong></span>)}
+        <span className="rev-ops-cpu-readout">SQL Server CPU
+          <strong>{shownCpu?shownCpu.cpu+'%':'—'}</strong>
+          {shownCpu && <small>표본 {clock(new Date(shownCpu.at))}</small>}
+        </span>
       </div>
       <p className="rev-ops-chart-hint">그래프에 마우스를 올리거나 키보드 좌우 화살표를 누르면 관측 시점별 수치를 확인할 수 있습니다.</p>
     </> : <div className="rev-overview-empty">아직 성능 샘플이 없습니다. 수집기 연결 상태를 확인해 주세요.</div>}
-    <p className="rev-chart-caution">이 그래프는 활성·차단·장시간 요청 수이며 CPU 사용률이나 누적 Wait 통계가 아닙니다.</p>
+    <p className="rev-chart-caution">왼쪽 축은 실제 DMV 요청 수, 오른쪽 축은 SQL Server 프로세스 CPU(%)입니다. CPU는 선택적 약 60초 표본이며 화면을 연 이후의 표본만 연결합니다. 특정 데이터베이스의 CPU(%)가 아닙니다. 데이터 공백은 추정하지 않습니다.</p>
   </article>;
 }
 
@@ -124,6 +214,7 @@ export default function OverviewDashboard({
 }) {
   const [feed, setFeed] = useState(INITIAL_FEED);
   const targetId = target?.id;
+  const cpuState = useOverviewCpuSamples(targetId);
   useEffect(() => {
     if (!targetId) return undefined;
     let active = true;
@@ -240,7 +331,7 @@ export default function OverviewDashboard({
     </section>
 
     <div className="rev-overview-primary rev-ops-primary">
-      <TrendChart history={online ? history : []} sampleLimit={sampleLimit}/>
+      <TrendChart history={online ? history : []} sampleLimit={sampleLimit} cpuState={cpuState}/>
       <div className="rev-ops-side-stack">
         <article className={'rev-panel rev-wait-summary rev-ops-mini-panel'+(waitGroups.length===0?' rev-ops-compact':'')}>
           <div className="rev-panel-heading">
