@@ -72,161 +72,236 @@ function useOverviewCpuSamples(targetId) {
   return cpuState;
 }
 
-function TrendChart({history, sampleLimit, cpuState, databaseName}) {
-  const [highlightedIndex, setHighlightedIndex] = useState(null);
-  const rows = history.slice(-sampleLimit);
-  const lines = [
-    {name:'활성 요청',key:'activeRequests',color:'var(--t-accent)'},
-    {name:'Blocking',key:'blockedRequests',color:'#ff6582'},
-    {name:'장시간 요청',key:'longRunningRequests',color:'#ae83ff'}
-  ];
-  const cpuSamples = cpuState?.samples || [];
-  const firstMs=rows.length ? Date.parse(rows[0].collectedAt) : NaN;
-  const lastMs=rows.length ? Date.parse(rows.at(-1).collectedAt) : NaN;
-  const cpuPoints = Number.isFinite(firstMs) && Number.isFinite(lastMs) && lastMs>firstMs
-    ? cpuSamples.filter(p=>p.at>=firstMs && p.at<=lastMs)
-    : [];
-  const cpuReady = cpuState?.status==='ONLINE';
-  // Distinct right-hand scale: requests use dynamic 0..peak, CPU uses 0..100%.
-  const cpuY = percent=>187-(percent/100)*149;
-  const cpuX = at=>42+((at-firstMs)/(lastMs-firstMs))*688;
-  // Zero-valued samples remain valid data, but do not paint an orange
-  // line over the same neutral 0-axis as zero-valued request series.
-  const cpuVisibleSegments = nonZeroSegments(cpuPoints, p=>p.cpu, p=>p.at, 150000);
-  const hasRequestActivity = rows.some(row=>
-    lines.some(l=>Number(row[l.key])>0));
-  const hasCpuActivity = cpuReady && cpuPoints.some(p=>p.cpu>0);
-  const hasVisibleActivity = hasRequestActivity || hasCpuActivity;
-  const peak = Math.max(1, ...rows.flatMap(r => lines.map(l => Number(l.key in r ? r[l.key] : 0) || 0)));
-  const step = Math.max(1, Math.ceil(peak / 4));
-  const yTicks = Array.from({length:Math.floor(peak/step) + 1},(_,i)=>i*step).reverse();
-  if(yTicks[0] !== peak) yTicks.unshift(peak);
-  const plotLeft = 42;
-  const plotRight = 730;
-  const sx = index => plotLeft + index * ((plotRight-plotLeft) / Math.max(1,rows.length-1));
-  const sy = value => 187 - ((Number(value)||0) / peak) * 149;
-  // Only highlight observed non-zero segments. Preserve real edges
-  // to/from 0, and avoid bridging interrupted 5-second collections.
-  const requestSegments = key=>nonZeroSegments(
+// Request counts and instance-wide CPU are different measurements.
+// Deliberately render them in separate cards with independent axes and
+// hover selection so a Blocking/long-running spike is never read as CPU%.
+const REQUEST_SERIES = [
+  {name:'활성 요청',key:'activeRequests',color:'#58adff'},
+  {name:'Blocking',key:'blockedRequests',color:'#ff6582'},
+  {name:'장시간 요청',key:'longRunningRequests',color:'#ae83ff'}
+];
+const CHART_LEFT = 43;
+const CHART_RIGHT = 520;
+const CHART_TOP = 30;
+const CHART_BOTTOM = 177;
+const CHART_WIDTH = 560;
+const chartX = (index,length) => CHART_LEFT +
+  (CHART_RIGHT - CHART_LEFT) * index / Math.max(1,length-1);
+const pickChartIndex = (event,length) => {
+  const rect=event.currentTarget.getBoundingClientRect();
+  if(!rect.width||!length)return 0;
+  const x=(event.clientX-rect.left)*CHART_WIDTH/rect.width;
+  return Math.min(length-1,Math.max(0,
+    Math.round((x-CHART_LEFT)/(CHART_RIGHT-CHART_LEFT)*Math.max(1,length-1))));
+};
+const chartArrowIndex = (event,current,length,setIndex) => {
+  if(!length||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+  event.preventDefault();
+  const next=event.key==='Home'?0:event.key==='End'?length-1:
+    Math.max(0,Math.min(length-1,current+(event.key==='ArrowRight'?1:-1)));
+  setIndex(next);
+};
+
+function RequestTrendPanel({history,sampleLimit,databaseName}) {
+  const [selectedIndex,setSelectedIndex]=useState(null);
+  const rows=history.slice(-sampleLimit);
+  const peak=Math.max(1,...rows.flatMap(row=>REQUEST_SERIES.map(series=>
+    Number(row[series.key])||0)));
+  const step=Math.max(1,Math.ceil(peak/4));
+  const ticks=Array.from({length:Math.floor(peak/step)+1},
+    (_,index)=>index*step).reverse();
+  if(ticks[0]!==peak)ticks.unshift(peak);
+  const y=value=>CHART_BOTTOM-(Number(value)||0)/peak*(CHART_BOTTOM-CHART_TOP);
+  const currentIndex=selectedIndex!==null && selectedIndex<rows.length
+    ?selectedIndex:rows.length-1;
+  const selected=rows[currentIndex];
+  const active=rows.some(row=>REQUEST_SERIES.some(series=>
+    Number(row[series.key])>0));
+  const segments=key=>nonZeroSegments(
     rows,row=>row[key],row=>Date.parse(row.collectedAt),20000);
-  const focusIndex = highlightedIndex != null && highlightedIndex < rows.length
-    ? highlightedIndex : rows.length - 1;
-  const focused = rows[focusIndex];
-  const focusTime=focused?.collectedAt ? Date.parse(focused.collectedAt) : NaN;
-  const focusCpu=cpuReady && Number.isFinite(focusTime)
-    ? cpuPoints.reduce((closest,p)=>{
-        return !closest || Math.abs(p.at-focusTime)<Math.abs(closest.at-focusTime)?p:closest;
-      },null)
-    : null;
-  // A CPU point may be about a minute apart; explicitly mark the sample time
-  // rather than pretending it was recorded every 5s with DMV metrics.
-  const shownCpu=focusCpu && Math.abs(focusCpu.at-focusTime)<=90000 ? focusCpu : null;
-  const pickIndex = event => {
-    if (!rows.length) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width) return;
-    const point = (event.clientX - rect.left) * (760 / rect.width);
-    const index = Math.round((point - plotLeft) * (rows.length-1) / (plotRight-plotLeft));
-    setHighlightedIndex(Math.max(0,Math.min(rows.length-1,index)));
-  };
-  const handleKey = event => {
-    if (!rows.length || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-    event.preventDefault();
-    if (event.key==='Home') setHighlightedIndex(0);
-    else if(event.key==='End') setHighlightedIndex(rows.length-1);
-    else setHighlightedIndex(Math.max(0,Math.min(rows.length-1,
-      focusIndex + (event.key==='ArrowRight' ? 1 : -1))));
-  };
-  return <article className="rev-panel rev-performance-chart rev-ops-trend">
+  return <article className="rev-panel rev-ops-chart-card rev-ops-request-chart">
     <div className="rev-panel-heading">
-      <div><h2>실시간 성능 추이</h2>
-        <p>{databaseName ? databaseName+' · ' : ''}SQL Server DMV · 최근 {rows.length}개 샘플 · 5초 기본 수집</p></div>
-      <span className="rev-panel-tag">실제 관측</span>
+      <div><h2>실시간 요청 현황</h2>
+        <p>{databaseName ? databaseName+' · ' : ''}SQL Server DMV · 최근 {rows.length}개 표본 · 5초 기본 수집</p></div>
+      <span className="rev-panel-tag">단위: 건</span>
     </div>
-    <div className="rev-chart-legend" aria-label="그래프 범례">
-      {lines.map(l => <span key={l.key}><i style={{background:l.color}}/>{l.name}</span>)}
-      <span className="rev-ops-cpu-legend">
-        <i style={{background:'#ffc06f'}}/>
-        SQL Server 전체 프로세스 CPU (%) · 60초 표본
-        {!cpuReady && <small>({cpuState?.status==='DISABLED'?'수집 비활성':'표본 확인 중'})</small>}
-      </span>
+    <div className="rev-chart-legend" aria-label="요청 수 그래프 범례">
+      {REQUEST_SERIES.map(series=><span key={series.key}>
+        <i style={{background:series.color}}/>{series.name}
+      </span>)}
     </div>
     {rows.length ? <>
       <div className="rev-chart-area rev-ops-chart-area">
         <div className="rev-ops-chart-frame">
-        <svg viewBox="0 0 760 208" preserveAspectRatio="xMidYMid meet" role="img"
-          tabIndex={0} onMouseMove={pickIndex} onMouseLeave={()=>setHighlightedIndex(null)}
-          onKeyDown={handleKey} onBlur={()=>setHighlightedIndex(null)}
-          aria-label={'활성 요청, Blocking, 장시간 요청의 수집 시점별 실제 추이. 좌우 화살표로 시점을 선택할 수 있습니다. 최대 값 '+peak+'건'}>
-          {yTicks.map((value,index) => <g key={value+'-'+index}>
-            <line x1={plotLeft} x2={plotRight} y1={sy(value)} y2={sy(value)}
-              stroke="var(--t-chart-grid)" strokeDasharray="3 5" strokeWidth="0.8"/>
-            <text x="33" y={sy(value)+4} textAnchor="end" fontSize="11">{value}</text>
-          </g>)}
-          {[0,1,2,3,4,5].map(i=>
-            <line key={i} x1={plotLeft+i*(plotRight-plotLeft)/5}
-              x2={plotLeft+i*(plotRight-plotLeft)/5} y1="38" y2="187"
-              stroke="var(--t-chart-grid)" strokeWidth=".7"/>)}
-          {/* One neutral zero baseline across the chart; measured 0-to-0
-              periods remain visible without misleading per-series colors. */}
-          <line className="rev-ops-neutral-zero" x1={plotLeft} x2={plotRight}
-            y1={sy(0)} y2={sy(0)} strokeWidth="2.1"/>
-          {rows.length===1
-            ? lines.filter(l=>Number(rows[0][l.key])>0).map(l=>
-                <circle key={l.key} cx={sx(0)} cy={sy(rows[0][l.key])}
-                  r="3.5" fill={l.color}/>)
-            : lines.flatMap(l=>requestSegments(l.key).map(([a,b])=>
-                <path key={l.key+'-'+a} className="rev-ops-metric-segment"
-                  d={'M'+sx(a).toFixed(2)+' '+sy(rows[a][l.key]).toFixed(2)+
-                     ' L'+sx(b).toFixed(2)+' '+sy(rows[b][l.key]).toFixed(2)}
-                  stroke={l.color} strokeWidth="2.8" fill="none"
-                  strokeLinecap="round" strokeLinejoin="round"/>))}
-          {cpuReady && cpuVisibleSegments.map(([a,b])=>
-            <path className="rev-ops-cpu-line" key={'cpu-'+a}
-              d={'M'+cpuX(cpuPoints[a].at).toFixed(2)+' '+cpuY(cpuPoints[a].cpu).toFixed(2)+
-                 ' L'+cpuX(cpuPoints[b].at).toFixed(2)+' '+cpuY(cpuPoints[b].cpu).toFixed(2)}
-              stroke="#ffbd60" strokeDasharray="5 4" strokeWidth="2.7"
-              fill="none" strokeLinejoin="round" strokeLinecap="round"/>)}
-          {cpuReady && cpuPoints.filter(p=>p.cpu>0).map(p=>
-            <circle key={p.at} cx={cpuX(p.at)} cy={cpuY(p.cpu)}
-              r="3.5" fill="#ffc06f" stroke="var(--t-card)" strokeWidth="1.3"/>)}
-          {cpuReady && cpuPoints.length>0 && <>
-            <text className="rev-ops-cpu-axis-title" x="754" y="26"
-              textAnchor="end" fill="#ffc06f" fontSize="10">CPU %</text>
-            {[0,50,100].map(n=><text key={'cpu-'+n} className="rev-ops-cpu-axis-tick" x="754" y={cpuY(n)+4}
-              textAnchor="end" fill="#ffc06f" fontSize="10">{n}%</text>)}
-          </>}
-          {!hasVisibleActivity && <text className="rev-ops-chart-idle"
-            x="380" y="112" textAnchor="middle" fontSize="12">
-              관측된 요청 없음 · 기준선은 0
+          <svg viewBox="0 0 560 210" preserveAspectRatio="xMidYMid meet"
+            role="img" tabIndex={0}
+            aria-label="활성 요청, Blocking, 장시간 실행 요청. 왼쪽 축은 요청 수(건). 좌우 방향키로 실제 DMV 수집 시점을 선택하세요."
+            onMouseMove={event=>setSelectedIndex(pickChartIndex(event,rows.length))}
+            onMouseLeave={()=>setSelectedIndex(null)}
+            onKeyDown={event=>chartArrowIndex(event,currentIndex,rows.length,setSelectedIndex)}
+            onBlur={()=>setSelectedIndex(null)}>
+            {ticks.map(tick=><g key={tick}>
+              <line x1={CHART_LEFT} x2={CHART_RIGHT} y1={y(tick)} y2={y(tick)}
+                strokeWidth=".8" strokeDasharray="3 5"/>
+              <text x="32" y={y(tick)+4} textAnchor="end" fontSize="11">{tick}</text>
+            </g>)}
+            {[0,1,2,3,4].map(index=><line key={index}
+              x1={CHART_LEFT+index*(CHART_RIGHT-CHART_LEFT)/4}
+              x2={CHART_LEFT+index*(CHART_RIGHT-CHART_LEFT)/4}
+              y1={CHART_TOP} y2={CHART_BOTTOM} strokeWidth=".7"/>)}
+            <path className="rev-ops-neutral-zero"
+              d={'M'+CHART_LEFT+' '+y(0)+' L'+CHART_RIGHT+' '+y(0)}
+              stroke="#718ca9" strokeWidth="1.8" fill="none"/>
+            {rows.length===1
+              ? REQUEST_SERIES.filter(series=>Number(rows[0][series.key])>0)
+                .map(series=><circle key={series.key}
+                  cx={CHART_RIGHT} cy={y(rows[0][series.key])}
+                  r="3.5" fill={series.color}/>)
+              : REQUEST_SERIES.flatMap(series=>segments(series.key).map(([a,b])=>
+                  <path className="rev-ops-metric-segment"
+                    key={series.key+'-'+a}
+                    d={'M'+chartX(a,rows.length)+' '+y(rows[a][series.key])+
+                       ' L'+chartX(b,rows.length)+' '+y(rows[b][series.key])}
+                    stroke={series.color} strokeWidth="2.8" fill="none"
+                    strokeLinecap="round" strokeLinejoin="round"/>))}
+            {selected && <>
+              <line className="rev-ops-selected-marker"
+                x1={chartX(currentIndex,rows.length)}
+                x2={chartX(currentIndex,rows.length)}
+                y1={CHART_TOP} y2={CHART_BOTTOM}
+                strokeDasharray="4 4" strokeWidth="1"/>
+              {REQUEST_SERIES.filter(series=>Number(selected[series.key])>0)
+                .map(series=><circle key={series.key}
+                  cx={chartX(currentIndex,rows.length)}
+                  cy={y(selected[series.key])} r="4"
+                  fill={series.color} stroke="var(--t-card)" strokeWidth="1.5"/>)}
+            </>}
+            {!active && <text className="rev-ops-chart-idle"
+              x="280" y="96" fontSize="12" textAnchor="middle">
+              관측 구간에 활성 · 차단 · 장시간 요청 없음
             </text>}
-          {focused && <>
-            <line x1={sx(focusIndex)} x2={sx(focusIndex)} y1="38" y2="187"
-              stroke="var(--t-muted)" strokeOpacity=".65" strokeDasharray="4 4"/>
-            {lines.filter(l=>Number(focused[l.key])>0).map(l=>
-              <circle key={l.key} cx={sx(focusIndex)}
-                cy={sy(focused[l.key])} r="4" fill={l.color}
-                stroke="var(--t-card)" strokeWidth="1.5"/>)}
-          </>}
-        </svg>
-        <div className="rev-chart-times">
-          <span>{clock(rows[0].collectedAt)}</span>
-          <span>{clock(rows.at(-1).collectedAt)}</span>
-        </div>
+          </svg>
+          <div className="rev-chart-times">
+            <span>{clock(rows[0].collectedAt)}</span>
+            <span>{clock(rows.at(-1).collectedAt)}</span>
+          </div>
         </div>
       </div>
       <div className="rev-ops-chart-readout" aria-live="polite">
-        <span className="rev-ops-chart-at">{highlightedIndex===null?'최신':'선택'} · {clock(focused?.collectedAt)}</span>
-        {lines.map(l=><span key={l.key}>{l.name} <strong>{num(focused?.[l.key])}건</strong></span>)}
-        <span className="rev-ops-cpu-readout">SQL Server CPU
-          <strong>{shownCpu?shownCpu.cpu+'%':'—'}</strong>
-          {shownCpu && <small>표본 {clock(new Date(shownCpu.at))}</small>}
+        <span className="rev-ops-chart-at">
+          {selectedIndex===null?'최신':'선택'} · {clock(selected?.collectedAt)}
         </span>
+        {REQUEST_SERIES.map(series=><span key={series.key}>{series.name}
+          <strong>{num(selected?.[series.key])}건</strong>
+        </span>)}
       </div>
-      <p className="rev-ops-chart-hint">그래프에 마우스를 올리거나 키보드 좌우 화살표를 누르면 관측 시점별 수치를 확인할 수 있습니다.</p>
-    </> : <div className="rev-overview-empty">아직 성능 샘플이 없습니다. 수집기 연결 상태를 확인해 주세요.</div>}
-    <p className="rev-chart-caution">왼쪽 축은 실제 DMV 요청 수, 오른쪽 축은 SQL Server 프로세스 CPU(%)입니다. CPU는 선택적 약 60초 표본이며 화면을 연 이후의 표본만 연결합니다. 특정 데이터베이스의 CPU(%)가 아닙니다. 데이터 공백은 추정하지 않습니다.</p>
+    </> : <div className="rev-overview-empty">
+      아직 DMV 성능 샘플이 없습니다. 수집 상태를 확인해 주세요.
+    </div>}
+    <p className="rev-ops-chart-hint">5초 DMV 표본의 실제 요청 수(건)입니다. 선에 마우스를 올리거나 좌우 방향키로 시점을 선택할 수 있습니다.</p>
   </article>;
+}
+
+function CpuTrendPanel({cpuState}) {
+  const [selectedIndex,setSelectedIndex]=useState(null);
+  const rows=cpuState?.samples?.slice(-60)||[];
+  const cpuStatus=cpuState?.status||'INITIALIZING';
+  const online=cpuStatus==='ONLINE';
+  const firstAt=rows[0]?.at;
+  const lastAt=rows.at(-1)?.at;
+  const x=index=>rows.length===1?CHART_RIGHT:
+    Number.isFinite(firstAt)&&Number.isFinite(lastAt)&&lastAt>firstAt
+      ? CHART_LEFT+(rows[index].at-firstAt)/(lastAt-firstAt)*(CHART_RIGHT-CHART_LEFT)
+      :chartX(index,rows.length);
+  const y=value=>CHART_BOTTOM-Number(value)/100*(CHART_BOTTOM-CHART_TOP);
+  const currentIndex=selectedIndex!==null&&selectedIndex<rows.length
+    ?selectedIndex:rows.length-1;
+  const selected=rows[currentIndex];
+  // CPU is collected roughly every 60 seconds. A missing or late sample
+  // must not be silently joined over a long unobserved interval.
+  const cpuSegments=[];
+  for(let index=1;index<rows.length;index++){
+    const a=rows[index-1],b=rows[index];
+    if(b.at>a.at&&b.at-a.at<=150000)cpuSegments.push([index-1,index]);
+  }
+  const statusLabel=cpuStatus==='ONLINE'?'실제 CPU 표본':
+    cpuStatus==='DISABLED'?'CPU 수집 비활성':
+    cpuStatus==='PERMISSION_DENIED'?'CPU 조회 권한 없음':
+    cpuStatus==='INITIALIZING'?'CPU 표본 대기':'CPU 수집 상태 확인';
+  return <article className="rev-panel rev-ops-chart-card rev-ops-cpu-chart">
+    <div className="rev-panel-heading">
+      <div><h2>SQL Server CPU 사용률</h2>
+        <p>인스턴스 전체 프로세스 · 선택 DB만의 CPU가 아님</p></div>
+      <span className="rev-panel-tag">단위: %</span>
+    </div>
+    <div className="rev-chart-legend" aria-label="CPU 그래프 범례">
+      <span className="rev-ops-cpu-legend">
+        <i style={{background:'#ffbd60'}}/>SQL Server 전체 프로세스 CPU (%) · 60초 표본
+      </span>
+    </div>
+    <div className="rev-chart-area rev-ops-chart-area">
+      <div className="rev-ops-chart-frame">
+        <svg viewBox="0 0 560 210" preserveAspectRatio="xMidYMid meet"
+          role="img" tabIndex={rows.length?0:-1}
+          aria-label="SQL Server 전체 프로세스 CPU 사용률. 세로축 0~100퍼센트. 방향키로 CPU 표본 시점을 선택하세요."
+          onMouseMove={event=>rows.length&&setSelectedIndex(pickChartIndex(event,rows.length))}
+          onMouseLeave={()=>setSelectedIndex(null)}
+          onKeyDown={event=>chartArrowIndex(event,currentIndex,rows.length,setSelectedIndex)}
+          onBlur={()=>setSelectedIndex(null)}>
+          {[0,25,50,75,100].map(tick=><g key={tick}>
+            <line x1={CHART_LEFT} x2={CHART_RIGHT} y1={y(tick)} y2={y(tick)}
+              strokeWidth=".8" strokeDasharray="3 5"/>
+            <text x="34" y={y(tick)+4} textAnchor="end" fontSize="10">{tick}%</text>
+          </g>)}
+          {[0,1,2,3,4].map(index=><line key={index}
+            x1={CHART_LEFT+index*(CHART_RIGHT-CHART_LEFT)/4}
+            x2={CHART_LEFT+index*(CHART_RIGHT-CHART_LEFT)/4}
+            y1={CHART_TOP} y2={CHART_BOTTOM} strokeWidth=".7"/>)}
+          <path className="rev-ops-neutral-zero"
+            d={'M'+CHART_LEFT+' '+CHART_BOTTOM+' L'+CHART_RIGHT+' '+CHART_BOTTOM}
+            stroke="#718ca9" strokeWidth="1.8" fill="none"/>
+          {online && cpuSegments.map(([a,b])=>
+            <path key={'cpu-'+a} className="rev-ops-cpu-line"
+              d={'M'+x(a)+' '+y(rows[a].cpu)+' L'+x(b)+' '+y(rows[b].cpu)}
+              stroke="#ffbd60" strokeWidth="2.8" fill="none"
+              strokeLinejoin="round" strokeLinecap="round"/>)}
+          {online && rows.map((point,index)=>
+            <circle key={point.at} cx={x(index)} cy={y(point.cpu)}
+              r="3.2" fill="#ffbd60" stroke="var(--t-card)" strokeWidth="1"/>)}
+          {online && selected && <line className="rev-ops-selected-marker"
+            x1={x(currentIndex)} x2={x(currentIndex)}
+            y1={CHART_TOP} y2={CHART_BOTTOM}
+            strokeDasharray="4 4" strokeWidth="1"/>}
+          {(!online||!rows.length) && <text className="rev-ops-chart-idle"
+            x="280" y="105" textAnchor="middle" fontSize="12">
+            {statusLabel}
+          </text>}
+        </svg>
+        <div className="rev-chart-times">
+          <span>{online&&rows.length?clock(new Date(firstAt)):'—'}</span>
+          <span>{online&&rows.length?clock(new Date(lastAt)):'—'}</span>
+        </div>
+      </div>
+    </div>
+    <div className="rev-ops-chart-readout" aria-live="polite">
+      <span className="rev-ops-chart-at">
+        {online&&selected?clock(new Date(selected.at)):statusLabel}
+      </span>
+      <span className="rev-ops-cpu-readout">SQL Server CPU
+        <strong>{online&&selected?selected.cpu+'%':'—'}</strong>
+      </span>
+      <span>{online&&rows.length?rows.length+'개 실측 표본':'수집된 표본 없음'}</span>
+    </div>
+    <p className="rev-ops-chart-hint">실제 약 60초 간격 CPU 표본입니다. 화면을 연 이후 표본만 표시하며, 누락 구간은 연결하지 않습니다. 특정 DB의 CPU(%)가 아닙니다.</p>
+  </article>;
+}
+
+function TrendChart({history,sampleLimit,cpuState,databaseName}) {
+  return <div className="rev-ops-split-charts" aria-label="요청 수 및 CPU 성능 그래프">
+    <RequestTrendPanel history={history} sampleLimit={sampleLimit}
+      databaseName={databaseName}/>
+    <CpuTrendPanel cpuState={cpuState}/>
+  </div>;
 }
 
 export default function OverviewDashboard({
