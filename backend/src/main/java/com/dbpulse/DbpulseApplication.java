@@ -18,6 +18,10 @@ public class DbpulseApplication {
             WindowsDesktopBoot.provision();
             return;
         }
+        if (args.length == 1 && "--desktop-check".equals(args[0])) {
+            WindowsDesktopBoot.checkProvisioned();
+            return;
+        }
         SpringApplication app = new SpringApplication(DbpulseApplication.class);
         if (Boolean.getBoolean("dbpulse.desktop.enabled")) {
             WindowsDesktopBoot.configure(app);
