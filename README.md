@@ -10,18 +10,22 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
-## 현재 개발 버전: v0.12.0-alpha / 실행계획별 집계 성능 비교 (로컬 검증 전)
+## 현재 개발 버전: v0.13.0-alpha — 모니터링 오버헤드 가드와 운영 대시보드
 
-작동하는 **제품 기본 흐름**: React 화면 → Spring Boot REST API → PostgreSQL 메트릭 저장소 ← SQL Server DMV Collector.
+> **개발 브랜치:** `feature/monitoring-overhead-v0.13` · [Draft PR #12](https://github.com/hanmj97/DBPulse/pull/12). `main`에 병합된 정식 배포가 아니며, 실제 외부 고객 서비스는 아직 지원하지 않습니다.
 
-- MSSQL에서 `sys.dm_exec_requests`를 읽어 현재 활성 요청, Blocking, 장시간 실행을 매 5초 집계.
-- 실제 데이터만 PostgreSQL `metric_snapshots` 테이블에 저장.
-- 대시보드에 3초 간격으로 마지막 상태와 최근 샘플을 표시.
-- 설정 누락/연결 실패 시 `NOT_CONFIGURED` / `OFFLINE` 표시. 가짜 성능 값 없음.
-- **Phase 2 구현 코드**: SQL Server Query Store의 최근 15분간 실행계획별 요약 통계를 30초마다 수집해 PostgreSQL에 기록, React에서 조회. SQL 원문·파라미터는 저장하지 않음. 운영 수준의 튜닝 추천이 아니라 수치 기반 점검 후보를 보여줌. 로컬 환경의 통합 검증은 진행 중.
-- **아직 미구현**: 회원가입, 외부 고객 DB 등록, 다중 사용자, Deadlock 이벤트 상세 수집, 자동복구, 실제 SQL 튜닝 추천. UI에 '예정'으로 구분.
+React → Spring Boot REST API → PostgreSQL 메트릭 저장소 → 읽기 전용 MSSQL Collector 구조로, **로컬 환경에서 설정한 SQL Server 대상 1개**를 모니터링합니다.
 
-> ⚠️ **현재 버전은 로컬 개발용으로만 실행하세요.** 사용자 인증과 외부 접근 통제가 아직 없으며 공개 서비스용 보안 구성이 아닙니다. 외부 고객 DB 연결은 추후 별도 보안 설계 이후 지원합니다.
+- **5초 간격 DMV 수집**: 실제 활성 요청/Blocking/장시간 요청, 연결 상태 및 사건 이력. 화면의 요청 수는 QPS/TPS가 아닙니다.
+- **진단과 근거 조회**: Blocking Chain, Deadlock 사건, Wait Diagnostics, Incident Investigation.
+- **Query Store**: 실행계획별 성능 통계/튜닝 후보, 근거 연산자, 플랜 비교 및 옵트인 SQL 원문 조회(기본 비활성).
+- **v0.13 adaptive guard**: Query Store 분석 수집의 관측 비용에 따라 60초 기본 주기를 120초까지 완화하는 휴리스틱. DMV 5초 수집은 그대로입니다. 단기 A/B 로컬 측정에서 Query Store 수집 비용 감소를 관측했으나 **업무 SQL의 성능 개선 또는 운영환경 무영향을 입증한 것은 아닙니다**.
+- **2개 분리 그래프**: 왼쪽은 요청 수(건), 오른쪽은 선택적 **SQL Server 인스턴스 전체 프로세스 CPU(%)**. 일반 MSSQL에서 특정 DB만의 CPU(%)를 뜻하지 않습니다. 약 60초 CPU 표본은 실제 수집값만 표시합니다.
+- **현재 미구현**: 사용자 회원가입/로그인, 웹에서 새로운 고객 DB 직접 등록, 고객별 접근 격리, 검증된 안전 자동복구, 외부 사용자용 공개 배포.
+
+구체적인 상태 및 주의사항은 [개발 현황](docs/PROJECT_STATUS_2026-10-21.md), [아키텍처](docs/ARCHITECTURE.md), [v0.13 검증 체크리스트](docs/PHASE13_FINAL_UI_REGRESSION.md), [다음 단계 대상 등록 설계](docs/PHASE14_TARGET_ONBOARDING_DESIGN.md)를 참고하세요.
+
+> ⚠️ **로컬 개발 환경에서만 사용하세요.** 사용자 인증과 다중 테넌트 보호가 없으므로 서비스를 인터넷에 공개하거나 미승인 외부 SQL Server에 연결하지 마세요. SQL 텍스트, 자격증명, XE 원본 파일은 저장소에 업로드하지 않습니다.
 
 ## 요구사항
 
@@ -73,8 +77,8 @@ cd .\frontend
 # package.json에 지정한 라이브러리 설치
 npm install
 
-# Vite 개발 서버 시작 (이 창은 열린 상태로 유지)
-npm run dev
+# PowerShell 실행 정책과 무관하게 Vite 개발 서버 실행 (창 유지)
+npm.cmd run dev
 ```
 
 브라우저에서 **http://127.0.0.1:5174** 열기. 로컬 Vite 프록시는 `18081`의 Spring Boot API를 호출한다. MSSQL을 아직 연결하지 않았다면 '설정 필요'가 정상이다.
