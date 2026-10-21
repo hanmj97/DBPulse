@@ -27,9 +27,12 @@ public class InstanceCpuService {
                               @Value("${dbpulse.cpu.enabled:false}") boolean enabled) {
         this.target=target;this.collector=collector;this.enabled=enabled;
         last.set(status(enabled?"INITIALIZING":"DISABLED",null,null,null,null));
+        target.onTargetChanged(() ->
+            last.set(status(enabled ? "INITIALIZING" : "DISABLED", null, null, null, null)));
     }
     @Scheduled(fixedDelayString="${dbpulse.cpu.interval-ms:60000}",initialDelay=20000)
     public void sample() {
+        target.withReadLease(() -> {
         if(!enabled)return;
         if(!target.isEnabled()){last.set(status("NOT_CONFIGURED",null,null,null,null));return;}
         try {
@@ -46,6 +49,8 @@ public class InstanceCpuService {
             log.warn("Optional SQL Server CPU sample unavailable ({})",ex.getClass().getSimpleName());
             last.set(status("UNAVAILABLE",null,null,Instant.now(),null));
         }
+    
+        });
     }
     public CpuStatus current(){return last.get();}
     private static CpuStatus status(String status,Integer sqlCpu,Integer hostCpu,
