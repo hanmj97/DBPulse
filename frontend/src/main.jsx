@@ -8,6 +8,7 @@ import {
 import './style.css';
 import './dashboard.css';
 import { DashboardShell } from './DashboardShell.jsx';
+import LocalTargetRegistration from './LocalTargetRegistration.jsx';
 import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
@@ -573,9 +574,9 @@ function App() {
     </div>
     <article className="rev-panel"><div className="rev-panel-heading"><div><h2>연결 대상 정보</h2>
       <p>현재 릴리스는 단일 MSSQL 모니터링 대상만 지원합니다.</p></div></div>
-      <p>새로운 서버 등록 및 사용자별 DB 연결 기능은 이후에 개발됩니다.
-      아직 제공되지 않는 기능을 작동하는 것처럼 표시하지 않습니다.</p>
+      <p>현재 연결된 단일 MSSQL 수집기의 상태입니다. 아래에서 추가 연결을 테스트하고 대상 정보만 등록할 수 있지만, 등록한 대상의 실시간 수집은 다음 단계에서 지원합니다.</p>
     </article>
+    <LocalTargetRegistration/>
     {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info">
       <Terminal size={18}/>.env에 MSSQL 연결 정보를 설정하고 백엔드를 재시작해 주세요.</div>}
     {target?.collectorStatus === 'OFFLINE' && <div className="banner error">
