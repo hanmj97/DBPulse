@@ -1,3 +1,68 @@
+## 2026-10-21 — third visual correction: colored measurements, readable chart axes, no summary scrollbar
+
+The user reviewed the *stable-band* layout and accepted the overall
+structure, but provided a screenshot showing three remaining defects:
+1. Nonzero spikes were **gray**, not colored.
+2. The chart SVG was stretched horizontally with
+   `preserveAspectRatio="none"`, making axis and no-activity text
+   appear distorted/over-spaced.
+3. The diagnostic strip had a visible internal scrollbar and
+   a long drag rail when cards contained more information.
+
+**Confirmed root cause for #1:** The old dark-theme rule
+`.rev-layout[data-theme] .rev-chart-area line {stroke:var(--t-chart-grid)}`
+overrode the presentation `stroke` attributes on *every* SVG
+`<line>`, including real request and CPU series. This caused the
+observed gray nonzero spikes. The graph now renders **measured
+series segments as SVG `<path>`** nodes instead of grid `<line>`
+nodes. The existing pure `nonZeroSegments` helper still renders
+only true 0→positive, positive→positive, positive→0 events and
+retains gaps. One neutral grid-colored baseline remains for
+0→0 periods, and the SQL Server **process-wide** CPU line and
+legend remain bright orange. No data or series key was renamed.
+
+**Changes for #2:** Wrap the SVG and its time ticks in a centered
+`.rev-ops-chart-frame` with max width **940px**, preserve
+the native SVG 760:208 geometry using
+`preserveAspectRatio="xMidYMid meet"`, and size the rendered SVG
+with `height:auto` and `aspect-ratio:760 / 208`.
+The tooltip mouse position calculation still corresponds to
+the actual viewBox width. Do not apply nonuniform stretch again.
+
+**Changes for #3:** The three sections still display only up to
+**two** Wait categories and **two** current-signal entries with
+a count and detail link. The summary strip uses bounded,
+slightly taller desktop rows (**220px**), smaller action buttons,
+and **overflow:hidden**, not `overflow:auto`. No internal
+vertical scrollbar or drag rail should appear when 10+
+signals arrive; the full list remains in Incident/Wait detail
+pages. Mobile sections stack vertically at controlled heights.
+
+**Safety and known limits:** The change modifies only
+`frontend/src/OverviewDashboard.jsx`, `frontend/src/dashboard.css`
+and frontend regression tests. No SQL text or XEL source data is
+uploaded; no backend query, monitor interval, authentication, or
+DB permissions are changed. The selected target database name
+does not turn SQL Server instance CPU (%) into a DB-specific CPU.
+
+**Manual visual acceptance still required:**
+- [ ] With only zero requests, show **one** neutral baseline
+      and bright orange **CPU legend** (0% may be shown as a value).
+- [ ] With a real lab request/Blocking/long-running spike, show
+      **blue/red/purple paths** corresponding to the underlying
+      positive observation; CPU spike is bright orange.
+- [ ] Plot grid, x-axis time labels, y-axis ticks and no-activity
+      text have normal proportions and are centered within the
+      940px chart frame, both at wide desktop and narrow viewport.
+- [ ] With 10+ current signals, only 2 preview rows and
+      remaining count/link appear; **no summary cell scrollbar**.
+- [ ] Three operator action links and Wait/Incident detail links
+      are never hidden/clipped at desktop, tablet and mobile sizes.
+- [ ] Navy and Midnight Dark presets remain legible; no incident
+      timeline or Query Store / SQL drawer regressions.
+- [ ] Confirm actual local browser result before marking UI
+      verification complete or moving Draft PR #12 toward release.
+
 ## 2026-10-21 — operations overview stable-band redesign
 
 **Why:** The user correctly rejected two consecutive layouts where
