@@ -18,6 +18,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  * Windows native app-image bootstrap only. Dev/Docker Java launch stays intact.
@@ -177,8 +178,36 @@ public final class WindowsDesktopBoot {
             openDashboard());
     }
 
+    /**
+     * WebView2 host launches the existing app-image backend with redirected
+     * stdin and this opt-in environment flag. EOF requests Spring's orderly
+     * context close, rather than terminating the Java process abruptly.
+     * The ordinary DBPulse.exe still opens the external browser unchanged.
+     */
+    public static void watchForEmbeddedHostExit(ConfigurableApplicationContext context) {
+        if (!isEmbeddedHostSignal(System.getenv("DBPULSE_EMBEDDED_WINDOW_HOST"))) return;
+        Thread watcher = new Thread(() -> {
+            try {
+                while (System.in.read() != -1) {
+                    // Host protocol has no commands. Only EOF is meaningful.
+                }
+            } catch (IOException ignored) {
+                // Broken host pipe is equivalent to EOF.
+            } finally {
+                context.close();
+            }
+        }, "dbpulse-window-host-lifetime");
+        watcher.setDaemon(true);
+        watcher.start();
+    }
+
+    static boolean isEmbeddedHostSignal(String value) {
+        return "1".equals(value);
+    }
+
     /** Called both on first successful startup and from a second app launch. */
     public static void openDashboard() {
+        if (isEmbeddedHostSignal(System.getenv("DBPULSE_EMBEDDED_WINDOW_HOST"))) return;
         try {
             if (Desktop.isDesktopSupported()) {
                 Desktop.getDesktop().browse(URI.create("http://127.0.0.1:18081/#targets"));

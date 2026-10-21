@@ -140,7 +140,8 @@ jobs:
             'tools/run_dbpulse_windows_host_lab.ps1',
             'tools/build_dbpulse_windows_app_image.ps1',
             'tools/provision_dbpulse_windows_app.ps1',
-            'tools/diagnose_dbpulse_windows_app.ps1'
+            'tools/diagnose_dbpulse_windows_app.ps1',
+            'tools/build_dbpulse_webview2_window_preview.ps1'
           )
           $allErrors = @()
           foreach ($file in $files) {
@@ -251,6 +252,22 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Native Windows DPAPI decrypt check failed' }
           } finally {
             Remove-Item $vaultDir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish self-contained WebView2 native window (Phase 17)
+        shell: pwsh
+        run: |
+          $target = 'backend/target/windows-ci/DBPulse/window'
+          dotnet publish desktop/DBPulse.WindowHost/DBPulse.WindowHost.csproj -c Release -r win-x64 --self-contained true -o $target -p:PublishSingleFile=false
+          if ($LASTEXITCODE -ne 0) { throw 'WebView2 host publish failed' }
+          $shellExe = Join-Path $target 'DBPulse.WindowHost.exe'
+          if (-not (Test-Path $shellExe)) { throw 'WebView2 host EXE missing' }
+          & $shellExe --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'WebView2 origin and navigation policy self-test failed' }
+          if (-not (Test-Path 'backend/target/windows-ci/DBPulse/DBPulse.exe')) {
+            throw 'Backend Java EXE missing from app bundle'
           }
       - name: Upload unpacked unsigned Windows preview
         uses: actions/upload-artifact@v4

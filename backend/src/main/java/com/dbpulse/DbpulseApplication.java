@@ -52,7 +52,8 @@ public class DbpulseApplication {
                     org.springframework.boot.context.event.ApplicationReadyEvent>)
                     event -> DesktopStartupDiagnostics.record("READY"));
             }
-            app.run(args);
+            var context = app.run(args);
+            if (desktop) WindowsDesktopBoot.watchForEmbeddedHostExit(context);
         } catch (RuntimeException | Error failure) {
             if (desktop) {
                 String code = DesktopStartupDiagnostics.categorize(failure);
