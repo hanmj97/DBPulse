@@ -4,6 +4,7 @@ import com.dbpulse.service.LocalTargetService;
 import com.dbpulse.service.LocalTargetService.ConnectionDetails;
 import com.dbpulse.service.LocalTargetService.LocalTargetSummary;
 import com.dbpulse.service.LocalTargetService.RegistrationResult;
+import com.dbpulse.service.LocalTargetService.StartResult;
 import com.dbpulse.service.LocalTargetService.TestResult;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +43,14 @@ public class LocalTargetController {
         @RequestHeader(value="Origin", required=false) String origin) {
         requireLocalPost(guard, origin);
         return targets.test(request);
+    }
+
+    @PostMapping(path="/start-monitoring", consumes=MediaType.APPLICATION_JSON_VALUE)
+    public StartResult startMonitoring(@RequestBody ConnectionDetails request,
+        @RequestHeader(value="X-DBPulse-Local-Request", required=false) String guard,
+        @RequestHeader(value="Origin", required=false) String origin) {
+        requireLocalPost(guard, origin);
+        return targets.startMonitoring(request);
     }
 
     @PostMapping(consumes=MediaType.APPLICATION_JSON_VALUE)
