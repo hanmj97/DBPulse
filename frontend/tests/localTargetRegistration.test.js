@@ -61,3 +61,22 @@ test('the target is clearly inactive and sensitive password is cleared after reg
   assert.match(css,/\.dbp-local-form/);
   assert.match(css,/@media\(max-width:670px\)/);
 });
+
+test('saved targets have separate accessible rename and unregister actions',()=>{
+  assert.match(form,/\/api\/v1\/local-targets\//);
+  assert.match(form,/\('rename',item\)/);
+  assert.match(form,/\('unregister',item\)/);
+  assert.match(form,/encodeURIComponent\(item\.id\)/);
+  assert.match(form,/\.status==='ACTIVE_IN_MEMORY'/);
+  assert.match(form,/item\.status==='ACTIVE_IN_MEMORY'/);
+  assert.match(form,/disabled=\{busy\|\|item\.status==='ACTIVE_IN_MEMORY'\}/);
+  assert.match(form,/aria-label=\{item\.databaseName\+' 표시 이름 수정'\}/);
+  assert.match(form,/aria-label=\{item\.databaseName\+' 등록 해제'\}/);
+  assert.match(form,/window\.prompt/);
+  assert.match(form,/window\.confirm/);
+  assert.match(form,/SQL Server 데이터베이스와 과거 DBPulse 수집 기록은 삭제되지 않습니다/);
+  assert.match(form,/setForm\(INITIAL\)/);
+  assert.match(css,/\.dbp-local-registry-entry/);
+  assert.match(css,/\.dbp-local-registry-actions/);
+  assert.match(css,/@media\(max-width:650px\)/);
+});
