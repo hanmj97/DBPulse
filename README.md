@@ -23,8 +23,8 @@ git branch --show-current
 git status --short
 git pull --ff-only origin feature/target-onboarding-v0.14
 
-# 기존 .env 파일은 백업해 두고 편집
-Copy-Item .env .env.bak -ErrorAction Stop
+# 기존 .env 파일을 직접 편집해 예전 DB 연결/비밀번호를 지웁니다.
+# Git 작업 폴더 안에 비밀번호가 들어간 .env 백업 복사본을 만들지 마세요.
 notepad .env
 ```
 
@@ -62,7 +62,7 @@ npm.cmd run dev
 4. Query Store 기능은 선택한 DB에서 Query Store 활성화/필요 권한이 있어야 합니다. 새로운 수집은 대체로 60초 이상 기다려야 데이터가 보일 수 있습니다.
 5. **다른 DB로 변경하려면** `docker compose up -d --no-deps --force-recreate backend`로 백엔드만 재시작한 다음 다시 연결해 주세요. **실행 중 다중 DB 선택/동시 수집은 다음 개발 단계**입니다.
 
-**주의:** `docker compose down --volumes`는 PostgreSQL 데이터를 삭제하므로 실행하지 마세요. 비밀번호가 들어간 `.env`, `.env.bak`, 로컬 로그 및 XEL 원본은 GitHub에 업로드하지 마세요. 이 경로는 개발 PC의 `127.0.0.1` 전용이고, 연결이 승인된 테스트 DB에서만 사용합니다.
+**주의:** `docker compose down --volumes`는 PostgreSQL 데이터를 삭제하므로 실행하지 마세요. 비밀번호가 들어간 `.env`, 로컬 로그 및 XEL 원본은 GitHub에 업로드하지 마세요. 이 경로는 개발 PC의 `127.0.0.1` 전용이고, 연결이 승인된 테스트 DB에서만 사용합니다.
 
 [실제 연결 개발 및 검증 계획](docs/PHASE14_IMPLEMENTATION_PLAN.md).
 
