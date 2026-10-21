@@ -147,3 +147,37 @@
   font-weight:800;
   text-decoration:underline;
 }
+
+
+/* Reconnect a saved MSSQL target without exposing process/Docker controls. */
+.dbp-local-selectable{
+  width:100%;
+  text-align:left;
+  cursor:pointer;
+  color:inherit;
+  font:inherit;
+  transition:border-color .15s ease, background .15s ease;
+}
+.dbp-local-selectable:hover,
+.dbp-local-selectable.selected{
+  border-color:var(--t-accent);
+  background:var(--t-accent-soft);
+}
+.dbp-local-selectable.selected{
+  box-shadow:inset 3px 0 var(--t-accent);
+}
+.dbp-local-selectable:focus-visible,
+.dbp-local-disconnect:focus-visible{
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+}
+.dbp-local-selectable:disabled{opacity:.6;cursor:not-allowed}
+.dbp-local-disconnect{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid #b55b6d;background:rgba(175,62,89,.12);
+  border-radius:7px;padding:8px 10px;
+  color:#ffb5c1;font-weight:800;font-size:11px;
+  cursor:pointer;
+}
+.dbp-local-disconnect:disabled{cursor:wait;opacity:.6}
+.dbp-local-feedback.ok{flex-wrap:wrap;align-items:center}
