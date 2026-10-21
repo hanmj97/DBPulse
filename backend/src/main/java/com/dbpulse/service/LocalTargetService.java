@@ -25,16 +25,19 @@ import org.springframework.web.server.ResponseStatusException;
 public class LocalTargetService {
     private final JdbcTemplate jdbc;
     private final boolean enabled;
+    private final boolean allowLocalSelfSigned;
     private final LocalTargetPolicy policy;
     private final Semaphore connectionSlots = new Semaphore(1);
     private final AtomicLong lastAttemptMs = new AtomicLong(0);
 
     public LocalTargetService(JdbcTemplate jdbc,
         @Value("${dbpulse.local-targets.enabled:false}") boolean enabled,
+        @Value("${dbpulse.local-targets.allow-self-signed-lab:false}") boolean allowLocalSelfSigned,
         @Value("${dbpulse.local-targets.allowed-hosts:host.docker.internal,localhost,127.0.0.1}")
             String allowedHosts) {
         this.jdbc = jdbc;
         this.enabled = enabled;
+        this.allowLocalSelfSigned = allowLocalSelfSigned;
         this.policy = new LocalTargetPolicy(allowedHosts);
     }
 
@@ -52,9 +55,17 @@ public class LocalTargetService {
             || !policy.validDatabaseName(details.databaseName())
             || !policy.validLogin(details.username())
             || details.password() == null || details.password().isBlank()
-            || details.password().length() > 512) {
+            || details.password().length() > 512
+            || (details.trustLocalCertificate()
+                && (!allowLocalSelfSigned || !isLocalDevHost(details.host())))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_OR_NOT_ALLOWED_TARGET");
         }
+    }
+
+    private static boolean isLocalDevHost(String host) {
+        return "127.0.0.1".equalsIgnoreCase(host)
+            || "localhost".equalsIgnoreCase(host)
+            || "host.docker.internal".equalsIgnoreCase(host);
     }
 
     public TestResult test(ConnectionDetails details) {
@@ -72,7 +83,7 @@ public class LocalTargetService {
             lastAttemptMs.set(now);
             String url = "jdbc:sqlserver://" + details.host() + ":" + details.port()
                 + ";databaseName=" + details.databaseName()
-                + ";encrypt=true;trustServerCertificate=false"
+                + ";encrypt=true;trustServerCertificate=" + details.trustLocalCertificate()
                 + ";loginTimeout=3;socketTimeout=4000"
                 + ";applicationIntent=ReadOnly;applicationName=DBPulseLocalConnectionTest";
             Properties authentication = new Properties();
@@ -138,7 +149,8 @@ public class LocalTargetService {
     }
 
     public record ConnectionDetails(String name, String host, int port,
-        String databaseName, String username, String password) {}
+        String databaseName, String username, String password,
+        boolean trustLocalCertificate) {}
     public record TestResult(String status, String code) {}
     public record RegistrationResult(String status, String code, String id) {}
     public record LocalTargetSummary(String id, String name, String host,
