@@ -5,6 +5,13 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.security.cert.CertificateException;
+import javax.net.ssl.SSLException;
 import java.time.Instant;
 import java.util.List;
 import com.dbpulse.config.MssqlTargetProperties;
@@ -31,7 +38,8 @@ public class LocalTargetService {
     private final boolean allowLocalSelfSigned;
     private final LocalTargetPolicy policy;
     private final Semaphore connectionSlots = new Semaphore(1);
-    private final AtomicLong lastAttemptMs = new AtomicLong(0);
+    // Failed attempts are rate limited; successful test -> start is allowed immediately.
+    private final AtomicLong lastFailedAttemptMs = new AtomicLong(0);
 
     @Autowired
     public LocalTargetService(JdbcTemplate jdbc,
@@ -88,11 +96,10 @@ public class LocalTargetService {
         }
         try {
             long now = System.currentTimeMillis();
-            long last = lastAttemptMs.get();
-            if (now - last < 500) {
+            long lastFailure = lastFailedAttemptMs.get();
+            if (now - lastFailure < 1500) {
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
             }
-            lastAttemptMs.set(now);
             String url = "jdbc:sqlserver://" + details.host() + ":" + details.port()
                 + ";databaseName=" + details.databaseName()
                 + ";encrypt=true;trustServerCertificate=" + details.trustLocalCertificate()
@@ -110,21 +117,47 @@ public class LocalTargetService {
                         if (rows.next() && details.databaseName().equalsIgnoreCase(rows.getString(1))) {
                             return new TestResult("CONNECTED", "READ_ONLY_QUERY_SUCCEEDED");
                         }
+                        lastFailedAttemptMs.set(System.currentTimeMillis());
                         return new TestResult("FAILED", "DATABASE_MISMATCH");
                     }
                 }
             } catch (SQLException error) {
-                String sqlState = error.getSQLState();
-                String code = sqlState != null && sqlState.startsWith("28")
-                    ? "AUTHENTICATION_FAILED"
-                    : sqlState != null && sqlState.startsWith("08")
-                        ? "CONNECTION_FAILED"
-                        : "CONNECTION_OR_TLS_FAILED";
-                return new TestResult("FAILED", code);
+                lastFailedAttemptMs.set(System.currentTimeMillis());
+                // Only stable, sanitized error codes go to the browser.
+                // Never serialize the SQL exception, connection string or credentials.
+                return new TestResult("FAILED", classifyConnectionFailure(error));
             }
         } finally {
             connectionSlots.release();
         }
+    }
+
+    static String classifyConnectionFailure(SQLException error) {
+        String state = error.getSQLState();
+        if ((state != null && state.startsWith("28"))
+            || error.getErrorCode() == 18456 || error.getErrorCode() == 18452) {
+            return "AUTHENTICATION_FAILED";
+        }
+        if (error.getErrorCode() == 4060 || error.getErrorCode() == 916) {
+            return "DATABASE_ACCESS_FAILED";
+        }
+        if (error instanceof SQLTimeoutException
+            || "HYT00".equals(state) || "HYT01".equals(state)) {
+            return "CONNECTION_TIMEOUT";
+        }
+        Throwable cause = error;
+        for (int level = 0; cause != null && level < 12; level++, cause = cause.getCause()) {
+            if (cause instanceof CertificateException) return "TLS_CERTIFICATE_UNTRUSTED";
+            if (cause instanceof javax.net.ssl.SSLHandshakeException) {
+                return "TLS_CERTIFICATE_UNTRUSTED";
+            }
+            if (cause instanceof SSLException) return "TLS_HANDSHAKE_FAILED";
+            if (cause instanceof SocketTimeoutException) return "CONNECTION_TIMEOUT";
+            if (cause instanceof ConnectException || cause instanceof NoRouteToHostException
+                || cause instanceof UnknownHostException) return "CONNECTION_FAILED";
+        }
+        // SQLSTATE 08 includes *both* TCP failures and TLS negotiation failures.
+        return "CONNECTION_OR_TLS_FAILED";
     }
 
     public RegistrationResult register(ConnectionDetails details) {
