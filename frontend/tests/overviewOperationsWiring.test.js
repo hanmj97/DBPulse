@@ -14,7 +14,7 @@ test('operations hero derives server health from actual target and recent DMV',(
   assert.match(overview,/target\?\.collectorStatus === 'ONLINE' && recentSample/);
   assert.match(overview,/open\.length>0/);
   assert.match(overview,/observed|관측 지표상 이상 없음/);
-  assert.match(overview,/const unknownHealth = !online \\|\\| !hasIncidentData/);
+  assert.ok(overview.includes('const unknownHealth = !online || !hasIncidentData'));
 });
 
 test('time-series chart remains bound to DMV samples and offers keyboard inspection',()=>{
