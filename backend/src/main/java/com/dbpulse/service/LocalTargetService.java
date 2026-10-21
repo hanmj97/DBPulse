@@ -7,7 +7,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
@@ -67,7 +66,7 @@ public class LocalTargetService {
         try {
             long now = System.currentTimeMillis();
             long last = lastAttemptMs.get();
-            if (now - last < 2500) {
+            if (now - last < 500) {
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
             }
             lastAttemptMs.set(now);
