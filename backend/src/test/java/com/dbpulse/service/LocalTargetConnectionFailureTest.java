@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 
 class LocalTargetConnectionFailureTest {
     @Test void distinguishesCertTrustFromOrdinaryNetworkFailure() {
-        assertEquals("TLS_CERTIFICATE_UNTRUSTED",
+        assertEquals("TLS_HANDSHAKE_FAILED",
             LocalTargetService.classifyConnectionFailure(
                 new SQLException("private details", "08S01", 0,
-                    new SSLHandshakeException("certificate"))));
+                    new SSLHandshakeException("handshake, cause unknown"))));
         assertEquals("TLS_CERTIFICATE_UNTRUSTED",
             LocalTargetService.classifyConnectionFailure(
                 new SQLException("private details", "08S01", 0,
