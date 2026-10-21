@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown,Unplug,Pencil,Trash2} from 'lucide-react';
+import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown,Unplug,Pencil,Trash2,LockKeyhole,KeyRound,ShieldOff} from 'lucide-react';
 import './local-target-registration.css';
 
 const INITIAL = {
@@ -21,7 +21,9 @@ const CODES={
   MONITORING_STARTED_SESSION_ONLY:'선택한 DB 모니터링 시작 요청을 완료했습니다. 실제 수집 ONLINE 여부를 확인해 주세요.',
   MONITORING_STOPPED:'현재 DB 수집을 중지하고 연결을 해제했습니다. 등록된 DB를 선택하고 비밀번호를 다시 입력하면 다른 DB에 연결할 수 있습니다.',
   TARGET_DISPLAY_NAME_UPDATED:'등록 대상의 표시 이름을 변경했습니다. DB 접속 정보와 기존 수집 기록은 그대로입니다.',
-  TARGET_UNREGISTERED_HISTORY_PRESERVED:'등록 목록에서 삭제했습니다. SQL Server DB와 기존 수집 기록은 삭제되지 않았습니다.'
+  TARGET_UNREGISTERED_HISTORY_PRESERVED:'등록 목록에서 삭제했습니다. SQL Server DB와 기존 수집 기록은 삭제되지 않았습니다.',
+  ENCRYPTED_FOR_CURRENT_WINDOWS_USER:'현재 Windows 사용자 계정의 DPAPI로 DB 비밀번호를 암호화해 저장했습니다.',
+  SAVED_CREDENTIAL_REMOVED:'이 DB의 저장된 비밀번호를 삭제했습니다. 등록 정보와 기존 모니터링 이력은 유지됩니다.'
 };
 
 export default function LocalTargetRegistration(){
@@ -33,6 +35,7 @@ export default function LocalTargetRegistration(){
   const [verified,setVerified]=useState(false);
   const [selectedId,setSelectedId]=useState(null);
   const [collector,setCollector]=useState(null);
+  const [secureStorage,setSecureStorage]=useState(false);
   const activeItem=items.find(item=>item.status==='ACTIVE_IN_MEMORY');
   const activeCollector=activeItem && collector?.id===activeItem.id ? collector : null;
 
@@ -44,6 +47,13 @@ export default function LocalTargetRegistration(){
       const data=await response.json();
       setItems(Array.isArray(data)?data:[]);
       setEnabled(true);
+      try{
+        const capability=await fetch('/api/v1/local-targets/credential-capability',{cache:'no-store'});
+        if(capability.ok){
+          const info=await capability.json();
+          setSecureStorage(Boolean(info.available&&info.provider==='WINDOWS_DPAPI_USER'));
+        }else setSecureStorage(false);
+      }catch{setSecureStorage(false);}
     }catch{setEnabled(null);}
   };
   useEffect(()=>{load();},[]);
@@ -132,6 +142,56 @@ export default function LocalTargetRegistration(){
     }finally{setBusy(false);}
   };
 
+  const credentialAction=async(action,item)=>{
+    if(busy||!secureStorage)return;
+    const prompts={
+      save:'이 PC에 SQL Server 로그인 비밀번호를 Windows 사용자 계정 DPAPI로 암호화해 저장할까요? 같은 Windows 계정으로 DBPulse를 실행할 때만 재사용됩니다.',
+      forget:'이 DB의 저장된 비밀번호를 삭제할까요? 이미 실행 중인 모니터링 세션은 연결 해제 전까지 계속됩니다.'
+    };
+    if(!window.confirm(prompts[action]))return;
+    setBusy(true);setFeedback(null);
+    try{
+      const response=await fetch('/api/v1/local-targets/'+encodeURIComponent(item.id)+
+        (action==='save'?'/remember-credential':'/forget-credential'),{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-DBPulse-Local-Request':'1'},
+          body:'{}'
+        });
+      if(response.status===409)throw Error('Windows DPAPI를 사용할 수 없거나 현재 대상 상태가 변경됐습니다. Windows 호스트 모드와 선택된 DB를 확인해 주세요.');
+      if(!response.ok)throw Error('저장된 자격증명 변경에 실패했습니다.');
+      const result=await response.json();
+      await load();
+      setFeedback({ok:result.status==='SAVED'||result.status==='FORGOTTEN',
+        text:CODES[result.code]||'요청을 처리했습니다.'});
+    }catch(error){
+      setFeedback({ok:false,text:error.message||'비밀번호 저장소 요청에 실패했습니다.'});
+      await load();
+    }finally{setBusy(false);}
+  };
+
+  const startSaved=async(item)=>{
+    if(busy||!secureStorage||activeItem||!item.savedCredential)return;
+    setBusy(true);setFeedback(null);
+    try{
+      const response=await fetch('/api/v1/local-targets/'+encodeURIComponent(item.id)+'/start-saved',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-DBPulse-Local-Request':'1'},
+        body:JSON.stringify({trustLocalCertificate:form.trustLocalCertificate})
+      });
+      if(response.status===409)throw Error('보관된 비밀번호를 사용할 수 없거나 이미 다른 DB가 수집 중입니다. 현재 연결 상태를 확인해 주세요.');
+      if(!response.ok)throw Error('저장된 비밀번호로 연결하지 못했습니다. TLS 설정 또는 DB 계정 상태를 확인해 주세요.');
+      const result=await response.json();
+      const ok=result.status==='ACTIVE_IN_MEMORY';
+      setFeedback({ok,text:CODES[result.code]||'연결 결과를 확인할 수 없습니다.'});
+      if(ok){
+        setForm(previous=>({...previous,password:''}));
+        await load();
+      }
+    }catch(error){
+      setFeedback({ok:false,text:error.message||'저장된 연결을 시작하지 못했습니다.'});
+    }finally{setBusy(false);}
+  };
+
   const stopCurrent=async()=>{
     if(busy||!activeItem)return;
     if(!window.confirm('현재 DB 수집을 중지하고 연결을 해제할까요? 기존 수집 이력은 삭제되지 않습니다.'))return;
@@ -196,6 +256,13 @@ export default function LocalTargetRegistration(){
         <p>Windows PC에서 실행하는 DBPulse · 회원가입 없이 로컬에서 사용</p></div>
       <span className="rev-panel-tag">v0.14-alpha · MSSQL</span>
     </div>
+    {secureStorage
+      ? <div className="dbp-local-credential-availability">
+          <LockKeyhole size={16}/>Windows 사용자 계정 DPAPI 보호 활성화 · 연결 후 명시적으로 저장 가능
+        </div>
+      : <div className="dbp-local-credential-availability inactive">
+          <ShieldOff size={16}/>비밀번호는 저장하지 않습니다. 암호화 저장은 Windows 호스트 실행 모드에서만 제공됩니다.
+        </div>}
     <div className="dbp-local-caution">
       <ShieldCheck size={19}/>
       <span><strong>직접 입력한 MSSQL DB를 모니터링할 수 있습니다.</strong>
@@ -284,6 +351,11 @@ export default function LocalTargetRegistration(){
           :activeCollector?.collectorStatus==='INITIALIZING'?'수집 초기화 중'
           :'수집 상태 확인 중'}
       </span>
+      {secureStorage && <button type="button" className="dbp-local-vault-save"
+        disabled={busy||activeItem.savedCredential}
+        onClick={()=>credentialAction('save',activeItem)}>
+        <LockKeyhole size={15}/>{activeItem.savedCredential?'Windows DPAPI 저장됨':'이 PC에 암호화 저장'}
+      </button>}
       <button type="button" className="dbp-local-disconnect"
         onClick={stopCurrent} disabled={busy}>
         <Unplug size={15}/>{busy?'처리 중…':'현재 DB 연결 해제 · 다른 DB 선택'}
@@ -304,6 +376,19 @@ export default function LocalTargetRegistration(){
           </span>
         </button>
         <div className="dbp-local-registry-actions">
+          {secureStorage && item.savedCredential && <button type="button"
+            className="dbp-local-vault-reconnect"
+            disabled={busy||Boolean(activeItem)}
+            onClick={()=>startSaved(item)}
+            title="현재 Windows 사용자 계정에 저장된 비밀번호로 연결">
+            <KeyRound size={14}/>저장된 연결
+          </button>}
+          {secureStorage && item.savedCredential && <button type="button"
+            className="dbp-local-vault-forget" disabled={busy}
+            onClick={()=>credentialAction('forget',item)}
+            title="Windows DPAPI에 저장한 비밀번호만 삭제">
+            <ShieldOff size={14}/>암호 해제
+          </button>}
           <button type="button" onClick={()=>manageTarget('rename',item)}
             disabled={busy||item.status==='ACTIVE_IN_MEMORY'}
             title="등록 대상 표시 이름 수정" aria-label={item.databaseName+' 표시 이름 수정'}>
@@ -319,6 +404,6 @@ export default function LocalTargetRegistration(){
     </div>:<div className="dbp-local-empty">
       등록한 대상이 없습니다. 연결을 검사한 다음 대상 정보를 등록해 보세요.
     </div>}
-    <p className="dbp-local-foot">등록된 DB를 클릭하면 연결 정보를 자동 입력합니다. 표시 이름 수정·등록 목록 삭제는 수집 중이 아닌 대상만 가능합니다. 실제 SQL Server DB나 과거 수집 이력은 삭제하지 않습니다. 비밀번호는 저장하지 않으므로 연결 시 다시 입력해야 합니다.</p>
+    <p className="dbp-local-foot">등록된 DB 클릭 시 연결 정보가 채워집니다. 비밀번호는 기본적으로 저장하지 않습니다. Windows 호스트 실행 모드에서는 수집 중 명시적으로 DPAPI 암호화 저장을 선택하고, 이후 저장된 연결로 재접속할 수 있습니다. 실제 SQL Server DB 및 과거 수집 이력은 삭제되지 않습니다.</p>
   </section>;
 }
