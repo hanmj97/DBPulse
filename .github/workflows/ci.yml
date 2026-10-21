@@ -137,7 +137,9 @@ jobs:
         run: |
           $files = @(
             'tools/run_dbpulse_windows_ui.ps1',
-            'tools/run_dbpulse_windows_host_lab.ps1'
+            'tools/run_dbpulse_windows_host_lab.ps1',
+            'tools/build_dbpulse_windows_app_image.ps1',
+            'tools/provision_dbpulse_windows_app.ps1'
           )
           $allErrors = @()
           foreach ($file in $files) {
@@ -165,3 +167,88 @@ jobs:
           if ($scriptText.Contains('docker cp ("\${cid}:/workspace/backend/target/dbpulse-api.jar") (Join-Path $root')) {
             throw 'Old fixed destination copy remains.'
           }
+
+  windows-app-image:
+    name: Windows DBPulse.exe preview + native DPAPI smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build React dashboard
+        shell: pwsh
+        working-directory: frontend
+        run: |
+          npm.cmd install --no-package-lock --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+          npm.cmd run build
+          if ($LASTEXITCODE -ne 0) { throw 'Vite build failed' }
+      - name: Bundle Spring Boot JAR with React
+        shell: pwsh
+        working-directory: backend
+        run: |
+          mvn.cmd -B --no-transfer-progress -Pdesktop-bundle -DskipTests package
+          if ($LASTEXITCODE -ne 0) { throw 'Maven desktop bundle failed' }
+      - name: Create native Windows app-image with private Java runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'backend/target/windows-ci/input' | Out-Null
+          Copy-Item 'backend/target/dbpulse-api.jar' 'backend/target/windows-ci/input/dbpulse-api.jar'
+          $args = @(
+            '--type','app-image',
+            '--name','DBPulse',
+            '--app-version','0.14.0',
+            '--vendor','DBPulse',
+            '--input','backend/target/windows-ci/input',
+            '--dest','backend/target/windows-ci',
+            '--main-jar','dbpulse-api.jar',
+            '--main-class','org.springframework.boot.loader.launch.JarLauncher',
+            '--java-options','-Ddbpulse.desktop.enabled=true',
+            '--add-modules','ALL-MODULE-PATH',
+            '--win-console'
+          )
+          & jpackage.exe @args
+          if ($LASTEXITCODE -ne 0) { throw 'Windows jpackage failed' }
+          $exe = 'backend/target/windows-ci/DBPulse/DBPulse.exe'
+          if (-not (Test-Path $exe)) { throw 'DBPulse.exe not found' }
+          if (-not (Test-Path 'backend/target/windows-ci/DBPulse/runtime')) {
+            throw 'Bundled Java runtime not found'
+          }
+      - name: Test native Windows user DPAPI enrollment and decryption
+        shell: pwsh
+        env:
+          DBPULSE_META_PASSWORD: ci_only_fake_metadata_password
+          DBPULSE_LOCAL_TRUST_SELF_SIGNED: 'false'
+        run: |
+          $exe = (Resolve-Path 'backend/target/windows-ci/DBPulse/DBPulse.exe').Path
+          $vaultDir = Join-Path $env:LOCALAPPDATA 'DBPulse/desktop'
+          if (Test-Path $vaultDir) { throw 'CI desktop credential directory unexpectedly exists' }
+          try {
+            & $exe --desktop-provision
+            if ($LASTEXITCODE -ne 0) { throw 'Native DPAPI provision failed' }
+            $blob = Join-Path $vaultDir 'metadata.dpapi'
+            if (-not (Test-Path $blob)) { throw 'Encrypted metadata not persisted' }
+            $raw = [IO.File]::ReadAllBytes($blob)
+            $text = [Text.Encoding]::UTF8.GetString($raw)
+            if ($text.Contains('ci_only_fake_metadata_password')) {
+              throw 'Plaintext metadata password was stored'
+            }
+            & $exe --desktop-check
+            if ($LASTEXITCODE -ne 0) { throw 'Native Windows DPAPI decrypt check failed' }
+          } finally {
+            Remove-Item $vaultDir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+      - name: Upload unpacked unsigned Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: DBPulse-v0.14-Windows-app-image-preview
+          path: backend/target/windows-ci/DBPulse/
+          retention-days: 7
+          if-no-files-found: error
