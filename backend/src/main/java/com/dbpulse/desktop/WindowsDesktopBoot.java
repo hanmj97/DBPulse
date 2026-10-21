@@ -126,6 +126,11 @@ public final class WindowsDesktopBoot {
         }finally{Arrays.fill(wrapped,(byte)0);}
     }
 
+    /** Developer-only inventory command. Source secret remains in JVM RAM only. */
+    static String loadMetadataPasswordForInventory() {
+        return loadMetadataPassword();
+    }
+
     /** CLI-only native DPAPI smoke: never prints or returns decrypted metadata. */
     public static void checkProvisioned() {
         String recovered=loadMetadataPassword();
