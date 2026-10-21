@@ -1714,3 +1714,154 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     max-width:100%;
   }
 }
+
+
+/* v0.13 isolated metrics: independent SVGs, axes and actual timestamps.
+   Two equally legible charts side-by-side at desktop widths, stacked on
+   narrow screens. Do not apply older single-chart SVG dimensions here. */
+.rev-ops-wide-chart .rev-ops-split-charts {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:14px;
+  width:100%;
+  align-items:stretch;
+}
+.rev-ops-wide-chart .rev-ops-split-charts > .rev-ops-chart-card {
+  min-width:0;
+  width:100%;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.rev-ops-split-charts .rev-panel-heading {
+  min-height:57px;
+  margin-bottom:9px;
+}
+.rev-ops-split-charts .rev-panel-heading h2 {
+  font-size:15px;
+  line-height:1.25;
+}
+.rev-ops-split-charts .rev-panel-heading p {
+  font-size:11px;
+  line-height:1.55;
+  margin:0;
+}
+.rev-ops-split-charts .rev-chart-legend {
+  min-height:32px;
+  margin:0 0 8px;
+  display:flex;
+  gap:6px 13px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.rev-ops-split-charts .rev-chart-legend span{
+  font-size:11px;
+  line-height:1.5;
+}
+.rev-ops-split-charts .rev-chart-legend .rev-ops-cpu-legend {
+  color:#ffbd60;
+  font-size:11px;
+  font-weight:800;
+}
+.rev-ops-split-charts .rev-chart-legend .rev-ops-cpu-legend i {
+  background:#ffbd60 !important;
+  opacity:1;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame {
+  width:100%;
+  max-width:620px;
+  min-width:0;
+  margin:0 auto;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame svg {
+  display:block;
+  width:100%;
+  max-width:100%;
+  height:auto;
+  aspect-ratio:560 / 210;
+  overflow:visible;
+  cursor:crosshair;
+  touch-action:pan-y;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame svg:focus-visible {
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+  border-radius:6px;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-chart-times {
+  padding-left:7.68%;
+  padding-right:7.15%;
+  margin-top:2px;
+  font-size:10px;
+}
+.rev-ops-split-charts .rev-chart-area {
+  margin-top:auto;
+}
+.rev-ops-split-charts .rev-chart-area line {
+  stroke:var(--t-chart-grid);
+}
+.rev-ops-split-charts .rev-chart-area text {
+  fill:var(--t-secondary);
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-neutral-zero{
+  stroke:#718ca9;
+  stroke-width:1.8;
+  stroke-opacity:1;
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-metric-segment,
+.rev-ops-split-charts .rev-chart-area .rev-ops-cpu-line {
+  stroke-opacity:1;
+  pointer-events:none;
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-selected-marker{
+  stroke:var(--t-muted);
+  stroke-opacity:.7;
+}
+.rev-ops-split-charts .rev-ops-chart-readout {
+  display:flex;
+  gap:8px 13px;
+  align-items:center;
+  flex-wrap:wrap;
+  min-height:42px;
+  margin-top:11px;
+  padding:9px 11px;
+}
+.rev-ops-split-charts .rev-ops-cpu-readout,
+.rev-ops-split-charts .rev-ops-cpu-readout strong {
+  color:#ffbd60;
+}
+.rev-ops-split-charts .rev-ops-chart-hint {
+  min-height:43px;
+  line-height:1.55;
+  margin:10px 0 0;
+  font-size:11px;
+  color:var(--t-secondary);
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-chart-idle {
+  fill:var(--t-secondary);
+  pointer-events:none;
+}
+@media(max-width:1150px) {
+  .rev-ops-wide-chart .rev-ops-split-charts {
+    grid-template-columns:minmax(0,1fr);
+  }
+  .rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame{
+    max-width:620px;
+  }
+  .rev-ops-split-charts .rev-ops-chart-hint{
+    min-height:0;
+  }
+}
+@media(max-width:670px) {
+  .rev-ops-split-charts .rev-panel-heading {
+    min-height:0;
+  }
+  .rev-ops-split-charts .rev-chart-legend {
+    min-height:0;
+  }
+  .rev-ops-split-charts .rev-ops-chart-readout{
+    padding:8px;
+    min-height:0;
+  }
+}
