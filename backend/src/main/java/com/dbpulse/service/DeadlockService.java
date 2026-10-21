@@ -29,10 +29,13 @@ public class DeadlockService {
         this.target = target;
         this.collector = collector;
         this.repository = repository;
+        target.onTargetChanged(() ->
+            state.set(new DeadlockState("INITIALIZING", null, "NOT_YET_COLLECTED")));
     }
 
     @Scheduled(fixedDelayString = "${dbpulse.deadlocks.interval-ms:15000}", initialDelay = 7000)
     public void poll() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
             state.set(new DeadlockState("NOT_CONFIGURED", null, "MSSQL_NOT_CONFIGURED"));
             return;
@@ -47,6 +50,8 @@ public class DeadlockService {
             state.set(new DeadlockState("OFFLINE", before.lastCollectedAt(), "DEADLOCK_COLLECTION_FAILED"));
             log.warn("Deadlock event collection failed ({})", ex.getClass().getSimpleName());
         }
+    
+        });
     }
 
     public DeadlockState state() { return state.get(); }
