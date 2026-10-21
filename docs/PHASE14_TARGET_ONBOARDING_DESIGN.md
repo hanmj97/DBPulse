@@ -1,3 +1,7 @@
+> **주의: 2026-10-21 이후 이 문서는 이전 SaaS 구상에 대한 보관용 문서입니다.** 회원가입·멀티테넌트·클라우드 전용 요구사항은 더 이상 현행 제품 범위가 아닙니다. 현재 확정된 설치형 로컬 웹 구조와 구현 순서는 [PHASE14_IMPLEMENTATION_PLAN.md](PHASE14_IMPLEMENTATION_PLAN.md)를 기준으로 하세요.
+
+---
+
 # Phase 14 proposal — user-registered SQL Server targets and CPU attribution
 
 > Proposal only, not implemented by v0.13 and not part of PR #12's
