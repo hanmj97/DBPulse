@@ -15,6 +15,7 @@
 - `GET /api/v1/local-targets`: 로컬에서 등록한 메타데이터만 조회하고 로그인/패스워드·JDBC URL 원문은 응답하지 않습니다.
 - 연결 설정 `DBPULSE_LOCAL_TARGETS_ENABLED=false` 기본값; 허용 호스트 기본값은 `host.docker.internal,localhost,127.0.0.1`, 로컬 개발용. 사내/원격 SQL Server를 사용하려면 사용자가 명시적으로 서버 측 허용 목록에 추가합니다.
 - 기존 `/api/v1/targets`의 `local-mssql` 실시간 수집기·이력·Query Store는 변경 없이 유지합니다.
+- 로컬 개발 SQL Server의 자체 서명 TLS는 서버 `DBPULSE_LOCAL_TRUST_SELF_SIGNED=true` 와 폼의 명시적 체크가 모두 있어야 허용. `host.docker.internal`, `127.0.0.1`, `localhost`에서만 가능하며 원격/운영 호스트는 무조건 인증서 검증 유지.
 - UI에서는 `연결 확인`과 `연결 검증 후 대상 등록`을 표시합니다. 등록 정보가 **현재 실시간 모니터링에 연결된 것처럼 표현하지 않습니다**.
 
 ## 다음 실제 코드 단계: 14.2 영속 자격증명 및 동적 Collector 연결
