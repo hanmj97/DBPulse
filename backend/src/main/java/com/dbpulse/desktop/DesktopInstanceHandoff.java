@@ -33,7 +33,22 @@ public final class DesktopInstanceHandoff {
     private DesktopInstanceHandoff() {}
 
     public static Result inspect() {
-        return inspect(DEFAULT_PORT);
+        Result first = inspect(DEFAULT_PORT);
+        if (first != Result.OTHER_SERVICE_ON_PORT) return first;
+        // A second double-click may race the first app's Spring Boot
+        // initialization: TCP is bound before its HTTP health endpoint is UP.
+        // Wait briefly for readiness, but never open an unknown local service.
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return Result.OTHER_SERVICE_ON_PORT;
+            }
+            Result next = inspect(DEFAULT_PORT);
+            if (next != Result.OTHER_SERVICE_ON_PORT) return next;
+        }
+        return Result.OTHER_SERVICE_ON_PORT;
     }
 
     static Result inspect(int port) {
@@ -71,7 +86,7 @@ public final class DesktopInstanceHandoff {
                 || page.body().length() > 8192
                 || !page.headers().firstValue("content-type")
                     .orElse("").toLowerCase(Locale.ROOT).contains("text/html")
-                || !page.body().contains("DBPulse")) {
+                || !page.body().contains("<title>DBPulse")) {
                 return Result.OTHER_SERVICE_ON_PORT;
             }
             return Result.DBPULSE_RUNNING;
