@@ -70,7 +70,9 @@ export default function LocalTargetRegistration(){
       }
     }catch(error){
       setFeedback({ok:false,text:error.message||'연결 테스트에 실패했습니다.'});
-      setVerified(false);
+      // A rapid test -> start request may hit the local rate limit.
+      // Keep prior successful verification so clicking Start again works.
+      if(action==='test')setVerified(false);
     }finally{setBusy(false);}
   };
 
