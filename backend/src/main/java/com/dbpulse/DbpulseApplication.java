@@ -4,6 +4,7 @@ import com.dbpulse.config.MssqlTargetProperties;
 import com.dbpulse.desktop.WindowsDesktopBoot;
 import com.dbpulse.desktop.DesktopStartupDiagnostics;
 import com.dbpulse.desktop.DesktopInstanceHandoff;
+import com.dbpulse.desktop.MetadataInventory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -22,6 +23,10 @@ public class DbpulseApplication {
         }
         if (args.length == 1 && "--desktop-check".equals(args[0])) {
             WindowsDesktopBoot.checkProvisioned();
+            return;
+        }
+        if (args.length == 1 && "--desktop-storage-inventory".equals(args[0])) {
+            MetadataInventory.printExistingPostgresInventory();
             return;
         }
         boolean desktop = Boolean.getBoolean("dbpulse.desktop.enabled");
