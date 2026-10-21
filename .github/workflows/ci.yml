@@ -197,6 +197,12 @@ jobs:
         run: |
           mvn.cmd -B --no-transfer-progress -Pdesktop-bundle -DskipTests package
           if ($LASTEXITCODE -ne 0) { throw 'Maven desktop bundle failed' }
+      - name: Verify existing-instance handoff and fail-closed port handling on Windows
+        shell: pwsh
+        working-directory: backend
+        run: |
+          mvn.cmd -B --no-transfer-progress '-Dtest=DesktopInstanceHandoffTest,DesktopStartupDiagnosticsTest' test
+          if ($LASTEXITCODE -ne 0) { throw 'Windows desktop handoff regression tests failed' }
       - name: Create native Windows app-image with private Java runtime
         shell: pwsh
         run: |
