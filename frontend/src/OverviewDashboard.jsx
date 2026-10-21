@@ -71,7 +71,7 @@ function useOverviewCpuSamples(targetId) {
   return cpuState;
 }
 
-function TrendChart({history, sampleLimit, cpuState}) {
+function TrendChart({history, sampleLimit, cpuState, databaseName}) {
   const [highlightedIndex, setHighlightedIndex] = useState(null);
   const rows = history.slice(-sampleLimit);
   const lines = [
@@ -136,14 +136,14 @@ function TrendChart({history, sampleLimit, cpuState}) {
   return <article className="rev-panel rev-performance-chart rev-ops-trend">
     <div className="rev-panel-heading">
       <div><h2>실시간 성능 추이</h2>
-        <p>SQL Server DMV · 최근 {rows.length}개 샘플 · 5초 기본 수집</p></div>
+        <p>{databaseName ? databaseName+' · ' : ''}SQL Server DMV · 최근 {rows.length}개 샘플 · 5초 기본 수집</p></div>
       <span className="rev-panel-tag">실제 관측</span>
     </div>
     <div className="rev-chart-legend" aria-label="그래프 범례">
       {lines.map(l => <span key={l.key}><i style={{background:l.color}}/>{l.name}</span>)}
       <span className="rev-ops-cpu-legend">
         <i style={{background:'#ffc06f'}}/>
-        SQL Server 프로세스 CPU (%) · 60초 표본
+        SQL Server 전체 프로세스 CPU (%) · 60초 표본
         {!cpuReady && <small>({cpuState?.status==='DISABLED'?'수집 비활성':'표본 확인 중'})</small>}
       </span>
     </div>
@@ -296,8 +296,8 @@ export default function OverviewDashboard({
         <span className="rev-ops-server-icon"><Server size={23}/></span>
         <div className="rev-ops-server-text">
           <span className="rev-ops-eyebrow">MONITORING TARGET</span>
-          <strong>{target?.name || '서버 연결 확인 중'}</strong>
-          <span>{target?.databaseName || '데이터베이스 확인 중'} · MSSQL · 최근 DMV {online ? clock(latest.collectedAt) : '관측 확인 중'}</span>
+          <strong>{target?.databaseName || target?.name || '데이터베이스 확인 중'}</strong>
+          <span>{target?.name || 'SQL Server'} · MSSQL · 최근 DMV {online ? clock(latest.collectedAt) : '관측 확인 중'}</span>
         </div>
       </div>
       <div className="rev-ops-server-meta">
@@ -330,9 +330,32 @@ export default function OverviewDashboard({
         note="최근 1회 Wait 표본" tone="waits" onClick={()=>nav('waits')}/>
     </section>
 
-    <div className="rev-overview-primary rev-ops-primary">
-      <TrendChart history={online ? history : []} sampleLimit={sampleLimit} cpuState={cpuState}/>
+    <div className="rev-ops-independent-columns">
+      <div className="rev-ops-main-column">
+        <TrendChart history={online ? history : []} sampleLimit={sampleLimit} cpuState={cpuState} databaseName={target?.databaseName}/>
+    <article className="rev-panel rev-recent-table">
+      <div className="rev-panel-heading">
+        <div><h2>최근 인시던트</h2><p>사건 선택 시 저장된 근거를 조사할 수 있습니다.</p></div>
+        <button className="rev-text-link" onClick={()=>nav('incidents')}>전체 보기 <ArrowRight size={14}/></button>
+      </div>
+      {incidentError ? <div className="rev-overview-empty">이력을 조회하지 못했습니다.</div> :
+      !incidents.length ? <div className="rev-overview-empty">표시할 사건이 없습니다.</div> :
+      <div className="rev-table-scroll"><table className="rev-table">
+        <thead><tr><th>발생 시각</th><th>유형</th><th>관측 내용</th><th>상태</th><th>조사</th></tr></thead>
+        <tbody>{incidents.slice(0,6).map(item=>
+          <tr key={item.id}>
+            <td>{dateTime(item.startedAt)}</td>
+            <td>{KINDS[item.type]||item.type}</td>
+            <td>{summary(item)}</td>
+            <td><span className={'rev-table-badge '+(item.status==='OPEN'?'open':'resolved')}>
+              {item.status==='OPEN'?'진행 중':'해결됨'}</span></td>
+            <td><button className="rev-table-action" onClick={()=>onInvestigate(item.id)}>분석 <ArrowRight size={13}/></button></td>
+          </tr>)}</tbody></table></div>}
+    </article>
+
+      </div>
       <div className="rev-ops-side-stack">
+
         <article className={'rev-panel rev-wait-summary rev-ops-mini-panel'+(waitGroups.length===0?' rev-ops-compact':'')}>
           <div className="rev-panel-heading">
             <div><h2>주요 대기 유형</h2><p>가장 최근 Wait 요청 표본</p></div>
@@ -389,25 +412,7 @@ export default function OverviewDashboard({
               </div>}
           <p className="rev-card-foot">최신 신호만 요약합니다. Blocking·장시간 요청은 상단 KPI에서, 전체 사건은 인시던트 화면에서 확인할 수 있습니다.</p>
         </article>
-      </div>
-    </div>
 
-    <div className="rev-overview-secondary rev-ops-secondary">
-      <article className="rev-panel rev-incident-timeline">
-        <div className="rev-panel-heading">
-          <div><h2>최근 인시던트 타임라인</h2><p>발생 시각순 최근 4건</p></div>
-          <button className="rev-text-link" onClick={()=>nav('incidents')}>전체 보기 <ArrowRight size={14}/></button>
-        </div>
-        {incidentError ? <div className="rev-overview-empty">인시던트 API에 접근할 수 없습니다.</div> :
-          !incidents.length ? <div className="rev-overview-empty">아직 저장된 인시던트가 없습니다.</div> :
-          <div className="rev-timeline">{incidents.slice(0,4).map(item=>
-            <button key={item.id} className="rev-timeline-item" onClick={()=>onInvestigate(item.id)}>
-              <time>{clock(item.startedAt)}</time>
-              <span className={'rev-timeline-dot '+(item.status==='OPEN'?'open':'resolved')}/>
-              <span className="rev-timeline-description"><strong>{KINDS[item.type]||item.type} <small>#{item.id}</small></strong>
-                <span>{item.status === 'OPEN' ? '진행 중' : '해결됨'} · {dateTime(item.startedAt)}</span></span>
-              <ArrowRight size={15}/></button>)}</div>}
-      </article>
       <article className="rev-panel rev-ops-action-panel">
         <div className="rev-panel-heading">
           <div><h2>운영 바로가기</h2><p>문제 진단에 필요한 화면으로 이동</p></div>
@@ -425,27 +430,25 @@ export default function OverviewDashboard({
           </button>
         </div>
       </article>
-    </div>
 
-    <article className="rev-panel rev-recent-table">
-      <div className="rev-panel-heading">
-        <div><h2>최근 인시던트</h2><p>사건 선택 시 저장된 근거를 조사할 수 있습니다.</p></div>
-        <button className="rev-text-link" onClick={()=>nav('incidents')}>전체 보기 <ArrowRight size={14}/></button>
+      <article className="rev-panel rev-incident-timeline">
+        <div className="rev-panel-heading">
+          <div><h2>최근 인시던트 타임라인</h2><p>발생 시각순 최근 4건</p></div>
+          <button className="rev-text-link" onClick={()=>nav('incidents')}>전체 보기 <ArrowRight size={14}/></button>
+        </div>
+        {incidentError ? <div className="rev-overview-empty">인시던트 API에 접근할 수 없습니다.</div> :
+          !incidents.length ? <div className="rev-overview-empty">아직 저장된 인시던트가 없습니다.</div> :
+          <div className="rev-timeline">{incidents.slice(0,4).map(item=>
+            <button key={item.id} className="rev-timeline-item" onClick={()=>onInvestigate(item.id)}>
+              <time>{clock(item.startedAt)}</time>
+              <span className={'rev-timeline-dot '+(item.status==='OPEN'?'open':'resolved')}/>
+              <span className="rev-timeline-description"><strong>{KINDS[item.type]||item.type} <small>#{item.id}</small></strong>
+                <span>{item.status === 'OPEN' ? '진행 중' : '해결됨'} · {dateTime(item.startedAt)}</span></span>
+              <ArrowRight size={15}/></button>)}</div>}
+      </article>
+
       </div>
-      {incidentError ? <div className="rev-overview-empty">이력을 조회하지 못했습니다.</div> :
-      !incidents.length ? <div className="rev-overview-empty">표시할 사건이 없습니다.</div> :
-      <div className="rev-table-scroll"><table className="rev-table">
-        <thead><tr><th>발생 시각</th><th>유형</th><th>관측 내용</th><th>상태</th><th>조사</th></tr></thead>
-        <tbody>{incidents.slice(0,6).map(item=>
-          <tr key={item.id}>
-            <td>{dateTime(item.startedAt)}</td>
-            <td>{KINDS[item.type]||item.type}</td>
-            <td>{summary(item)}</td>
-            <td><span className={'rev-table-badge '+(item.status==='OPEN'?'open':'resolved')}>
-              {item.status==='OPEN'?'진행 중':'해결됨'}</span></td>
-            <td><button className="rev-table-action" onClick={()=>onInvestigate(item.id)}>분석 <ArrowRight size={13}/></button></td>
-          </tr>)}</tbody></table></div>}
-    </article>
+    </div>
 
     {queryAnalysis?.length>0 && <p className="rev-dashboard-foot">
       Query Store 통계 {num(queryAnalysis.length)}개 항목도 수집 중입니다.
