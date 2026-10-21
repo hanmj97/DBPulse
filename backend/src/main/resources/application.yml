@@ -21,6 +21,10 @@ spring:
   jackson:
     time-zone: UTC
 dbpulse:
+  # Manual localhost onboarding; default disabled until operator opts in.
+  local-targets:
+    enabled: ${DBPULSE_LOCAL_TARGETS_ENABLED:false}
+    allowed-hosts: ${DBPULSE_LOCAL_ALLOWED_DB_HOSTS:host.docker.internal,localhost,127.0.0.1}
   cpu:
     enabled: ${DBPULSE_SQLSERVER_CPU_ENABLED:false}
     interval-ms: ${DBPULSE_SQLSERVER_CPU_INTERVAL_MS:60000}
