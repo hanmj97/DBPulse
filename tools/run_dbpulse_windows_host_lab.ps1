@@ -1,7 +1,7 @@
 # DBPulse local Windows host mode (development only).
 # Spring Boot runs as the signed-in Windows user for per-user DPAPI.
 # PostgreSQL continues in Docker. Never delete the Postgres volume.
-param([switch]$SkipBuild)
+param([switch]$SkipBuild, [switch]$BundledUi)
 
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') {
@@ -67,6 +67,20 @@ if (-not $SkipBuild) {
 }
 if (-not (Test-Path $jar)) { throw "Backend JAR not found: $jar" }
 
+# The desktop distribution must contain the production React index, not
+# accidentally point users at an API-only JAR.
+if ($BundledUi) {
+    if (-not (Get-Command jar.exe -ErrorAction SilentlyContinue)) {
+        throw "Java 21 JDK jar.exe is required to verify the bundled UI."
+    }
+    $jarEntries = jar.exe tf $jar
+    if ($LASTEXITCODE -ne 0 -or
+        -not ($jarEntries | Where-Object { $_ -eq 'BOOT-INF/classes/static/index.html' })) {
+        throw "The JAR has no bundled React UI. Run tools/run_dbpulse_windows_ui.ps1 to rebuild it."
+    }
+}
+
+
 # Only NOW release port 18081 and keep existing PostgreSQL data running.
 docker compose stop backend
 if ($LASTEXITCODE -ne 0) { throw "Could not stop the old Docker backend." }
@@ -93,12 +107,46 @@ $env:DBPULSE_WINDOWS_DPAPI_ENABLED = 'true'
 
 Write-Host "DBPulse Windows host API starting on http://127.0.0.1:18081"
 Write-Host "Windows DPAPI belongs to this signed-in Windows user."
-Write-Host "Keep this window open. Start npm.cmd run dev in frontend separately."
+if ($BundledUi) {
+    Write-Host "React UI and API share http://127.0.0.1:18081/#targets"
+    Write-Host "Vite/npm development server is NOT needed."
+} else {
+    Write-Host "Keep this window open. Start npm.cmd run dev in frontend separately."
+}
 Write-Host "Never upload .env, encrypted DPAPI blobs, SQL logs or credentials."
 # Foreground process; press Ctrl+C to stop. Windows .exe follows later.
 try {
-    java -jar $jar
+    if ($BundledUi) {
+        # Java and the browser both use localhost. Wait for the backend
+        # response before opening the browser so users never see a false 404.
+        $javaBinary = (Get-Command java).Source
+        $backendProcess = Start-Process -FilePath $javaBinary -ArgumentList @('-jar', $jar) -PassThru -NoNewWindow
+        $ready = $false
+        for ($attempt=0; $attempt -lt 45; $attempt++) {
+            if ($backendProcess.HasExited) { break }
+            try {
+                $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:18081/' -TimeoutSec 2
+                if ($response.StatusCode -eq 200 -and
+                    $response.Content -match 'DBPulse') {
+                    $ready = $true
+                    break
+                }
+            } catch { Start-Sleep -Seconds 1 }
+        }
+        if (-not $ready) {
+            throw "Bundled DBPulse UI was not reachable on localhost:18081. Inspect the Java startup logs above."
+        }
+        Write-Host "DBPulse UI ready. Opening local browser..."
+        Start-Process 'http://127.0.0.1:18081/#targets'
+        Wait-Process -Id $backendProcess.Id
+    } else {
+        java -jar $jar
+    }
 } finally {
+    # Avoid leaving a second Java server running after Ctrl+C or any failure.
+    if ($BundledUi -and $null -ne $backendProcess -and -not $backendProcess.HasExited) {
+        Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue
+    }
     # Do not leave the PostgreSQL password in this PowerShell session's env.
     Remove-Item Env:DBPULSE_META_PASSWORD -ErrorAction SilentlyContinue
 }
