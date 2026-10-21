@@ -51,4 +51,57 @@ class MssqlTargetPropertiesTest {
             "DBPulseLab", "reader", "", false)));
         assertFalse(settings.isEnabled());
     }
+
+    @Test void disconnectResetsRuntimeWithoutErasingLegacyConfig() {
+        var settings = new MssqlTargetProperties();
+        var transitions = new java.util.concurrent.atomic.AtomicInteger();
+        settings.onTargetChanged(transitions::incrementAndGet);
+        var first = new MssqlTargetProperties.RuntimeTarget(
+            "db-1", "DB One", "host.docker.internal", 1433,
+            "FirstDb", "reader", "secret-a", false);
+        var second = new MssqlTargetProperties.RuntimeTarget(
+            "db-2", "DB Two", "host.docker.internal", 1433,
+            "SecondDb", "reader", "secret-b", false);
+        assertTrue(settings.activateOnce(first));
+        assertFalse(settings.activateOnce(second));
+        assertTrue(settings.disconnectUiTarget());
+        assertFalse(settings.isEnabled());
+        assertEquals("", settings.getPassword());
+        assertEquals("local-mssql", settings.getId());
+        assertFalse(settings.disconnectUiTarget());
+        assertTrue(settings.activateOnce(second));
+        assertEquals("db-2", settings.getId());
+        assertEquals("SecondDb", settings.getDatabase());
+        assertEquals(3, transitions.get());
+    }
+
+    @Test void disconnectWaitsForInFlightReadLeaseBeforeChangingTarget() throws Exception {
+        var settings = new MssqlTargetProperties();
+        assertTrue(settings.activateOnce(new MssqlTargetProperties.RuntimeTarget(
+            "db-1","One","localhost",1433,"One","reader","secret",false)));
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var reading = pool.submit(() -> settings.withReadLease(() -> {
+                entered.countDown();
+                try { if (!release.await(2, java.util.concurrent.TimeUnit.SECONDS))
+                    throw new IllegalStateException("reader timed out"); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                assertEquals("db-1", settings.getId());
+            }));
+            assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS));
+            var disconnect = pool.submit(settings::disconnectUiTarget);
+            // An in-flight collector retains its lease until complete.
+            assertThrows(java.util.concurrent.TimeoutException.class,
+                () -> disconnect.get(70, java.util.concurrent.TimeUnit.MILLISECONDS));
+            release.countDown();
+            reading.get(2, java.util.concurrent.TimeUnit.SECONDS);
+            assertTrue(disconnect.get(2, java.util.concurrent.TimeUnit.SECONDS));
+            assertFalse(settings.isEnabled());
+        } finally {
+            release.countDown();
+            pool.shutdownNow();
+        }
+    }
 }
