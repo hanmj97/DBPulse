@@ -96,7 +96,7 @@ public class LocalTargetService {
                     statement.setQueryTimeout(3);
                     try (ResultSet rows = statement.executeQuery()) {
                         if (rows.next() && details.databaseName().equalsIgnoreCase(rows.getString(1))) {
-                            return new TestResult("CONNECTED", "READ_ONLY_CONNECTION_CONFIRMED");
+                            return new TestResult("CONNECTED", "READ_ONLY_QUERY_SUCCEEDED");
                         }
                         return new TestResult("FAILED", "DATABASE_MISMATCH");
                     }
