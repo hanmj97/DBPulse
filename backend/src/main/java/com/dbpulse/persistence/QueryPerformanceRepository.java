@@ -37,7 +37,8 @@ public class QueryPerformanceRepository {
 
     /** Bounded local storage; call from the daily scheduled cleanup. */
     public int purgeOlderThanSevenDays() {
-        return jdbc.update("DELETE FROM query_performance_snapshots WHERE collected_at < now() - INTERVAL '7 days'");
+        return jdbc.update("DELETE FROM query_performance_snapshots WHERE collected_at < ?",
+            Timestamp.from(java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
     }
 
     /** Only fresh rows from the most recent successful run; no stale 'live' values. */
@@ -48,7 +49,7 @@ public class QueryPerformanceRepository {
             FROM query_performance_snapshots
             WHERE target_id = ?
               AND collected_at = ?
-              AND collected_at > now() - INTERVAL '2 minutes' 
+              AND collected_at > ? 
             ORDER BY avg_duration_ms DESC
             LIMIT ?
             """, (rs, i) -> new QueryPerformanceSnapshot(
@@ -58,6 +59,7 @@ public class QueryPerformanceRepository {
                 rs.getDouble("avg_cpu_ms"), rs.getDouble("avg_logical_reads_pages"),
                 rs.getTimestamp("last_executed_at").toInstant(),
                 rs.getString("diagnosis_code"), rs.getString("source_category")
-            ), targetId, Timestamp.from(sampledAt), limit);
+            ), targetId, Timestamp.from(sampledAt),
+               Timestamp.from(java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.MINUTES)), limit);
     }
 }
