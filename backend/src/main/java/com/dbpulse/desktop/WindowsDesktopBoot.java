@@ -126,6 +126,13 @@ public final class WindowsDesktopBoot {
         }finally{Arrays.fill(wrapped,(byte)0);}
     }
 
+    /** CLI-only native DPAPI smoke: never prints or returns decrypted metadata. */
+    public static void checkProvisioned() {
+        String recovered=loadMetadataPassword();
+        if (recovered.isBlank()) throw new IllegalStateException("DESKTOP_CONFIG_EMPTY");
+        System.out.println("DBPulse Windows user DPAPI metadata check passed.");
+    }
+
     private static boolean developerSelfSignedAllowed() {
         Path config=directory().resolve("settings.properties");
         try {
