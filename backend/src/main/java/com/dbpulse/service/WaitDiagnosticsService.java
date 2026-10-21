@@ -27,10 +27,13 @@ public class WaitDiagnosticsService {
         this.target = target;
         this.collector = collector;
         this.repository = repository;
+        target.onTargetChanged(() ->
+            state.set(new State("INITIALIZING", null, null, "NOT_YET_SAMPLED")));
     }
 
     @Scheduled(fixedDelayString = "${dbpulse.waits.interval-ms:5000}", initialDelay = 6000)
     public void poll() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
             state.set(new State("NOT_CONFIGURED", null, null, "MSSQL_NOT_CONFIGURED"));
             return;
@@ -44,6 +47,8 @@ public class WaitDiagnosticsService {
                 "WAIT_COLLECTION_FAILED"));
             log.warn("Wait diagnostics collection failed ({})", ex.getClass().getSimpleName());
         }
+    
+        });
     }
 
     private WaitSampleResult store() throws java.sql.SQLException {
