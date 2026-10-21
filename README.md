@@ -10,6 +10,38 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## v0.14 Windows 호스트 실행 + 선택적 DPAPI 보안 저장 (개발 기능)
+
+> **Windows 사용자 계정 DPAPI 암호화 저장이 구현됐습니다.** 단, 기존 Docker 백엔드는 Linux이므로 이 기능이 **비활성화**됩니다. 사용자가 설치한 Windows 사용자 세션에서 Java 백엔드를 직접 실행하는 **개발용 Windows 호스트 모드**에서만 활성화됩니다. Windows `.exe` 설치 파일은 아직 만들지 않았습니다.
+
+이 기능은 기존 DB 연결을 바꾸지 않으며, PostgreSQL에 저장된 메트릭·등록 정보·Incident·Query Store 이력도 삭제하지 않습니다.
+
+- `대상 서버` 화면은 `/api/v1/local-targets/credential-capability`로 Windows DPAPI 사용 가능 여부를 확인합니다. Docker에서는 **암호화 저장 없음**으로 표시하고 기존 수동 비밀번호 입력 방식을 유지합니다.
+- Windows 호스트 모드에서 DB 모니터링이 `ONLINE`이면 `이 PC에 암호화 저장` 버튼을 직접 눌러 저장합니다. `%LOCALAPPDATA%\DBPulse\credentials\<등록 UUID>.dpapi`에 **Windows 사용자 계정으로만 복호화 가능한 암호문**을 저장합니다. 비밀번호 평문은 파일/GET API/브라우저 저장소에 보관하지 않습니다.
+- 그 뒤 `현재 DB 연결 해제`를 누르고 `로컬 등록 대상`에서 해당 DB의 `저장된 연결`을 클릭하면 **비밀번호를 재입력하지 않고** 현재 Windows 계정의 DPAPI 암호문을 복호화해 실제 MSSQL 연결 검증 후 수집을 시작합니다.
+- `암호 해제`로 저장된 비밀번호만 지울 수 있습니다. `등록 해제`는 암호문까지 제거하지만 실제 SQL Server DB와 기존 수집 이력은 그대로입니다. 정상적인 데이터 수집 여부는 계속 `ONLINE`을 확인해야 합니다.
+- **자동 시작 시 무단 DB 재접속 없음:** Windows 호스트 재실행 후에도 등록 DB에 저장된 자격증명을 사용할 수 있지만, 시작은 사용자가 직접 `저장된 연결`을 선택해야 합니다. 백그라운드 무인 자동 재연결은 설치 프로그램/선택 동의 기능 준비 후 개발합니다.
+
+### Windows 호스트 모드 실행(현재 개발 테스트)
+
+```powershell
+# Windows PowerShell에서 실행. Docker 기존 Postgres는 계속 사용하고
+# Docker 백엔드만 중지한 다음 Windows 로그인 계정으로 Java 백엔드 실행.
+# Java 21 필요. Maven이 없으면 Docker 빌더로 JAR을 빌드합니다.
+Set-Location D:\Projects\dbpulse-platform
+git status --short
+git pull --ff-only origin feature/target-onboarding-v0.14
+.\tools\run_dbpulse_windows_host_lab.ps1
+
+# 프론트엔드는 별도 PowerShell 창에서 실행.
+Set-Location D:\Projects\dbpulse-platform\frontend
+npm.cmd run dev
+```
+
+실행·저장·연결 해제·재접속·기존 Docker 모드 복귀의 자세한 검증 항목과 보안 주의사항은 [Windows DPAPI 구현 및 로컬 검증 안내](docs/PHASE14_WINDOWS_DPAPI_HANDOFF.md)를 참고하세요. **GitHub CI는 Linux에서 Windows DPAPI를 실제로 호출하지 않으므로 로컬 검증이 필요합니다.**
+
+---
+
 ## v0.14 UI 연결 — 기존 DBPulseLab 자동 연결을 끄고 원하는 DB 모니터링 시작
 
 > 사용자 요청 반영: **등록된 DB 클릭 → 비밀번호 재입력 → 모니터링 시작**, **현재 DB 연결 해제**를 모두 웹에서 처리. 백엔드·Docker 재시작 버튼 없이 연결을 안전하게 바꿉니다.
