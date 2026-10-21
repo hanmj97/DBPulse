@@ -10,6 +10,33 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## Windows DBPulse.exe app-image 미리보기 (jpackage · 아직 설치기는 아님)
+
+Windows Java 21 `jpackage`로 실제 **`DBPulse.exe` 실행 파일 + 전용 Java 런타임 + React + Spring Boot**를 하나의 폴더로 생성하는 실험적 배포 단계가 추가됐습니다. 최초 한 번 메타 PostgreSQL 접속 비밀번호를 Windows 사용자 DPAPI로 암호화 등록하면, 이후 더블클릭 실행 시 백엔드를 시작하고 `http://127.0.0.1:18081/#targets` 브라우저를 열도록 설계했습니다.
+
+```powershell
+# 첫 빌드/프로비저닝: 현재 사용자의 Windows 로컬 개발 PC에서 실행
+# 기존 Spring Boot PowerShell 콘솔은 Ctrl+C로 종료하고 시작
+Set-Location D:\Projects\dbpulse-platform
+git status --short
+git pull --ff-only origin feature/target-onboarding-v0.14
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+
+# React+Spring Boot+Java Runtime이 포함된 버전별 Windows app-image 빌드
+.\tools\build_dbpulse_windows_app_image.ps1
+
+# 사용자 .env 의 DBPulse PostgreSQL 접속 암호를 Windows DPAPI로 1회 등록
+.\tools\provision_dbpulse_windows_app.ps1
+```
+
+출력되는 `backend\target\windows-previews\<빌드ID>\DBPulse\DBPulse.exe`를 직접 실행해 확인합니다. 버전별 폴더 생성으로 **기존 실행 중인 JAR/EXE를 덮어쓰지 않습니다.** Windows CI에서도 app-image를 빌드하고 현재 사용자 DPAPI 암호화·복호화를 실제로 시험하며, 성공한 실행에서는 `DBPulse-v0.14-Windows-app-image-preview` 워크플로 아티팩트를 받을 수 있습니다.
+
+**미완료:** 시스템 설치/제거 프로그램, 디지털 서명, 자동 업데이트, Docker 없는 PostgreSQL 운영. 아직 Docker Desktop의 **기존 dbpulse PostgreSQL 컨테이너가 켜져 있어야** 작동합니다. 기존 볼륨/데이터/SQL Server DPAPI 비밀번호를 삭제하거나 초기화하지 마세요.
+
+[Windows EXE 빌드·한 번만 암호화 설정·검증 절차](docs/PHASE14_WINDOWS_APP_IMAGE.md)
+
+---
+
 ## v0.14 React + Spring Boot 단일 프로세스 실행 (Windows 개발 미리보기)
 
 > **더 이상 Vite 프론트엔드와 Spring Boot를 각각 실행할 필요가 없습니다.**
