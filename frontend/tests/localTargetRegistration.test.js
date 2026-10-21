@@ -57,7 +57,14 @@ test('the target is clearly inactive and sensitive password is cleared after reg
   assert.match(form,/현재 DB 연결 해제 · 다른 DB 선택/);
   assert.match(form,/aria-pressed=\{selectedId===item\.id\}/);
   assert.match(form,/window\.confirm/);
-  assert.match(form,/disabled=\{busy\|\|enabled!==true\|\|!form\.password\|\|Boolean\(activeItem\)\}/);
+  assert.match(form,/disabled=\{busy\|\|enabled!==true\|\|\(!form\.password&&!useSavedCredential\)\|\|Boolean\(activeItem\)\}/);
+  assert.match(form,/onClick=\{startSelected\}/);
+  assert.match(form,/if\(useSavedCredential\)\{/);
+  assert.match(form,/startSaved\(selectedItem\)/);
+  assert.match(form,/required=\{!useSavedCredential\} type="password"/);
+  assert.match(form,/savedCredential&&!form\.password/);
+  assert.match(form,/저장된 비밀번호로 모니터링 시작/);
+  assert.match(form,/자체 서명 인증서를 사용하는 로컬 테스트 DB라면 고급 연결 설정/);
   assert.match(css,/\.dbp-local-form/);
   assert.match(css,/@media\(max-width:670px\)/);
 });
@@ -99,4 +106,13 @@ test('Windows DPAPI controls are opt-in, unavailable in Docker, and never leak s
   assert.match(css,/\.dbp-local-credential-availability/);
   assert.match(css,/\.dbp-local-vault-save/);
   assert.match(css,/\.dbp-local-registry-actions button\.dbp-local-vault-reconnect/);
+});
+
+test('selected encrypted target uses primary monitoring action with no typed password',()=>{
+  assert.match(form,/const selectedItem=items\.find\(item=>item\.id===selectedId\)/);
+  assert.match(form,/Boolean\(secureStorage&&selectedItem\?\.savedCredential&&!form\.password\)/);
+  assert.match(form,/if\(useSavedCredential\)startSelected\(\);else submit\('test'\)/);
+  assert.match(form,/setForm\(\{[\s\S]*password:''[\s\S]*trustLocalCertificate:false/);
+  assert.match(form,/if\(form\.password\)submit\('start'\)/);
+  assert.match(css,/\.dbp-local-saved-selection/);
 });
