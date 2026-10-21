@@ -29,10 +29,13 @@ public class BlockingChainService {
         this.target = target;
         this.collector = collector;
         this.repository = repository;
+        target.onTargetChanged(() ->
+            state.set(new SnapshotState("INITIALIZING", null, null, "NOT_YET_SAMPLED")));
     }
 
     @Scheduled(fixedDelayString = "${dbpulse.blocking.interval-ms:5000}", initialDelay = 4000)
     public void poll() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
             state.set(new SnapshotState("NOT_CONFIGURED", null, null, "MSSQL_NOT_CONFIGURED"));
             return;
@@ -47,6 +50,8 @@ public class BlockingChainService {
                 "BLOCKING_COLLECTION_FAILED"));
             log.warn("Blocking chain collection failed ({})", ex.getClass().getSimpleName());
         }
+    
+        });
     }
 
     public BlockingView current() {
