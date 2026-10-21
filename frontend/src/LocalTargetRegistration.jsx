@@ -13,6 +13,8 @@ const CODES={
   CONNECTION_FAILED:'SQL Server TCP 연결이 거부되었거나 호스트에 접근할 수 없습니다. 호스트·포트·방화벽을 확인해 주세요.',
   CONNECTION_TIMEOUT:'SQL Server 연결 시간이 초과됐습니다. 네트워크 상태와 서버 응답을 확인해 주세요.',
   TLS_CERTIFICATE_UNTRUSTED:'SQL Server TLS 인증서를 신뢰할 수 없습니다. 서버 인증서를 확인하세요. 자신이 관리하는 로컬 개발 DB인 경우에만 고급 설정의 예외를 검토해 주세요.',
+  TLS_HANDSHAKE_FAILED:'SQL Server TLS 협상에 실패했습니다. 인증서 또는 서버 TLS 설정을 확인해 주세요. 개발용 로컬 DB가 아니라면 인증서 검증 예외를 사용하지 마세요.',
+  DATABASE_ACCESS_FAILED:'DB 로그인은 확인됐지만 지정한 데이터베이스에 접근할 수 없습니다. DB 이름과 사용자 매핑을 확인해 주세요.',
   CONNECTION_OR_TLS_FAILED:'SQL Server 연결에 실패했습니다. TLS 설정, SQL Server 로그, 서버 접근 권한을 확인해 주세요.',
   TARGET_ALREADY_REGISTERED:'같은 서버·DB·로그인 대상이 이미 등록되어 있습니다.',
   CREDENTIAL_NOT_STORED_COLLECTOR_NOT_STARTED:'대상 정보만 등록되었습니다. 비밀번호는 저장되지 않았고 아직 모니터링하지 않습니다.',
