@@ -10,6 +10,25 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## DBPulse.exe 중복 실행 → 실행 중인 화면 다시 열기
+
+Windows DBPulse.exe가 이미 `127.0.0.1:18081`에서 실행 중일 때 동일한 앱 이미지를 다시 더블클릭하면, **새 데이터 수집/Java 서버를 시작하지 않고 기존 브라우저 화면만 다시 엽니다.** 시작 전 `/api/v1/health`의 DBPulse 정보와 정적 React 화면이 실제로 확인된 경우에만 수행합니다. 잘 모르는 다른 프로그램이 18081 포트를 사용 중이라면 **안전하게 오류 안내만 표시하며 해당 프로그램을 종료하거나 브라우저로 열지 않습니다.**
+
+새 앱 이미지 빌드(기존 Windows 프로세스는 종료하지 않아도 별도 경로 생성):
+
+```powershell
+# 최신 소스 적용 및 Windows 미리보기 새 버전 빌드
+Set-Location D:\Projects\dbpulse-platform
+git status --short
+git pull --ff-only origin feature/target-onboarding-v0.14
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+.\tools\build_dbpulse_windows_app_image.ps1
+```
+
+이미 Windows DPAPI 메타데이터 암호화 등록을 완료했다면 **설정 스크립트를 다시 실행할 필요는 없습니다.** 새로 생성된 `DBPulse.exe`를 실행해 브라우저가 열리는지 확인하고, **첫 번째 앱을 실행한 상태에서 다시 더블클릭해 재사용 동작**을 시험해 주세요. 이 기능은 PostgreSQL Docker 컨테이너/데이터나 등록 DB의 비밀번호를 변경하지 않습니다. [상세 수용 테스트](docs/PHASE14_WINDOWS_APP_IMAGE.md).
+
+---
+
 ## Windows DBPulse.exe app-image 미리보기 (jpackage · 아직 설치기는 아님)
 
 Windows Java 21 `jpackage`로 실제 **`DBPulse.exe` 실행 파일 + 전용 Java 런타임 + React + Spring Boot**를 하나의 폴더로 생성하는 실험적 배포 단계가 추가됐습니다. 최초 한 번 메타 PostgreSQL 접속 비밀번호를 Windows 사용자 DPAPI로 암호화 등록하면, 이후 더블클릭 실행 시 백엔드를 시작하고 `http://127.0.0.1:18081/#targets` 브라우저를 열도록 설계했습니다.
