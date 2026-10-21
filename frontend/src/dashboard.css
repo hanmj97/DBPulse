@@ -1116,3 +1116,90 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .rev-ops-trend .rev-ops-chart-area svg{height:185px}
   .rev-ops-chart-readout{gap:8px 12px;padding:9px}
 }
+
+
+/* v0.13 Overview right-rail density.
+   Keep the shared trend row stable as Wait/incident counts grow.
+   Additional observed items remain accessible in detail pages. */
+.rev-ops-primary .rev-ops-side-stack{
+  align-content:start;
+  align-self:start;
+}
+.rev-ops-primary .rev-ops-mini-panel .rev-panel-heading{
+  margin-bottom:8px;
+}
+.rev-ops-primary .rev-ops-mini-panel .rev-card-foot{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  line-height:1.45;
+  margin-top:8px;
+  padding:0;
+}
+.rev-ops-alert-preview .rev-alert-item{
+  height:49px;
+  min-height:0;
+  max-height:49px;
+  box-sizing:border-box;
+  overflow:hidden;
+  padding:6px 4px;
+  gap:9px;
+}
+.rev-ops-alert-preview .rev-alert-item>span:nth-child(2){
+  display:grid;
+  min-width:0;
+  gap:2px;
+  flex:1;
+}
+.rev-ops-alert-preview .rev-alert-item strong,
+.rev-ops-alert-preview .rev-alert-item small{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  -webkit-line-clamp:unset;
+  font-size:11px;
+  line-height:1.55;
+}
+.rev-ops-alert-preview .rev-alert-item small{
+  color:var(--t-secondary);
+  font-size:10px;
+}
+.rev-ops-more-signals{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px 9px;
+  padding-top:8px;
+  border-top:1px solid var(--t-line);
+  color:var(--t-muted);
+  font-size:11px;
+}
+.rev-ops-more-signals>span{font-weight:700}
+.rev-ops-more-link,
+.rev-ops-more-signals button{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  cursor:pointer;
+  border:0;
+  background:transparent;
+  padding:2px 0;
+  font-size:11px;
+  font-weight:700;
+  color:var(--t-accent);
+  text-align:left;
+}
+.rev-ops-more-link{margin-top:6px}
+.rev-ops-more-link:hover,
+.rev-ops-more-signals button:hover{text-decoration:underline}
+.rev-ops-mini-panel .rev-wait-bars{
+  gap:7px;
+}
+@media(max-width:670px){
+  .rev-ops-alert-preview .rev-alert-item strong{
+    font-size:11px;
+  }
+}
