@@ -49,7 +49,8 @@ public class QueryPlanOperatorController {
     public PlanEvidenceResponse inspect(@PathVariable String id,
                                                           @PathVariable long queryId,
                                                           @PathVariable long planId) {
-        if (!target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return target.withReadLease(() -> {
+        if (!target.isEnabled() || !target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if (queryId <= 0 || planId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         var state = queryStore.state();
         if (!List.of("ONLINE", "QUERY_STORE_READ_ONLY").contains(state.status())
@@ -70,6 +71,8 @@ public class QueryPlanOperatorController {
             log.warn("Read-only plan operator inspection failed ({})", ex.getClass().getSimpleName());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
         }
+    
+        });
     }
     /**
      * Backward-compatible top-level fields; the new "correlation" is additive.
