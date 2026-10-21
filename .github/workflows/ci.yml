@@ -42,3 +42,39 @@ jobs:
       - name: Build dashboard
         working-directory: frontend
         run: npm run build
+
+  desktop-bundle:
+    name: Unified Windows-host JAR bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Build production React dashboard
+        working-directory: frontend
+        run: npm run build
+      - name: Bundle dashboard in Spring Boot JAR
+        working-directory: backend
+        run: mvn -B --no-transfer-progress -Pdesktop-bundle -DskipTests package
+      - name: Verify classpath static index and bundled JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar tf backend/target/dbpulse-api.jar > /tmp/dbpulse-jar-entries.txt
+          grep -Fx 'BOOT-INF/classes/static/index.html' /tmp/dbpulse-jar-entries.txt
+          grep -E '^BOOT-INF/classes/static/assets/[^/]+\.js$' /tmp/dbpulse-jar-entries.txt | head -1
+          grep -Fx 'BOOT-INF/classes/application.yml' /tmp/dbpulse-jar-entries.txt
+          if grep -E '^BOOT-INF/classes/static/(src|node_modules|\.env)' /tmp/dbpulse-jar-entries.txt; then
+            echo 'ERROR: development or secret files inside desktop JAR'
+            exit 1
+          fi
