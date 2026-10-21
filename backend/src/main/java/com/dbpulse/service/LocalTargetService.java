@@ -15,6 +15,8 @@ import javax.net.ssl.SSLException;
 import java.time.Instant;
 import java.util.List;
 import com.dbpulse.config.MssqlTargetProperties;
+import com.dbpulse.security.TargetCredentialStore;
+import com.dbpulse.security.DisabledTargetCredentialStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
@@ -34,6 +36,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class LocalTargetService {
     private final JdbcTemplate jdbc;
     private final MssqlTargetProperties activeTarget;
+    private final TargetCredentialStore credentialStore;
     private final boolean enabled;
     private final boolean allowLocalSelfSigned;
     private final LocalTargetPolicy policy;
@@ -47,18 +50,27 @@ public class LocalTargetService {
         @Value("${dbpulse.local-targets.allow-self-signed-lab:false}") boolean allowLocalSelfSigned,
         @Value("${dbpulse.local-targets.allowed-hosts:host.docker.internal,localhost,127.0.0.1}")
             String allowedHosts,
-        MssqlTargetProperties activeTarget) {
+        MssqlTargetProperties activeTarget, TargetCredentialStore credentialStore) {
         this.jdbc = jdbc;
         this.enabled = enabled;
         this.allowLocalSelfSigned = allowLocalSelfSigned;
         this.policy = new LocalTargetPolicy(allowedHosts);
         this.activeTarget = activeTarget;
+        this.credentialStore = credentialStore;
     }
 
-    /** Test-only compatibility constructor: no live activation is available. */
+    /** Test compatibility: no secret persistence unless explicitly injected. */
+    public LocalTargetService(JdbcTemplate jdbc, boolean enabled,
+        boolean allowLocalSelfSigned, String allowedHosts,
+        MssqlTargetProperties activeTarget) {
+        this(jdbc, enabled, allowLocalSelfSigned, allowedHosts,
+            activeTarget, new DisabledTargetCredentialStore());
+    }
+
     public LocalTargetService(JdbcTemplate jdbc, boolean enabled,
         boolean allowLocalSelfSigned, String allowedHosts) {
-        this(jdbc, enabled, allowLocalSelfSigned, allowedHosts, new MssqlTargetProperties());
+        this(jdbc, enabled, allowLocalSelfSigned, allowedHosts,
+            new MssqlTargetProperties(), new DisabledTargetCredentialStore());
     }
 
     public boolean isEnabled() { return enabled; }
@@ -193,6 +205,7 @@ public class LocalTargetService {
                 rs.getString("id"), rs.getString("display_name"),
                 rs.getString("server_host"), rs.getInt("server_port"),
                 rs.getString("database_name"), rs.getString("login_name"),
+                credentialStore.has(rs.getString("id")),
                 activeTarget.isUiActivated() && rs.getString("id").equals(activeTarget.getId())
                     ? "ACTIVE_IN_MEMORY" : rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant()));
@@ -308,6 +321,9 @@ public class LocalTargetService {
     public synchronized RegistryResult unregister(String id) {
         requireEnabled();
         requireManageable(id);
+        // Forget persisted DPAPI blob before dropping its metadata reference.
+        // An existing active target is already forbidden by requireManageable().
+        forgetIfPresent(id);
         int removed = jdbc.update("DELETE FROM local_target_registry WHERE id = ?", id);
         if (removed != 1) throw new ResponseStatusException(HttpStatus.NOT_FOUND,
             "REGISTERED_TARGET_NOT_FOUND");
@@ -329,6 +345,96 @@ public class LocalTargetService {
     public record RenameRequest(String name) {}
     public record RegistryResult(String status, String code, String id) {}
 
+    public CredentialCapability credentialCapability() {
+        requireEnabled();
+        return new CredentialCapability(credentialStore.isAvailable(),
+            credentialStore.isAvailable() ? "WINDOWS_DPAPI_USER" : "UNAVAILABLE_IN_DOCKER");
+    }
+
+    public synchronized CredentialResult rememberActiveCredential(String id) {
+        requireEnabled();
+        if (!credentialStore.isAvailable()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "WINDOWS_DPAPI_NOT_AVAILABLE");
+        }
+        if (!activeTarget.isUiActivated() || !activeTarget.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "MONITORING_TARGET_NOT_ACTIVE");
+        }
+        try {
+            credentialStore.save(id, activeTarget.getPassword());
+        } catch (RuntimeException failure) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CREDENTIAL_SAVE_FAILED");
+        }
+        return new CredentialResult("SAVED", "ENCRYPTED_FOR_CURRENT_WINDOWS_USER", id);
+    }
+
+    public synchronized CredentialResult forgetCredential(String id) {
+        requireEnabled();
+        if (!credentialStore.isAvailable()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "WINDOWS_DPAPI_NOT_AVAILABLE");
+        }
+        requireUuid(id);
+        forgetIfPresent(id);
+        return new CredentialResult("FORGOTTEN", "SAVED_CREDENTIAL_REMOVED", id);
+    }
+
+    private void forgetIfPresent(String id) {
+        if (!credentialStore.isAvailable()) return;
+        try {
+            credentialStore.remove(id);
+        } catch (RuntimeException failure) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CREDENTIAL_DELETE_FAILED");
+        }
+    }
+
+    public synchronized StartResult startWithSavedCredential(String id,
+        boolean trustLocalCertificate) {
+        requireEnabled();
+        if (activeTarget.isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "STOP_CURRENT_TARGET_FIRST");
+        }
+        if (!credentialStore.isAvailable()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "WINDOWS_DPAPI_NOT_AVAILABLE");
+        }
+        requireUuid(id);
+        var registered = jdbc.query("""
+            SELECT display_name, server_host, server_port, database_name, login_name
+            FROM local_target_registry WHERE id = ?
+            """, (rs, row) -> new StoredConnection(
+                rs.getString("display_name"), rs.getString("server_host"),
+                rs.getInt("server_port"), rs.getString("database_name"),
+                rs.getString("login_name")), id);
+        if (registered.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "REGISTERED_TARGET_NOT_FOUND");
+        }
+        String password;
+        try {
+            password = credentialStore.load(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.CONFLICT, "SAVED_CREDENTIAL_MISSING"));
+        } catch (ResponseStatusException known) {
+            throw known;
+        } catch (RuntimeException failure) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "SAVED_CREDENTIAL_UNAVAILABLE");
+        }
+        var item = registered.get(0);
+        // Same allow-list/TLS/read-only probe as password-entry start. Never
+        // bypass validation merely because an encrypted password exists.
+        return startMonitoring(new ConnectionDetails(
+            item.name(), item.host(), item.port(), item.databaseName(),
+            item.username(), password, trustLocalCertificate));
+    }
+
+    private record StoredConnection(String name, String host, int port,
+        String databaseName, String username) {}
+    private void requireUuid(String id) {
+        if (id == null || !id.matches(
+            "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_TARGET_ID");
+        }
+    }
+
+    public record SavedStartRequest(boolean trustLocalCertificate) {}
+    public record CredentialCapability(boolean available, String provider) {}
+    public record CredentialResult(String status, String code, String id) {}
     public record StopRequest(String id) {}
     public record StopResult(String status, String code, String id) {}
     public record StartResult(String status, String code, String id) {}
@@ -339,5 +445,6 @@ public class LocalTargetService {
     public record TestResult(String status, String code) {}
     public record RegistrationResult(String status, String code, String id) {}
     public record LocalTargetSummary(String id, String name, String host,
-        int port, String databaseName, String username, String status, Instant createdAt) {}
+        int port, String databaseName, String username, boolean savedCredential,
+        String status, Instant createdAt) {}
 }
