@@ -145,7 +145,7 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
     </div>
     <div className="rev-chart-legend" aria-label="그래프 범례">
       {lines.map(l => <span key={l.key}><i style={{background:l.color}}/>{l.name}</span>)}
-      <span className="rev-ops-cpu-legend">
+      <span className={'rev-ops-cpu-legend'+(hasCpuActivity?'':' inactive')}>
         <i style={{background:'#ffc06f'}}/>
         SQL Server 전체 프로세스 CPU (%) · 60초 표본
         {!cpuReady && <small>({cpuState?.status==='DISABLED'?'수집 비활성':'표본 확인 중'})</small>}
@@ -184,9 +184,9 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
             <circle key={p.at} cx={cpuX(p.at)} cy={cpuY(p.cpu)}
               r="3.5" fill="#ffc06f" stroke="var(--t-card)" strokeWidth="1.3"/>)}
           {cpuReady && cpuPoints.length>0 && <>
-            <text className="rev-ops-cpu-axis-title" x="754" y="26"
+            <text className={'rev-ops-cpu-axis-title'+(hasCpuActivity?'':' idle')} x="754" y="26"
               textAnchor="end" fill="#ffc06f" fontSize="10">CPU %</text>
-            {[0,50,100].map(n=><text key={'cpu-'+n} className="rev-ops-cpu-axis-tick" x="754" y={cpuY(n)+4}
+            {[0,50,100].map(n=><text key={'cpu-'+n} className={'rev-ops-cpu-axis-tick'+(hasCpuActivity?'':' idle')} x="754" y={cpuY(n)+4}
               textAnchor="end" fill="#ffc06f" fontSize="10">{n}%</text>)}
           </>}
           {!hasVisibleActivity && <text className="rev-ops-chart-idle"
@@ -210,7 +210,7 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
       <div className="rev-ops-chart-readout" aria-live="polite">
         <span className="rev-ops-chart-at">{highlightedIndex===null?'최신':'선택'} · {clock(focused?.collectedAt)}</span>
         {lines.map(l=><span key={l.key}>{l.name} <strong>{num(focused?.[l.key])}건</strong></span>)}
-        <span className="rev-ops-cpu-readout">SQL Server CPU
+        <span className={'rev-ops-cpu-readout'+(shownCpu?.cpu>0?'':' inactive')}>SQL Server CPU
           <strong>{shownCpu?shownCpu.cpu+'%':'—'}</strong>
           {shownCpu && <small>표본 {clock(new Date(shownCpu.at))}</small>}
         </span>
