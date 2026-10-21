@@ -74,7 +74,8 @@ public class DeadlockRepository {
     }
 
     public int deleteOld() {
-        return jdbc.update("DELETE FROM deadlock_events WHERE occurred_at < now() - interval '14 days'");
+        return jdbc.update("DELETE FROM deadlock_events WHERE occurred_at < ?",
+            Timestamp.from(Instant.now().minus(14, java.time.temporal.ChronoUnit.DAYS)));
     }
 
     public record DeadlockEventView(long id, Instant occurredAt, int localParticipantCount,
