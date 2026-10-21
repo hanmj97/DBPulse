@@ -38,9 +38,11 @@ public class ApiController {
     @GetMapping("/targets")
     public List<TargetResponse> targets() {
         var state = monitor.state();
-        return List.of(new TargetResponse(target.getId(), target.getName(), "MSSQL",
-            target.isEnabled(), target.getDatabase(), state.status(),
-            state.lastCollectedAt(), state.errorCode()));
+        return List.of(new TargetResponse(target.getId(),
+            target.isEnabled() ? target.getName() : "모니터링 대상 미설정",
+            "MSSQL", target.isEnabled(),
+            target.isEnabled() ? target.getDatabase() : null,
+            state.status(), state.lastCollectedAt(), state.errorCode()));
     }
 
     @GetMapping("/targets/{id}/metrics")
