@@ -10,6 +10,9 @@ import com.dbpulse.service.LocalTargetService.StopResult;
 import com.dbpulse.service.LocalTargetService.TestResult;
 import com.dbpulse.service.LocalTargetService.RenameRequest;
 import com.dbpulse.service.LocalTargetService.RegistryResult;
+import com.dbpulse.service.LocalTargetService.CredentialResult;
+import com.dbpulse.service.LocalTargetService.CredentialCapability;
+import com.dbpulse.service.LocalTargetService.SavedStartRequest;
 import java.util.List;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
@@ -40,6 +43,11 @@ public class LocalTargetController {
     @GetMapping
     public List<LocalTargetSummary> list() {
         return targets.list();
+    }
+
+    @GetMapping("/credential-capability")
+    public CredentialCapability credentialCapability() {
+        return targets.credentialCapability();
     }
 
     @PostMapping(path="/test-connection", consumes=MediaType.APPLICATION_JSON_VALUE)
@@ -80,6 +88,30 @@ public class LocalTargetController {
         @RequestHeader(value="Origin", required=false) String origin) {
         requireLocalPost(guard, origin);
         return targets.unregister(id);
+    }
+
+    @PostMapping(path="/{id}/remember-credential", consumes=MediaType.APPLICATION_JSON_VALUE)
+    public CredentialResult remember(@PathVariable String id,
+        @RequestHeader(value="X-DBPulse-Local-Request", required=false) String guard,
+        @RequestHeader(value="Origin", required=false) String origin) {
+        requireLocalPost(guard, origin);
+        return targets.rememberActiveCredential(id);
+    }
+
+    @PostMapping(path="/{id}/forget-credential", consumes=MediaType.APPLICATION_JSON_VALUE)
+    public CredentialResult forget(@PathVariable String id,
+        @RequestHeader(value="X-DBPulse-Local-Request", required=false) String guard,
+        @RequestHeader(value="Origin", required=false) String origin) {
+        requireLocalPost(guard, origin);
+        return targets.forgetCredential(id);
+    }
+
+    @PostMapping(path="/{id}/start-saved", consumes=MediaType.APPLICATION_JSON_VALUE)
+    public StartResult startSaved(@PathVariable String id, @RequestBody SavedStartRequest request,
+        @RequestHeader(value="X-DBPulse-Local-Request", required=false) String guard,
+        @RequestHeader(value="Origin", required=false) String origin) {
+        requireLocalPost(guard, origin);
+        return targets.startWithSavedCredential(id, request.trustLocalCertificate());
     }
 
     @PostMapping(consumes=MediaType.APPLICATION_JSON_VALUE)
