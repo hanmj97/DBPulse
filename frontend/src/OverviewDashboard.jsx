@@ -178,7 +178,7 @@ function TrendChart({history, sampleLimit, cpuState}) {
           {cpuReady && cpuPoints.length>0 && <>
             <text className="rev-ops-cpu-axis-title" x="754" y="26"
               textAnchor="end" fill="#ffc06f" fontSize="10">CPU %</text>
-            {[0,50,100].map(n=><text key={'cpu-'+n} x="754" y={cpuY(n)+4}
+            {[0,50,100].map(n=><text key={'cpu-'+n} className="rev-ops-cpu-axis-tick" x="754" y={cpuY(n)+4}
               textAnchor="end" fill="#ffc06f" fontSize="10">{n}%</text>)}
           </>}
           {focused && <>
