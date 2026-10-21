@@ -33,8 +33,8 @@ test('history table and timeline are alternate views of same bounded incidents, 
 test('neutral shared zero baseline stays visible while real positive values keep different colored segments',()=>{
   assert.match(jsx,/className="rev-ops-neutral-zero"/);
   assert.match(css,/\.rev-ops-neutral-zero\{/);
-  assert.match(jsx,/lines\.flatMap\(l=>requestSegments\(l\.key\)\.map/);
-  assert.match(jsx,/stroke=\{l\.color\}/);
+  assert.match(jsx,/REQUEST_SERIES\.flatMap\(series=>segments\(series\.key\)\.map/);
+  assert.match(jsx,/stroke=\{series\.color\}/);
   const zeros=[0,0,0,0].map((value,i)=>({value,t:i*5000}));
   assert.deepEqual(nonZeroSegments(zeros,p=>p.value,p=>p.t,20000),[]);
   const events=[0,0,2,2,0,0].map((value,i)=>({value,t:i*5000}));
@@ -44,11 +44,11 @@ test('neutral shared zero baseline stays visible while real positive values keep
 
 test('SQL Server instance CPU legend is bright in both themes even when CPU is zero',()=>{
   assert.match(jsx,/className="rev-ops-cpu-legend"/);
-  assert.match(jsx,/className="rev-ops-cpu-axis-title"/);
-  assert.match(jsx,/className="rev-ops-cpu-axis-tick"/);
+  assert.match(jsx,/function CpuTrendPanel\(/);
+  assert.match(jsx,/\[0,25,50,75,100\]\.map/);
   assert.match(jsx,/SQL Server 전체 프로세스 CPU \(%\)/);
-  assert.match(css,/\.rev-ops-trend \.rev-chart-legend \.rev-ops-cpu-legend\{[\s\S]*?color:#ffbd60 !important/);
-  assert.match(css,/\.rev-ops-trend \.rev-chart-legend \.rev-ops-cpu-legend i\{[\s\S]*?background:#ffbd60 !important/);
-  assert.match(css,/\.rev-ops-trend \.rev-chart-area text\.rev-ops-cpu-axis-title/);
+  assert.match(css,/\.rev-ops-split-charts \.rev-chart-legend \.rev-ops-cpu-legend/);
+  assert.match(css,/background:#ffbd60 !important/);
+  assert.match(css,/\.rev-ops-wide-chart \.rev-ops-split-charts/);
   assert.match(css,/@media\(max-width:670px\)/);
 });
