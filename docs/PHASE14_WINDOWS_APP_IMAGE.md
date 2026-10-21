@@ -57,6 +57,37 @@ docker compose up -d postgres
 
 6. Verify saved DBPulseLab record and `저장된 비밀번호로 모니터링 시작`. On self-signed local Developer SQL Server, explicitly use `고급 연결 설정` when needed; the option is **not** enabled automatically for arbitrary servers. Confirm collector `ONLINE`, Query Store, CPU, Deadlock and Blocking panels. Close the preview console to stop the backend, and restart the EXE to check saved DPAPI credentials.
 
+## DBPulse.exe 중복 실행 시 기존 화면 다시 열기 (2026-10-21)
+
+기존 버전은 Windows DBPulse.exe를 두 번 실행하면 두 번째 Java 프로세스가 PostgreSQL 연결까지 시작한 뒤 **18081 포트 충돌**로 종료됐습니다. 개선 버전에서는 **Spring Boot·PostgreSQL·DPAPI 연결 전에** 아래 순서로 로컬 포트를 검사합니다.
+
+1. Windows 루프백 `127.0.0.1:18081`에 아무 서버도 없으면 새 DBPulse를 정상 실행합니다.
+2. 이미 응답하는 서버가 있으면 `GET /api/v1/health`가 DBPulse 서비스/상태/버전을 포함한 200 JSON인지 확인하고, `GET /`의 실제 DBPulse React HTML 제목도 확인합니다. 첫 실행 직후 HTTP 준비 중이라면 짧게 재확인합니다.
+3. **이미 DBPulse가 정상 실행 중이면** 두 번째 프로세스는 수집기를 시작하거나 DB 비밀번호를 읽지 않고 브라우저의 `http://127.0.0.1:18081/#targets`를 다시 연 후 종료합니다. 기존 첫 DBPulse 백엔드 프로세스는 그대로 실행됩니다.
+4. **다른 프로그램이 18081을 사용 중이거나 응답을 검증할 수 없으면** 해당 프로세스를 종료·조작하지 않고 `PORT_18081_ALREADY_IN_USE` 안내를 제공합니다. 포트를 사용하는 미확인 서버의 화면은 자동으로 열지 않습니다.
+
+이 동작은 **사용자 편의용 루프백 확인이지 다른 계정/악성 로컬 프로그램에 대한 인증이 아닙니다.** DBPulse는 공개 웹/다중 사용자 서비스가 아닌 현재 사용자의 로컬 앱으로 유지해야 합니다. 이 기능은 DBPulse의 기존 SQL Server 수집 이력·PostgreSQL 볼륨·DPAPI 저장 비밀번호를 변경하지 않습니다.
+
+### Windows 수용 테스트
+
+```powershell
+# 현재 개발 브랜치 소스를 동기화하고 버전별 신규 앱 이미지를 생성
+Set-Location D:\Projects\dbpulse-platform
+git status --short
+git pull --ff-only origin feature/target-onboarding-v0.14
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+.\tools\build_dbpulse_windows_app_image.ps1
+
+# 이전에 초기 DPAPI 등록을 완료했다면 이 명령은 다시 실행하지 않음.
+# .\tools\provision_dbpulse_windows_app.ps1
+```
+
+새 빌드의 DBPulse.exe를 첫 번째로 실행하여 UI 로드/대상 수집 `ONLINE`을 확인합니다. 첫 프로그램과 콘솔을 닫지 않은 상태에서 **동일한 EXE를 다시 더블클릭**합니다. 기대 결과: 웹 화면이 다시 열리고, 기존 수집이 중단되거나 백엔드가 재시작되지 않으며, 별도의 `Port 18081 already in use` 오류가 표시되지 않습니다.
+
+실행 중인 프로그램을 종료하려면 원래 DBPulse 콘솔을 정상 종료합니다. 이후 실행 시 새 백엔드가 시작하는 것이 정상입니다. 다른 프로그램이 포트 18081을 사용 중인 경우에는 DBPulse가 미확인 서비스를 열거나 프로세스를 강제로 종료하지 않아야 합니다.
+
+---
+
 ## DBPulse.exe를 더블클릭했는데 창이 닫히는 경우 (2026-10-21)
 
 Windows 실행 파일 생성과 암호화 DPAPI 테스트는 성공해도 **실제 Windows PC의 PostgreSQL 연결과 Spring Boot 서버 구동은 따로 검증해야** 합니다. 이 단계에서 오류가 발생하면 `ApplicationReadyEvent` 전에 실행이 끝나므로 브라우저는 열리지 않습니다.
