@@ -216,3 +216,37 @@
   .dbp-local-registry-entry{grid-template-columns:1fr}
   .dbp-local-registry-actions{justify-content:flex-end}
 }
+
+
+/* Windows-native, explicit opt-in credential vault. Never shown as available in Docker. */
+.dbp-local-credential-availability{
+  display:flex;gap:9px;align-items:center;
+  border:1px solid var(--t-line);
+  border-radius:8px;
+  padding:10px 12px;
+  margin-bottom:10px;
+  color:var(--t-accent);
+  font-size:11px;
+  font-weight:650;
+  background:var(--t-inner);
+}
+.dbp-local-credential-availability.inactive{color:var(--t-secondary)}
+.dbp-local-credential-availability svg{flex-shrink:0}
+.dbp-local-vault-save{
+  display:inline-flex;gap:7px;align-items:center;
+  padding:8px 10px;border-radius:7px;
+  border:1px solid var(--t-accent);
+  background:var(--t-accent-soft);
+  color:var(--t-accent);
+  cursor:pointer;font-size:11px;font-weight:750;
+}
+.dbp-local-vault-save:disabled{cursor:default;opacity:.65}
+.dbp-local-registry-actions button.dbp-local-vault-reconnect{
+  color:var(--t-accent);border-color:var(--t-accent);
+}
+.dbp-local-registry-actions button.dbp-local-vault-forget{
+  color:var(--t-secondary);border-color:var(--t-line);
+}
+@media(max-width:700px){
+  .dbp-local-registry-actions{flex-wrap:wrap}
+}
