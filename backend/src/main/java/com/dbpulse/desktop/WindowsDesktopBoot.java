@@ -161,16 +161,21 @@ public final class WindowsDesktopBoot {
             context.getEnvironment().getPropertySources().addFirst(
                 new MapPropertySource("dbpulse-windows-desktop",props)));
         springApp.setHeadless(false);
-        springApp.addListeners((ApplicationListener<ApplicationReadyEvent>) event -> {
-            try {
-                if(Desktop.isDesktopSupported()) {
-                    Desktop.getDesktop().browse(URI.create("http://127.0.0.1:18081/#targets"));
-                } else {
-                    System.out.println("Open http://127.0.0.1:18081/#targets");
-                }
-            } catch(IOException | UnsupportedOperationException failure) {
+        springApp.addListeners((ApplicationListener<ApplicationReadyEvent>) event ->
+            openDashboard());
+    }
+
+    /** Called both on first successful startup and from a second app launch. */
+    public static void openDashboard() {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(URI.create("http://127.0.0.1:18081/#targets"));
+            } else {
                 System.out.println("Open http://127.0.0.1:18081/#targets");
             }
-        });
+        } catch (IOException | RuntimeException | LinkageError failure) {
+            // Browser launch is best effort; do not stop a healthy local API.
+            System.out.println("Open http://127.0.0.1:18081/#targets");
+        }
     }
 }
