@@ -5,17 +5,19 @@ import {readFileSync} from 'node:fs';
 const overview=readFileSync(new URL('../src/OverviewDashboard.jsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../src/dashboard.css',import.meta.url),'utf8');
 
-test('overview uses independent columns without coupling chart and right card heights',()=>{
-  assert.match(overview,/rev-ops-independent-columns/);
-  assert.match(overview,/rev-ops-main-column/);
-  assert.match(overview,/rev-ops-side-stack/);
+test('full-width chart, bounded diagnostics and tabbed history replace drifting independent columns',()=>{
+  assert.match(overview,/rev-ops-wide-chart/);
+  assert.match(overview,/rev-ops-unified-board/);
+  assert.match(overview,/rev-ops-unified-grid/);
+  assert.match(overview,/rev-ops-history-board/);
+  assert.match(overview,/historyView==='table'/);
+  assert.match(overview,/setHistoryView\('timeline'\)/);
   assert.match(overview,/rev-ops-action-panel/);
-  assert.match(css,/\.rev-ops-independent-columns\{/);
-  assert.match(css,/\.rev-ops-independent-columns>\.rev-ops-main-column/);
-  assert.match(css,/\.rev-ops-independent-columns \.rev-panel\{/);
-  assert.match(css,/height:auto/);
-  assert.match(css,/flex-direction:column/);
-  assert.match(css,/@media\(max-width:1150px\)/);
+  assert.doesNotMatch(overview,/rev-ops-independent-columns/);
+  assert.match(css,/\.rev-ops-unified-grid\{/);
+  assert.match(css,/grid-template-rows:203px/);
+  assert.match(css,/\.rev-ops-history-content \.rev-timeline\{/);
+  assert.match(css,/@media\(max-width:670px\)/);
   assert.match(overview,/target\?\.databaseName \|\| target\?\.name/);
   assert.match(overview,/databaseName=\{target\?\.databaseName\}/);
 });
