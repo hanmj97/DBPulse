@@ -585,7 +585,7 @@ function App() {
     </div>
     <article className="rev-panel"><div className="rev-panel-heading"><div><h2>연결 대상 정보</h2>
       <p>현재 릴리스는 단일 MSSQL 모니터링 대상만 지원합니다.</p></div></div>
-      <p>화면에서 선택한 MSSQL DB를 모니터링합니다. 기존 .env 자동 수집을 꺼야 새 DB를 시작할 수 있으며, 실행 중인 수집기를 바꾸려면 백엔드를 재시작해야 합니다.</p>
+      <p>화면에서 직접 MSSQL DB를 선택해 모니터링할 수 있습니다. 기존 .env 자동 수집을 비활성화한 뒤 등록 목록에서 DB를 선택하세요. 다른 DB로 변경할 때는 현재 연결 해제 버튼을 사용하면 됩니다.</p>
     </article>
     <LocalTargetRegistration/>
     {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info">
