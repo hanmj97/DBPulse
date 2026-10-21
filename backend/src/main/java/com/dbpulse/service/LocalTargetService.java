@@ -283,6 +283,52 @@ public class LocalTargetService {
         return new StopResult("DISCONNECTED", "MONITORING_STOPPED", id);
     }
 
+    /**
+     * Rename the local display label only; identity/host/DB/login and all
+     * historic target_ids remain unchanged. Active targets must be stopped.
+     */
+    public synchronized RegistryResult renameRegistered(String id, String name) {
+        requireEnabled();
+        requireManageable(id);
+        if (!policy.validDisplayName(name)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_DISPLAY_NAME");
+        }
+        int updated = jdbc.update(
+            "UPDATE local_target_registry SET display_name = ? WHERE id = ?",
+            name.trim(), id);
+        if (updated != 1) throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+            "REGISTERED_TARGET_NOT_FOUND");
+        return new RegistryResult("RENAMED", "TARGET_DISPLAY_NAME_UPDATED", id);
+    }
+
+    /**
+     * Unregister only: old metric/incident/Query Store history is deliberately
+     * retained under the original target UUID. No cascade or SQL Server DDL.
+     */
+    public synchronized RegistryResult unregister(String id) {
+        requireEnabled();
+        requireManageable(id);
+        int removed = jdbc.update("DELETE FROM local_target_registry WHERE id = ?", id);
+        if (removed != 1) throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+            "REGISTERED_TARGET_NOT_FOUND");
+        return new RegistryResult("UNREGISTERED", "TARGET_UNREGISTERED_HISTORY_PRESERVED", id);
+    }
+
+    private void requireManageable(String id) {
+        // Only UUIDs issued by registration; never allow the legacy target ID.
+        if (id == null || !id.matches(
+            "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_TARGET_ID");
+        }
+        if (activeTarget.isUiActivated() && id.equalsIgnoreCase(activeTarget.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "DISCONNECT_TARGET_BEFORE_MANAGING");
+        }
+    }
+
+    public record RenameRequest(String name) {}
+    public record RegistryResult(String status, String code, String id) {}
+
     public record StopRequest(String id) {}
     public record StopResult(String status, String code, String id) {}
     public record StartResult(String status, String code, String id) {}
