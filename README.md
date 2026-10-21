@@ -44,6 +44,8 @@ npm.cmd run dev
 
 `http://127.0.0.1:5174/#targets`에서 연결 정보를 입력하고 먼저 `연결 테스트`를 선택합니다. 테스트 성공 후 `검증한 대상 정보 등록`을 누르면 **등록됨 · 수집 미시작** 상태로 저장됩니다. 기존 `DBPulseLab` 수집기는 그대로 작동합니다.
 
+**개발용 자체 서명 TLS:** 로컬 SQL Server Developer만 테스트하고 인증서가 자체 서명인 경우, 서버 측 `.env`에 `DBPULSE_LOCAL_TRUST_SELF_SIGNED=true`를 **명시적으로** 설정하고 백엔드 컨테이너를 다시 생성한 뒤 대상 등록 폼의 “로컬 개발용 자체 서명 인증서 허용” 체크박스를 선택할 수 있습니다. `localhost`/`127.0.0.1`/`host.docker.internal`에서만 허용하며 **원격 DB에는 적용할 수 없습니다**. 실사용은 신뢰 가능한 서버 인증서가 우선입니다.
+
 **TLS 주의:** 새 테스트는 기본으로 서버 인증서를 검증합니다. 자체 서명 인증서만 사용 중인 SQL Server Developer 환경에서는 `CONNECTION_OR_TLS_FAILED`가 반환될 수 있습니다. 보안을 끄거나 권한을 높이기 전에 테스트용 신뢰 인증서 설정을 확인해 주세요. 원격 호스트는 해당 PC/컨테이너에서 명시적 접근 허용이 필요합니다.
 
 연결 테스트는 `POST /api/v1/local-targets/test-connection`, 대상 등록은 `POST /api/v1/local-targets`, 목록은 `GET /api/v1/local-targets`이며, POST는 JSON + `X-DBPulse-Local-Request: 1` 헤더 및 로컬 Origin 보호가 필요합니다.
