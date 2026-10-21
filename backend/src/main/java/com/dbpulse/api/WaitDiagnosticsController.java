@@ -40,6 +40,7 @@ public class WaitDiagnosticsController {
         if (limit < 1 || limit > 50) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be 1..50");
         }
+        if (!target.isEnabled()) return List.of();
         return repository.history(id, limit);
     }
 
