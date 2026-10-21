@@ -150,13 +150,20 @@ public final class WindowsDesktopBoot {
     }
 
     public static void configure(SpringApplication springApp) {
-        String metadataPassword=loadMetadataPassword();
         Map<String,Object> props=new HashMap<>();
         props.put("server.address","127.0.0.1");
         props.put("server.port",18081);
-        props.put("spring.datasource.url","jdbc:postgresql://127.0.0.1:5544/dbpulse");
-        props.put("spring.datasource.username","dbpulse");
-        props.put("spring.datasource.password",metadataPassword);
+        // Explicit local opt-in; an invalid marker or file fails before boot.
+        // Without the marker, the historical PostgreSQL mode is unchanged.
+        Path dbpulseDirectory = directory().getParent();
+        if (DesktopSqliteStorage.isOptedIn(dbpulseDirectory)) {
+            DesktopSqliteStorage.configure(dbpulseDirectory, props);
+        } else {
+            String metadataPassword=loadMetadataPassword();
+            props.put("spring.datasource.url","jdbc:postgresql://127.0.0.1:5544/dbpulse");
+            props.put("spring.datasource.username","dbpulse");
+            props.put("spring.datasource.password",metadataPassword);
+        }
         props.put("dbpulse.credentials.windows-dpapi-enabled",true);
         props.put("dbpulse.local-targets.enabled",true);
         props.put("dbpulse.local-targets.allowed-hosts","localhost,127.0.0.1,host.docker.internal");

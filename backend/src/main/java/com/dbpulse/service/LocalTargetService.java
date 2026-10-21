@@ -15,6 +15,8 @@ import javax.net.ssl.SSLException;
 import java.time.Instant;
 import java.util.List;
 import com.dbpulse.config.MssqlTargetProperties;
+import com.dbpulse.persistence.ImportedTimestampReader;
+import com.dbpulse.persistence.MetadataTimestampValue;
 import com.dbpulse.security.TargetCredentialStore;
 import com.dbpulse.security.DisabledTargetCredentialStore;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,16 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class LocalTargetService {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
     private final MssqlTargetProperties activeTarget;
     private final TargetCredentialStore credentialStore;
     private final boolean enabled;
@@ -184,10 +196,11 @@ public class LocalTargetService {
             String id = java.util.UUID.randomUUID().toString();
             jdbc.update("""
                 INSERT INTO local_target_registry
-                  (id, display_name, server_host, server_port, database_name, login_name, status)
-                VALUES (?, ?, ?, ?, ?, ?, 'REGISTERED_INACTIVE')
+                  (id, display_name, server_host, server_port, database_name, login_name, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'REGISTERED_INACTIVE', ?)
                 """, id, details.name().trim(), details.host().trim(), details.port(),
-                details.databaseName().trim(), details.username().trim());
+                details.databaseName().trim(), details.username().trim(),
+                 MetadataTimestampValue.value(sqlite(), Instant.now()));
             return new RegistrationResult("REGISTERED_INACTIVE",
                 "CREDENTIAL_NOT_STORED_COLLECTOR_NOT_STARTED", id);
         } catch (DataIntegrityViolationException duplicate) {
@@ -208,7 +221,7 @@ public class LocalTargetService {
                 credentialStore.has(rs.getString("id")),
                 activeTarget.isUiActivated() && rs.getString("id").equals(activeTarget.getId())
                     ? "ACTIVE_IN_MEMORY" : rs.getString("status"),
-                rs.getTimestamp("created_at").toInstant()));
+                ImportedTimestampReader.instant(rs, "created_at")));
     }
 
     /**
@@ -247,9 +260,10 @@ public class LocalTargetService {
                     INSERT INTO local_target_registry
                     (id, display_name, server_host, server_port, database_name,
                      login_name, status)
-                    VALUES (?, ?, ?, ?, ?, ?, 'REGISTERED_INACTIVE')
+                    VALUES (?, ?, ?, ?, ?, ?, 'REGISTERED_INACTIVE', ?)
                     """, id, details.name().trim(), details.host().trim(),
-                    details.port(), details.databaseName().trim(), details.username().trim());
+                    details.port(), details.databaseName().trim(), details.username().trim(),
+                     MetadataTimestampValue.value(sqlite(), Instant.now()));
             } catch (DataIntegrityViolationException concurrent) {
                 // If another request registered the target, retrieve the
                 // canonical existing ID rather than creating a second stream.

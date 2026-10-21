@@ -1,6 +1,7 @@
 package com.dbpulse.persistence;
 
-import java.sql.Timestamp;
+import com.dbpulse.persistence.ImportedTimestampReader;
+import com.dbpulse.persistence.MetadataTimestampValue;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,14 +14,24 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class IncidentWaitEvidenceRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public IncidentWaitEvidenceRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
     public WaitEvidence read(String targetId, Instant from, Instant to) {
-        Timestamp begin = Timestamp.from(from);
-        Timestamp end = Timestamp.from(to);
+        Object begin = MetadataTimestampValue.value(sqlite(), from);
+        Object end = MetadataTimestampValue.value(sqlite(), to);
 
         Long sampleCount = jdbc.queryForObject("""
             SELECT COUNT(*) FROM wait_samples
@@ -55,7 +66,7 @@ public class IncidentWaitEvidenceRepository {
             ORDER BY s.collected_at DESC, o.wait_ms DESC, o.session_id
             LIMIT 12
             """, (rs, index) -> new HistoricalWait(
-                rs.getTimestamp("collected_at").toInstant(), rs.getInt("session_id"),
+                ImportedTimestampReader.instant(rs, "collected_at"), rs.getInt("session_id"),
                 rs.getString("wait_type"), rs.getString("wait_category"),
                 rs.getString("resource_kind"), rs.getLong("wait_ms"),
                 (Integer) rs.getObject("blocking_session_id")

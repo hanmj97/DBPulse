@@ -12,6 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class WaitRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public WaitRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -22,7 +32,7 @@ public class WaitRepository {
         Long id = jdbc.queryForObject("""
             INSERT INTO wait_samples (target_id, collected_at, observed_count, limit_reached)
             VALUES (?, ?, ?, ?) RETURNING id
-            """, Long.class, targetId, Timestamp.from(sample.collectedAt()),
+            """, Long.class, targetId, MetadataTimestampValue.value(sqlite(), sample.collectedAt()),
             sample.observations().size(), sample.limitReached());
         if (id == null) throw new IllegalStateException("WAIT_SAMPLE_ID_NOT_RETURNED");
         if (!sample.observations().isEmpty()) {
@@ -55,7 +65,7 @@ public class WaitRepository {
             SELECT collected_at, observed_count, limit_reached
             FROM wait_samples WHERE id = ? AND target_id = ?
             """, (rs, i) -> new SampleHeader(
-                rs.getTimestamp("collected_at").toInstant(),
+                ImportedTimestampReader.instant(rs, "collected_at"),
                 rs.getInt("observed_count"), rs.getBoolean("limit_reached")),
             sampleId, targetId);
         if (headers.isEmpty()) throw new IllegalStateException("WAIT_SAMPLE_MISSING");
@@ -88,7 +98,7 @@ public class WaitRepository {
             ORDER BY s.collected_at DESC, o.wait_ms DESC
             LIMIT ?
             """, (rs, i) -> new HistoryEntry(
-                rs.getTimestamp("collected_at").toInstant(),
+                ImportedTimestampReader.instant(rs, "collected_at"),
                 new WaitObservation(
                     rs.getInt("session_id"), rs.getString("wait_type"),
                     rs.getString("wait_category"), rs.getString("resource_kind"),
@@ -101,7 +111,7 @@ public class WaitRepository {
     public int deleteOldSamples() {
         return jdbc.update(
             "DELETE FROM wait_samples WHERE collected_at < ?",
-            Timestamp.from(java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
+            MetadataTimestampValue.value(sqlite(), java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
     }
 
     private record SampleHeader(java.time.Instant collectedAt, int observedCount,

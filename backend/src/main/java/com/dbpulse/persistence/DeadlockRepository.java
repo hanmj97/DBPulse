@@ -13,6 +13,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class DeadlockRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public DeadlockRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -32,7 +42,7 @@ public class DeadlockRepository {
                 ON CONFLICT (target_id, event_key) DO NOTHING
                 RETURNING id
                 """, (rs, rowNum) -> rs.getLong(1),
-                targetId, event.eventKey(), Timestamp.from(event.occurredAt()),
+                targetId, event.eventKey(), MetadataTimestampValue.value(sqlite(), event.occurredAt()),
                 event.participants().size(), victim);
             if (ids.isEmpty()) continue;
             long eventId = ids.getFirst();
@@ -55,7 +65,7 @@ public class DeadlockRepository {
              WHERE target_id = ?
              ORDER BY occurred_at DESC, id DESC LIMIT ?
             """, (rs, index) -> new DeadlockEventView(
-                rs.getLong("id"), rs.getTimestamp("occurred_at").toInstant(),
+                rs.getLong("id"), ImportedTimestampReader.instant(rs, "occurred_at"),
                 rs.getInt("local_participant_count"),
                 (Integer) rs.getObject("victim_session_id"), List.of()),
             targetId, limit);

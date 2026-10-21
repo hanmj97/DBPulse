@@ -35,7 +35,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class LocalTargetController {
     private static final Set<String> LOCAL_ORIGINS = Set.of(
         "http://127.0.0.1:5174", "http://localhost:5174",
-        "http://127.0.0.1:18081", "http://localhost:18081");
+        "http://127.0.0.1:18081", "http://localhost:18081",
+        "http://127.0.0.1:18082", "http://localhost:18082");
     private final LocalTargetService targets;
 
     public LocalTargetController(LocalTargetService targets) { this.targets = targets; }

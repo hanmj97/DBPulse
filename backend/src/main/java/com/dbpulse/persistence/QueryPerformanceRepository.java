@@ -9,6 +9,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class QueryPerformanceRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public QueryPerformanceRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
@@ -22,14 +32,14 @@ public class QueryPerformanceRepository {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, rows, rows.size(), (ps, row) -> {
                 ps.setString(1, targetId);
-                ps.setTimestamp(2, Timestamp.from(row.collectedAt()));
+                ps.setObject(2, MetadataTimestampValue.value(sqlite(), row.collectedAt()));
                 ps.setLong(3, row.queryId());
                 ps.setLong(4, row.planId());
                 ps.setLong(5, row.executionCount());
                 ps.setDouble(6, row.avgDurationMs());
                 ps.setDouble(7, row.avgCpuMs());
                 ps.setDouble(8, row.avgLogicalReadsPages());
-                ps.setTimestamp(9, Timestamp.from(row.lastExecutedAt()));
+                ps.setObject(9, MetadataTimestampValue.value(sqlite(), row.lastExecutedAt()));
                 ps.setString(10, row.diagnosisCode());
                 ps.setString(11, row.sourceCategory());
             });
@@ -38,7 +48,7 @@ public class QueryPerformanceRepository {
     /** Bounded local storage; call from the daily scheduled cleanup. */
     public int purgeOlderThanSevenDays() {
         return jdbc.update("DELETE FROM query_performance_snapshots WHERE collected_at < ?",
-            Timestamp.from(java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
+            MetadataTimestampValue.value(sqlite(), java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
     }
 
     /** Only fresh rows from the most recent successful run; no stale 'live' values. */
@@ -53,13 +63,13 @@ public class QueryPerformanceRepository {
             ORDER BY avg_duration_ms DESC
             LIMIT ?
             """, (rs, i) -> new QueryPerformanceSnapshot(
-                rs.getTimestamp("collected_at").toInstant(),
+                ImportedTimestampReader.instant(rs, "collected_at"),
                 rs.getLong("query_id"), rs.getLong("plan_id"),
                 rs.getLong("execution_count"), rs.getDouble("avg_duration_ms"),
                 rs.getDouble("avg_cpu_ms"), rs.getDouble("avg_logical_reads_pages"),
-                rs.getTimestamp("last_executed_at").toInstant(),
+                ImportedTimestampReader.instant(rs, "last_executed_at"),
                 rs.getString("diagnosis_code"), rs.getString("source_category")
-            ), targetId, Timestamp.from(sampledAt),
-               Timestamp.from(java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.MINUTES)), limit);
+            ), targetId, MetadataTimestampValue.value(sqlite(), sampledAt),
+               MetadataTimestampValue.value(sqlite(), java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.MINUTES)), limit);
     }
 }
