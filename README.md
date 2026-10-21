@@ -10,6 +10,31 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## v0.14 React + Spring Boot 단일 프로세스 실행 (Windows 개발 미리보기)
+
+> **더 이상 Vite 프론트엔드와 Spring Boot를 각각 실행할 필요가 없습니다.**
+> React 배포용 파일을 Spring Boot JAR에 포함해 `http://127.0.0.1:18081/#targets`에서 화면과 API를 함께 제공합니다. 준비되면 브라우저도 자동으로 열립니다.
+
+```powershell
+# Windows PC에서 통합 실행 (Node, Java 21 JDK, Docker Desktop 필요)
+# Maven이 없다면 제한된 Docker 빌드 컨텍스트에서 Maven JAR만 빌드
+Set-Location D:\Projects\dbpulse-platform
+git status --short
+git pull --ff-only origin feature/target-onboarding-v0.14
+
+# 이 PowerShell 창에만 적용, 관리자/영구 실행 정책 변경 불필요
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+
+# React 빌드 → 단일 JAR → Windows 백엔드 실행 → 브라우저 열기
+.\tools\run_dbpulse_windows_ui.ps1
+```
+
+이전에 열어두었던 `npm.cmd run dev`(5174 포트)는 종료해도 됩니다. **이제 접속 주소는 18081**입니다. Windows 사용자 DPAPI에 저장된 DB 비밀번호와 기존 Docker PostgreSQL 볼륨은 계속 보존됩니다. 단, **메타 PostgreSQL은 아직 Docker에 있으며, 단독 설치 .exe는 아직 제공되지 않습니다.** 기존 실행 코드와 시크릿은 절대 삭제하지 마세요.
+
+[Windows 통합 실행 가이드 및 검증 항목](docs/PHASE14_WINDOWS_UI_BUNDLE.md)
+
+---
+
 ## v0.14 Windows 호스트 실행 + 선택적 DPAPI 보안 저장 (개발 기능)
 
 > **Windows 사용자 계정 DPAPI 암호화 저장이 구현됐습니다.** 단, 기존 Docker 백엔드는 Linux이므로 이 기능이 **비활성화**됩니다. 사용자가 설치한 Windows 사용자 세션에서 Java 백엔드를 직접 실행하는 **개발용 Windows 호스트 모드**에서만 활성화됩니다. Windows `.exe` 설치 파일은 아직 만들지 않았습니다.
