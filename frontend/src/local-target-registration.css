@@ -62,3 +62,18 @@
 }
 .dbp-local-form .dbp-local-tls-option span{display:flex;flex-direction:column;gap:4px}
 .dbp-local-form .dbp-local-tls-option small{font-size:11px;font-weight:400;color:var(--t-secondary)}
+
+.dbp-local-actions button.dbp-local-start {
+  background:var(--t-accent-soft);
+  border:1px solid var(--t-accent);
+  color:var(--t-accent);
+}
+.dbp-local-item>span.active {
+  color:var(--t-ok-text);
+  font-weight:800;
+}
+.dbp-local-feedback a {
+  color:var(--t-accent);
+  font-weight:800;
+  text-decoration:underline;
+}
