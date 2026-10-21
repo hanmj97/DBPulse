@@ -171,15 +171,25 @@ export default function OverviewDashboard({
     window.location.hash = '#' + (hashes[name]||name);
     onNavigate(name);
   };
+  // Overview is a concise *preview*, not an unbounded incident feed.
+  // Show live DMV signals first, then open incident details. No events are discarded:
+  // individual incident records remain reachable from the timeline/table and detail page.
   const alerts = [
-    ...open.slice(0,3).map(i=>({key:'incident-'+i.id, kind:KINDS[i.type]||i.type,
-      title:summary(i),
-      note:'진행 중 · '+dateTime(i.startedAt),level:'alert',action:()=>onInvestigate(i.id)})),
     ...(online&&latest.blockedRequests>0?[{key:'blocking',kind:'Blocking',title:'현재 차단 요청 '+num(latest.blockedRequests)+'건',
       note:'DMV 최신 스냅샷',level:'warning',action:()=>nav('blocking')}]:[]),
     ...(online&&latest.longRunningRequests>0?[{key:'long',kind:'장시간 요청',title:'현재 장시간 실행 요청 '+num(latest.longRunningRequests)+'건',
-      note:'DMV 최신 스냅샷',level:'warning',action:()=>nav('queries')}]:[])
-  ].slice(0,4);
+      note:'DMV 최신 스냅샷',level:'warning',action:()=>nav('performance')}]:[]),
+    ...open.map(i=>({key:'incident-'+i.id, kind:KINDS[i.type]||i.type,
+      title:summary(i),
+      note:'진행 중 · '+dateTime(i.startedAt),level:'alert',action:()=>onInvestigate(i.id)}))
+  ];
+  const PREVIEW_LIMIT = 2;
+  const previewAlerts = alerts.slice(0, PREVIEW_LIMIT);
+  const hiddenAlertCount = Math.max(0, alerts.length - previewAlerts.length);
+  // Limit Wait category rows as well; 5 distinct categories must not stretch
+  // the right rail and create an empty row below the main chart.
+  const visibleWaitGroups = waitGroups.slice(0, PREVIEW_LIMIT);
+  const hiddenWaitGroupCount = waitGroups.length - visibleWaitGroups.length;
 
   const unknownHealth = !online || !hasIncidentData;
   const hasLiveConcern = !unknownHealth &&
@@ -243,15 +253,21 @@ export default function OverviewDashboard({
             : waitGroups.length===0
               ? <div className="rev-ops-compact-state"><CheckCircle2 size={19}/>
                   <span>현재 관측된 Wait 요청 없음</span></div>
-              : <div className="rev-wait-bars">{waitGroups.map(([kind,count],index)=>
-                  <div className="rev-wait-row" key={kind}>
-                    <span title={kind}>{kind}</span>
-                    <div className="rev-wait-track"><div className={'rev-wait-fill rev-wait-fill-'+index}
-                      style={{width:(count/waitTotal*100)+'%'}}/></div>
-                    <strong>{num(count)}건</strong>
-                  </div>)}</div>}
+              : <>
+                  <div className="rev-wait-bars">{visibleWaitGroups.map(([kind,count],index)=>
+                    <div className="rev-wait-row" key={kind}>
+                      <span title={kind}>{kind}</span>
+                      <div className="rev-wait-track"><div className={'rev-wait-fill rev-wait-fill-'+index}
+                        style={{width:(count/waitTotal*100)+'%'}}/></div>
+                      <strong>{num(count)}건</strong>
+                    </div>)}</div>
+                  {hiddenWaitGroupCount>0 &&
+                    <button type="button" className="rev-ops-more-link" onClick={()=>nav('waits')}>
+                      다른 대기 유형 {hiddenWaitGroupCount}개 · 전체 보기 <ArrowRight size={13}/>
+                    </button>}
+                </>}
           {waitGroups.length>0 &&
-            <p className="rev-card-foot">최근 한 시점의 요청 표본이며 누적 Wait 통계가 아닙니다.</p>}
+            <p className="rev-card-foot">최근 한 시점의 요청 표본입니다.</p>}
         </article>
         <article className={'rev-panel rev-current-signals rev-ops-mini-panel'+(!alerts.length?' rev-ops-compact':'')}>
           <div className="rev-panel-heading">
@@ -259,18 +275,28 @@ export default function OverviewDashboard({
             <button type="button" className="rev-text-link" onClick={()=>nav('incidents')}>이력 <ArrowRight size={14}/></button>
           </div>
           {alerts.length
-            ? <div className="rev-alert-items">{alerts.map(a=>
-                <button className="rev-alert-item" key={a.key} type="button" onClick={a.action}>
-                  <span className={'rev-alert-icon '+a.level}><CircleAlert size={17}/></span>
-                  <span><strong>{a.title}</strong><small>{a.kind} · {a.note}</small></span>
-                  <ArrowRight size={15}/>
-                </button>)}</div>
+            ? <>
+                <div className="rev-alert-items rev-ops-alert-preview">{previewAlerts.map(a=>
+                  <button className="rev-alert-item" key={a.key} type="button" onClick={a.action}
+                    title={a.title}>
+                    <span className={'rev-alert-icon '+a.level}><CircleAlert size={17}/></span>
+                    <span><strong>{a.title}</strong><small>{a.kind} · {a.note}</small></span>
+                    <ArrowRight size={15}/>
+                  </button>)}</div>
+                {hiddenAlertCount>0 &&
+                  <div className="rev-ops-more-signals">
+                    <span>추가 신호 {num(hiddenAlertCount)}개</span>
+                    <button type="button" onClick={()=>nav('incidents')}>
+                      인시던트 이력 <ArrowRight size={13}/>
+                    </button>
+                  </div>}
+              </>
             : <div className={'rev-ops-compact-state'+(unknownHealth?' unavailable':'')}>
                 {unknownHealth ? <CircleAlert size={19}/> : <CheckCircle2 size={19}/>}
                 <span>{unknownHealth ? '수집 상태를 확인 중입니다.' :
                   '최근 관측된 주요 이상 신호 없음'}</span>
               </div>}
-          <p className="rev-card-foot">현재 수집된 정보만 표시하며, 데이터 공백을 정상으로 판단하지 않습니다.</p>
+          <p className="rev-card-foot">최신 신호만 요약합니다. Blocking·장시간 요청은 상단 KPI에서, 전체 사건은 인시던트 화면에서 확인할 수 있습니다.</p>
         </article>
       </div>
     </div>
