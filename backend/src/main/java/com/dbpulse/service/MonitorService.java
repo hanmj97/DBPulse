@@ -73,7 +73,14 @@ public class MonitorService {
     }
 
     public CollectorState state() {
-        return state.get();
+        CollectorState current = state.get();
+        // UI activation happens after application startup. Between the
+        // successful connection probe and the next scheduled DMV poll,
+        // distinguish "collector starting" from "no DB configured".
+        if (target.isEnabled() && "NOT_CONFIGURED".equals(current.status())) {
+            return new CollectorState("INITIALIZING", null, null);
+        }
+        return current;
     }
 
     public record CollectorState(String status, Instant lastCollectedAt, String errorCode) {}
