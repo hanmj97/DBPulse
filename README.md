@@ -10,6 +10,48 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## 다음 작업 브랜치: v0.14.0-alpha — 설치형 로컬 웹 DBPulse
+
+> **확정된 제품 방향:** 각 사용자가 자기 Windows PC에서 설치·실행하는 로컬 웹 대시보드. **회원가입·로그인·도메인·별도 SaaS 서버는 필요하지 않습니다.** 현재는 Docker + Vite 개발환경이며 Windows 설치기(.exe)는 후속 작업입니다.
+
+- 작업 브랜치: `feature/target-onboarding-v0.14` · [Draft PR #13](https://github.com/hanmj97/DBPulse/pull/13). 아직 v0.13 Draft PR #12 위에 쌓인 개발 브랜치입니다.
+- `대상 서버`에 SQL Server **연결 테스트 / 대상 메타데이터 등록** UI 및 로컬 API가 구현되었습니다.
+- **중요:** 저장되는 것은 연결 이름·호스트·포트·DB명·로그인명 등의 비밀번호 제외 메타데이터뿐입니다. 실제 비밀번호는 임시 테스트에만 사용하며 **암호화 자격증명 영속 저장이나 동적 모니터링은 아직 제공하지 않습니다.**
+- 신규 로컬 API는 기본 비활성화되며, 서버가 명시적으로 허용한 DB 호스트에서만 연결 테스트를 수행합니다. Docker와 Vite를 로컬 `127.0.0.1`에만 바인딩하세요.
+
+### 로컬 대상 등록 기능을 개발 환경에서 시험하기
+
+```powershell
+# DBPulse 프로젝트 루트로 이동
+Set-Location D:\Projects\dbpulse-platform
+
+# .env에 아래 두 개 값을 추가하거나 기존 값을 수정합니다.
+# DBPULSE_LOCAL_TARGETS_ENABLED=true
+# DBPULSE_LOCAL_ALLOWED_DB_HOSTS=host.docker.internal,localhost,127.0.0.1
+notepad .env
+
+# 새 API와 DB 스키마가 포함되도록 백엔드를 **재빌드**
+# postgres 데이터 볼륨은 보존합니다.
+docker compose up -d --build backend
+
+# 백엔드 상태 확인
+docker compose ps
+
+# React 개발 서버: 별도 PowerShell에서 실행
+Set-Location .\frontend
+npm.cmd run dev
+```
+
+`http://127.0.0.1:5174/#targets`에서 연결 정보를 입력하고 먼저 `연결 테스트`를 선택합니다. 테스트 성공 후 `검증한 대상 정보 등록`을 누르면 **등록됨 · 수집 미시작** 상태로 저장됩니다. 기존 `DBPulseLab` 수집기는 그대로 작동합니다.
+
+**TLS 주의:** 새 테스트는 기본으로 서버 인증서를 검증합니다. 자체 서명 인증서만 사용 중인 SQL Server Developer 환경에서는 `CONNECTION_OR_TLS_FAILED`가 반환될 수 있습니다. 보안을 끄거나 권한을 높이기 전에 테스트용 신뢰 인증서 설정을 확인해 주세요. 원격 호스트는 해당 PC/컨테이너에서 명시적 접근 허용이 필요합니다.
+
+연결 테스트는 `POST /api/v1/local-targets/test-connection`, 대상 등록은 `POST /api/v1/local-targets`, 목록은 `GET /api/v1/local-targets`이며, POST는 JSON + `X-DBPulse-Local-Request: 1` 헤더 및 로컬 Origin 보호가 필요합니다.
+
+[Phase 14 로컬 설치형 구현 계획](docs/PHASE14_IMPLEMENTATION_PLAN.md)
+
+---
+
 ## 현재 개발 버전: v0.13.0-alpha — 모니터링 오버헤드 가드와 운영 대시보드
 
 > **개발 브랜치:** `feature/monitoring-overhead-v0.13` · [Draft PR #12](https://github.com/hanmj97/DBPulse/pull/12). `main`에 병합된 정식 배포가 아니며, 실제 외부 고객 서비스는 아직 지원하지 않습니다.
