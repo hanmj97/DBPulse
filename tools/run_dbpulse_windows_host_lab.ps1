@@ -120,7 +120,7 @@ try {
         # Java and the browser both use localhost. Wait for the backend
         # response before opening the browser so users never see a false 404.
         $javaBinary = (Get-Command java).Source
-        $backendProcess = Start-Process -FilePath $javaBinary -ArgumentList @('-jar', $jar) -PassThru -NoNewWindow
+        $backendProcess = Start-Process -FilePath $javaBinary -ArgumentList @('-jar', ('"' + $jar + '"')) -PassThru -NoNewWindow
         $ready = $false
         for ($attempt=0; $attempt -lt 45; $attempt++) {
             if ($backendProcess.HasExited) { break }
@@ -131,7 +131,10 @@ try {
                     $ready = $true
                     break
                 }
-            } catch { Start-Sleep -Seconds 1 }
+            } catch {
+                # Server may still be starting; retry without exposing errors.
+            }
+            Start-Sleep -Seconds 1
         }
         if (-not $ready) {
             throw "Bundled DBPulse UI was not reachable on localhost:18081. Inspect the Java startup logs above."
