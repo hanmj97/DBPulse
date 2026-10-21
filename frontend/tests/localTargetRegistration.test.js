@@ -80,3 +80,23 @@ test('saved targets have separate accessible rename and unregister actions',()=>
   assert.match(css,/\.dbp-local-registry-actions/);
   assert.match(css,/@media\(max-width:650px\)/);
 });
+
+test('Windows DPAPI controls are opt-in, unavailable in Docker, and never leak secrets',()=>{
+  assert.match(form,/\/api\/v1\/local-targets\/credential-capability/);
+  assert.match(form,/info\.available&&info\.provider==='WINDOWS_DPAPI_USER'/);
+  assert.match(form,/const \[secureStorage,setSecureStorage\]=useState\(false\)/);
+  assert.match(form,/\/remember-credential/);
+  assert.match(form,/\/forget-credential/);
+  assert.match(form,/\/start-saved/);
+  assert.match(form,/secureStorage && item\.savedCredential/);
+  assert.match(form,/secureStorage && <button/);
+  assert.match(form,/WINDOWS 사용자 계정/);
+  assert.match(form,/password:''/);
+  assert.match(form,/body:'\{\}'/);
+  assert.match(form,/window\.confirm/);
+  assert.doesNotMatch(form,/localStorage/);
+  assert.doesNotMatch(form,/sessionStorage/);
+  assert.match(css,/\.dbp-local-credential-availability/);
+  assert.match(css,/\.dbp-local-vault-save/);
+  assert.match(css,/\.dbp-local-registry-actions button\.dbp-local-vault-reconnect/);
+});
