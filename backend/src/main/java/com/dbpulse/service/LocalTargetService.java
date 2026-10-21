@@ -186,13 +186,13 @@ public class LocalTargetService {
     public List<LocalTargetSummary> list() {
         requireEnabled();
         return jdbc.query("""
-            SELECT id, display_name, server_host, server_port, database_name,
+            SELECT id, display_name, server_host, server_port, database_name, login_name,
                    status, created_at
             FROM local_target_registry ORDER BY created_at DESC LIMIT 100
             """, (rs, row) -> new LocalTargetSummary(
                 rs.getString("id"), rs.getString("display_name"),
                 rs.getString("server_host"), rs.getInt("server_port"),
-                rs.getString("database_name"),
+                rs.getString("database_name"), rs.getString("login_name"),
                 activeTarget.isUiActivated() && rs.getString("id").equals(activeTarget.getId())
                     ? "ACTIVE_IN_MEMORY" : rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant()));
@@ -293,5 +293,5 @@ public class LocalTargetService {
     public record TestResult(String status, String code) {}
     public record RegistrationResult(String status, String code, String id) {}
     public record LocalTargetSummary(String id, String name, String host,
-        int port, String databaseName, String status, Instant createdAt) {}
+        int port, String databaseName, String username, String status, Instant createdAt) {}
 }
