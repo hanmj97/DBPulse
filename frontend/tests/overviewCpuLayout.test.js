@@ -36,9 +36,9 @@ test('CPU series uses distinct 0-100 percent axis and real timestamps only',()=>
   assert.match(overview,/const cpuY = percent=>187-\(percent\/100\)\*149/);
   assert.match(overview,/const cpuX = at=>42\+\(\(at-firstMs\)\/\(lastMs-firstMs\)\)\*688/);
   assert.match(overview,/cpuSamples\.filter\(p=>p\.at>=firstMs && p\.at<=lastMs\)/);
-  assert.match(overview,/p\.at-previous\.at>150000/);
-  assert.match(overview,/cpuReady && cpuPoints\.length>1/);
-  assert.match(overview,/cpuReady && cpuPoints\.map\(p=>/);
+  assert.match(overview,/nonZeroSegments\(cpuPoints, p=>p\.cpu, p=>p\.at, 150000\)/);
+  assert.match(overview,/cpuReady && cpuVisibleSegments\.map/);
+  assert.match(overview,/cpuReady && cpuPoints\.filter\(p=>p\.cpu>0\)\.map/);
   assert.match(overview,/\[0,50,100\]\.map\(n=>/);
   assert.match(overview,/SQL Server 전체 프로세스 CPU \(%\)/);
   assert.match(overview,/특정 데이터베이스의 CPU\(%\)가 아닙니다/);
