@@ -32,7 +32,7 @@ test('DBPulse request spikes cannot be mistaken for SQL Server process CPU perce
 test('each SVG maintains its own readable aspect ratio and independent time axis',()=>{
   assert.match(overview,/viewBox="0 0 560 210" preserveAspectRatio="xMidYMid meet"/);
   assert.doesNotMatch(overview,/preserveAspectRatio="none"/);
-  assert.match(overview,/function pickChartIndex\(/);
+  assert.match(overview,/const pickChartIndex = \(event,length\) =>/);
   assert.match(overview,/const pickCpuIndex=event=>/);
   assert.match(css,/\.rev-ops-wide-chart \.rev-ops-split-charts \.rev-ops-chart-frame svg \{/);
   assert.match(css,/aspect-ratio:560 \/ 210/);
