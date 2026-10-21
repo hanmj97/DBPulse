@@ -272,7 +272,9 @@ export default function OverviewDashboard({
   const waitGroups = useMemo(() => {
     const count = new Map();
     for(const wait of currentWaits||[])count.set(wait.waitCategory,(count.get(wait.waitCategory)||0)+1);
-    return [...count.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+    // Count every observed Wait category so the collapsed "N more" link is accurate.
+    // Only the two most frequent groups are actually rendered in Overview.
+    return [...count.entries()].sort((a,b)=>b[1]-a[1]);
   },[currentWaits]);
   const waitTotal = currentWaits?.length || 0;
   const recentDeadlocks = feed.deadlockStatus?.status === 'ONLINE' ? feed.deadlocks : null;
