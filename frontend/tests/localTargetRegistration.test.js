@@ -15,6 +15,9 @@ test('Targets tab contains a real local connection form and preserves existing t
   }
   assert.match(form,/type="password"/);
   assert.match(form,/autoComplete="new-password"/);
+  assert.match(form,/trustLocalCertificate:false/);
+  assert.match(form,/type="checkbox" checked=\{form\.trustLocalCertificate\}/);
+  assert.match(form,/DBPULSE_LOCAL_TRUST_SELF_SIGNED=true/);
 });
 
 test('connection testing uses only local backend API and custom CSRF guard header',()=>{
