@@ -1330,3 +1330,269 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .rev-ops-cpu-readout.inactive strong{
   color:var(--t-secondary);
 }
+
+
+/*
+ * v0.13 — Overview stable-band design.
+ * Chart (full width) -> unified 3-column diagnostic strip -> single
+ * incident history surface with table/timeline switch.
+ *
+ * The three diagnostics share ONE bounded row. Incoming Waits or incident
+ * events cannot expand the row or shift a neighbor independently.
+ * The separately bounded history view replaces two duplicative timelines.
+ * Existing Navy/Midnight tokens are inherited; no backend changes.
+ */
+.rev-ops-dashboard > .rev-ops-wide-chart,
+.rev-ops-dashboard > .rev-ops-unified-board,
+.rev-ops-dashboard > .rev-ops-history-board {
+  min-width:0;
+  width:100%;
+  box-sizing:border-box;
+}
+.rev-ops-wide-chart>.rev-ops-trend {
+  width:100%;
+  box-sizing:border-box;
+}
+.rev-ops-wide-chart .rev-ops-chart-area svg {
+  height:210px;
+}
+.rev-ops-unified-board {
+  padding:15px 18px 14px;
+  min-height:0;
+}
+.rev-ops-unified-heading,
+.rev-ops-history-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.rev-ops-unified-heading h2,
+.rev-ops-history-top h2{
+  margin:0 0 5px;
+  color:var(--t-text);
+  font-size:15px;
+  line-height:1.3;
+}
+.rev-ops-unified-heading p,
+.rev-ops-history-top p{
+  margin:0;
+  color:var(--t-secondary);
+  font-size:11px;
+}
+.rev-ops-unified-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1.1fr);
+  grid-template-rows:203px;
+  gap:0;
+  border:1px solid var(--t-line);
+  background:var(--t-inner);
+  border-radius:9px;
+  overflow:hidden;
+}
+.rev-ops-unified-grid>.rev-ops-summary-cell {
+  min-height:0;
+  max-height:203px;
+  min-width:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:12px 15px !important;
+  box-sizing:border-box;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.rev-ops-unified-grid>.rev-ops-summary-cell + .rev-ops-summary-cell{
+  border-left:1px solid var(--t-line);
+}
+.rev-ops-unified-grid .rev-panel-heading{
+  margin:0 0 9px;
+}
+.rev-ops-unified-grid .rev-panel-heading h2 {
+  font-size:12px;
+}
+.rev-ops-unified-grid .rev-panel-heading p{
+  font-size:10px;
+}
+.rev-ops-unified-grid .rev-ops-compact-state{
+  min-height:37px;
+  padding:8px 9px;
+}
+.rev-ops-unified-grid .rev-card-foot{
+  display:none;
+}
+.rev-ops-unified-grid .rev-ops-action-list {
+  gap:6px;
+}
+.rev-ops-unified-grid .rev-ops-action-list button{
+  padding:7px 9px;
+  min-height:38px;
+  gap:8px;
+}
+.rev-ops-unified-grid .rev-ops-action-list button strong{
+  font-size:11px;
+}
+.rev-ops-unified-grid .rev-ops-action-list button small{
+  font-size:10px;
+}
+.rev-ops-unified-grid .rev-ops-alert-preview .rev-alert-item{
+  min-height:0;
+  max-height:45px;
+  height:45px;
+}
+.rev-ops-unified-grid .rev-ops-more-signals{
+  padding-top:6px;
+}
+.rev-ops-unified-grid .rev-wait-row{
+  grid-template-columns:68px minmax(0,1fr) 29px;
+  gap:7px;
+}
+.rev-ops-history-board{
+  padding:16px 18px;
+}
+.rev-ops-history-top{
+  margin-bottom:12px;
+}
+.rev-ops-history-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.rev-ops-history-switch{
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:3px;
+  border:1px solid var(--t-line);
+  background:var(--t-inner);
+  border-radius:8px;
+}
+.rev-ops-history-switch button{
+  border:0;
+  background:transparent;
+  color:var(--t-secondary);
+  font-weight:750;
+  font-size:11px;
+  border-radius:5px;
+  padding:6px 12px;
+  cursor:pointer;
+}
+.rev-ops-history-switch button.active,
+.rev-ops-history-switch button[aria-pressed="true"]{
+  color:var(--t-text);
+  background:var(--t-accent-soft);
+  outline:1px solid var(--t-line);
+}
+.rev-ops-history-switch button:focus-visible,
+.rev-ops-unified-grid button:focus-visible{
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+}
+.rev-ops-history-content,
+.rev-ops-history-mode{
+  min-width:0;
+  min-height:0;
+  width:100%;
+}
+.rev-ops-history-content .rev-ops-history-mode{
+  border:0;
+  padding:0;
+  margin:0;
+  background:transparent;
+  box-shadow:none;
+}
+.rev-ops-history-content .rev-ops-history-mode>.rev-panel-heading{
+  display:none;
+}
+.rev-ops-history-content .rev-table-scroll{
+  overflow:auto;
+}
+.rev-ops-history-content .rev-timeline{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px 12px;
+  align-content:start;
+}
+.rev-ops-history-content .rev-timeline-item{
+  border:1px solid var(--t-line);
+  border-radius:8px;
+  min-height:57px;
+  padding:9px;
+  background:var(--t-inner);
+}
+.rev-ops-history-content .rev-timeline-item:hover{
+  background:var(--t-hover);
+}
+/* Exactly one neutral baseline for measured zero-valued request intervals.
+   All request series remain colored when they rise above 0. */
+.rev-ops-trend .rev-chart-area .rev-ops-neutral-zero{
+  stroke:#718ca9;
+  stroke-opacity:.9;
+  stroke-linecap:round;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend{
+  color:#ffbd60 !important;
+  font-weight:800;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend i{
+  background:#ffbd60 !important;
+  opacity:1 !important;
+}
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-title,
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-tick{
+  fill:#ffbd60;
+}
+.rev-ops-trend .rev-ops-cpu-readout,
+.rev-ops-trend .rev-ops-cpu-readout strong{
+  color:#ffbd60;
+}
+@media(max-width:1150px){
+  .rev-ops-unified-grid{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:196px 190px;
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell{
+    max-height:196px;
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell:nth-child(3){
+    grid-column:1 / -1;
+    max-height:190px;
+    border-left:0;
+    border-top:1px solid var(--t-line);
+  }
+  .rev-ops-unified-grid .rev-ops-action-list{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+@media(max-width:670px){
+  .rev-ops-unified-board,
+  .rev-ops-history-board{padding:13px}
+  .rev-ops-unified-grid{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:166px 189px 186px;
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell,
+  .rev-ops-unified-grid>.rev-ops-summary-cell:nth-child(3){
+    grid-column:auto;
+    max-height:189px;
+    border-left:0;
+    border-top:1px solid var(--t-line);
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell:first-child{
+    border-top:0;
+    max-height:166px;
+  }
+  .rev-ops-unified-grid .rev-ops-action-list{
+    grid-template-columns:1fr;
+  }
+  .rev-ops-history-top{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .rev-ops-history-content .rev-timeline{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
