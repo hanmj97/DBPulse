@@ -1308,3 +1308,25 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     grid-template-columns:minmax(0,1fr);
   }
 }
+
+
+/* Zero-only charts: one neutral baseline, no stacked colored 0 paths. */
+.rev-ops-trend .rev-chart-area text.rev-ops-chart-idle{
+  fill:var(--t-secondary);
+  pointer-events:none;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend.inactive{
+  color:var(--t-secondary);
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend.inactive i{
+  background:var(--t-secondary)!important;
+  opacity:.6;
+}
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-tick.idle,
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-title.idle{
+  fill:var(--t-secondary);
+}
+.rev-ops-cpu-readout.inactive,
+.rev-ops-cpu-readout.inactive strong{
+  color:var(--t-secondary);
+}
