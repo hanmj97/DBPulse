@@ -34,4 +34,34 @@ class LocalTargetPolicyTest {
         LocalTargetPolicy empty = new LocalTargetPolicy("");
         assertFalse(empty.permits("localhost"));
     }
+
+    @Test void selfSignedOverrideIsOffByDefaultAndNotAllowedForRemoteHosts() {
+        var valid = new LocalTargetService.ConnectionDetails(
+            "Dev", "host.docker.internal", 1433, "DBPulseLab",
+            "readonly", "short-secret", true);
+        var jdbc = new org.springframework.jdbc.core.JdbcTemplate();
+        var disabled = new LocalTargetService(jdbc, true, false,
+            "host.docker.internal,10.2.3.4");
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+            () -> disabled.validate(valid));
+        var labOnly = new LocalTargetService(jdbc, true, true,
+            "host.docker.internal,10.2.3.4");
+        assertDoesNotThrow(() -> labOnly.validate(valid));
+        var remote = new LocalTargetService.ConnectionDetails(
+            "Remote", "10.2.3.4", 1433, "ProdDb",
+            "readonly", "short-secret", true);
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+            () -> labOnly.validate(remote));
+    }
+
+    @Test void defaultDisabledRegistrationMustNotAcceptConnections() {
+        var service = new LocalTargetService(
+            new org.springframework.jdbc.core.JdbcTemplate(), false, false,
+            "host.docker.internal");
+        var request = new LocalTargetService.ConnectionDetails(
+            "Local", "host.docker.internal", 1433,
+            "DBPulseLab", "readonly", "short-secret", false);
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+            () -> service.validate(request));
+    }
 }
