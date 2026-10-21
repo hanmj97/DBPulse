@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {nonZeroSegments} from './chartVisibility.js';
 import {
   Activity, ArrowRight, Bell, CircleAlert, CheckCircle2,
   Clock3, Database, GitBranch, LockKeyhole, Search, ShieldAlert, Sparkles,
@@ -89,12 +90,13 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
   // Distinct right-hand scale: requests use dynamic 0..peak, CPU uses 0..100%.
   const cpuY = percent=>187-(percent/100)*149;
   const cpuX = at=>42+((at-firstMs)/(lastMs-firstMs))*688;
-  const cpuPath=cpuPoints.reduce((acc,p,index)=>{
-    const previous=cpuPoints[index-1];
-    // Never imply a continuous 60s series over an unobserved long gap.
-    const move=index===0 || p.at-previous.at>150000;
-    return acc+(move?'M':'L')+cpuX(p.at).toFixed(1)+','+cpuY(p.cpu).toFixed(1)+' ';
-  },'').trim();
+  // Zero-valued samples remain valid data, but do not paint an orange
+  // line over the same neutral 0-axis as zero-valued request series.
+  const cpuVisibleSegments = nonZeroSegments(cpuPoints, p=>p.cpu, p=>p.at, 150000);
+  const hasRequestActivity = rows.some(row=>
+    lines.some(l=>Number(row[l.key])>0));
+  const hasCpuActivity = cpuReady && cpuPoints.some(p=>p.cpu>0);
+  const hasVisibleActivity = hasRequestActivity || hasCpuActivity;
   const peak = Math.max(1, ...rows.flatMap(r => lines.map(l => Number(l.key in r ? r[l.key] : 0) || 0)));
   const step = Math.max(1, Math.ceil(peak / 4));
   const yTicks = Array.from({length:Math.floor(peak/step) + 1},(_,i)=>i*step).reverse();
@@ -103,8 +105,10 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
   const plotRight = 730;
   const sx = index => plotLeft + index * ((plotRight-plotLeft) / Math.max(1,rows.length-1));
   const sy = value => 187 - ((Number(value)||0) / peak) * 149;
-  const path = key => rows.map((row,index) => (index === 0 ? 'M':'L') +
-    sx(index).toFixed(1)+','+sy(row[key]).toFixed(1)).join(' ');
+  // Only highlight observed non-zero segments. Preserve real edges
+  // to/from 0, and avoid bridging interrupted 5-second collections.
+  const requestSegments = key=>nonZeroSegments(
+    rows,row=>row[key],row=>Date.parse(row.collectedAt),20000);
   const focusIndex = highlightedIndex != null && highlightedIndex < rows.length
     ? highlightedIndex : rows.length - 1;
   const focused = rows[focusIndex];
@@ -163,30 +167,39 @@ function TrendChart({history, sampleLimit, cpuState, databaseName}) {
               x2={plotLeft+i*(plotRight-plotLeft)/5} y1="38" y2="187"
               stroke="var(--t-chart-grid)" strokeWidth=".7"/>)}
           {rows.length===1
-            ? lines.map(l=><circle key={l.key} cx={sx(0)} cy={sy(rows[0][l.key])}
-                r="3.5" fill={l.color}/>)
-            : lines.map(l=><path key={l.key} d={path(l.key)}
-                stroke={l.color} strokeWidth="2.5" strokeLinejoin="round"
-                strokeLinecap="round" fill="none"/>)}
-          {cpuReady && cpuPoints.length>1 &&
-            <path className="rev-ops-cpu-line" d={cpuPath} stroke="#ffc06f"
-              strokeDasharray="5 4" strokeWidth="2.4" fill="none"
-              strokeLinejoin="round" strokeLinecap="round"/>}
-          {cpuReady && cpuPoints.map(p=><circle key={p.at}
-            cx={cpuX(p.at)} cy={cpuY(p.cpu)} r="3.5" fill="#ffc06f"
-            stroke="var(--t-card)" strokeWidth="1.3"/>)}
+            ? lines.filter(l=>Number(rows[0][l.key])>0).map(l=>
+                <circle key={l.key} cx={sx(0)} cy={sy(rows[0][l.key])}
+                  r="3.5" fill={l.color}/>)
+            : lines.flatMap(l=>requestSegments(l.key).map(([a,b])=>
+                <line key={l.key+'-'+a} x1={sx(a)} y1={sy(rows[a][l.key])}
+                  x2={sx(b)} y2={sy(rows[b][l.key])}
+                  stroke={l.color} strokeWidth="2.5" strokeLinecap="round"/>))}
+          {cpuReady && cpuVisibleSegments.map(([a,b])=>
+            <line className="rev-ops-cpu-line" key={'cpu-'+a}
+              x1={cpuX(cpuPoints[a].at)} y1={cpuY(cpuPoints[a].cpu)}
+              x2={cpuX(cpuPoints[b].at)} y2={cpuY(cpuPoints[b].cpu)}
+              stroke="#ffc06f" strokeDasharray="5 4" strokeWidth="2.4"
+              strokeLinecap="round"/>)}
+          {cpuReady && cpuPoints.filter(p=>p.cpu>0).map(p=>
+            <circle key={p.at} cx={cpuX(p.at)} cy={cpuY(p.cpu)}
+              r="3.5" fill="#ffc06f" stroke="var(--t-card)" strokeWidth="1.3"/>)}
           {cpuReady && cpuPoints.length>0 && <>
             <text className="rev-ops-cpu-axis-title" x="754" y="26"
               textAnchor="end" fill="#ffc06f" fontSize="10">CPU %</text>
             {[0,50,100].map(n=><text key={'cpu-'+n} className="rev-ops-cpu-axis-tick" x="754" y={cpuY(n)+4}
               textAnchor="end" fill="#ffc06f" fontSize="10">{n}%</text>)}
           </>}
+          {!hasVisibleActivity && <text className="rev-ops-chart-idle"
+            x="380" y="112" textAnchor="middle" fontSize="12">
+              관측 구간에 활성 · 차단 · 장시간 요청 없음
+            </text>}
           {focused && <>
             <line x1={sx(focusIndex)} x2={sx(focusIndex)} y1="38" y2="187"
               stroke="var(--t-muted)" strokeOpacity=".65" strokeDasharray="4 4"/>
-            {lines.map(l=><circle key={l.key} cx={sx(focusIndex)}
-              cy={sy(focused[l.key])} r="4" fill={l.color}
-              stroke="var(--t-card)" strokeWidth="1.5"/>)}
+            {lines.filter(l=>Number(focused[l.key])>0).map(l=>
+              <circle key={l.key} cx={sx(focusIndex)}
+                cy={sy(focused[l.key])} r="4" fill={l.color}
+                stroke="var(--t-card)" strokeWidth="1.5"/>)}
           </>}
         </svg>
         <div className="rev-chart-times">
