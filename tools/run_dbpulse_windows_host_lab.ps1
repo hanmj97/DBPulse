@@ -1,7 +1,7 @@
 # DBPulse local Windows host mode (development only).
 # Spring Boot runs as the signed-in Windows user for per-user DPAPI.
 # PostgreSQL continues in Docker. Never delete the Postgres volume.
-param([switch]$SkipBuild, [switch]$BundledUi)
+param([switch]$SkipBuild, [switch]$BundledUi, [string]$JarPath)
 
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') {
@@ -41,6 +41,17 @@ if ([string]::IsNullOrWhiteSpace($pgPassword)) {
     throw "DBPULSE_POSTGRES_PASSWORD is required in .env."
 }
 $jar = Join-Path $root 'backend\target\dbpulse-api.jar'
+if (-not [string]::IsNullOrWhiteSpace($JarPath)) {
+    if (-not $BundledUi -or -not $SkipBuild) {
+        throw 'An explicit bundle JarPath requires -BundledUi and -SkipBuild.'
+    }
+    # Only execute a JAR already staged beneath this repository target folder.
+    $jar = (Resolve-Path -LiteralPath $JarPath -ErrorAction Stop).Path
+    $allowedRoot = (Join-Path (Join-Path $root 'backend') 'target') + [IO.Path]::DirectorySeparatorChar
+    if (-not $jar.StartsWith($allowedRoot,[System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Bundle JAR must be under this project backend target directory.'
+    }
+}
 if (-not $SkipBuild) {
     if (Get-Command mvn.cmd -ErrorAction SilentlyContinue) {
         # Use locally installed Maven when available.
