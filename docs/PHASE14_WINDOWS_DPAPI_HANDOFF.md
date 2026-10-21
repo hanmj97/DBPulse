@@ -73,10 +73,16 @@ Browse `http://127.0.0.1:5174/#targets`.
 5. Click `이 PC에 암호화 저장`, accept the explicit opt-in confirmation.
    The row should indicate an encrypted password is available. Verify browser
    JSON contains `savedCredential: true`, **never the password**.
-6. Disconnect. Click the existing registered DB card and `저장된 연결`
-   to connect again **without retyping** the SQL login password. The
-   backend still revalidates the host allow-list/TLS and performs the
-   read-only SQL connection probe.
+6. Disconnect. Click the existing registered DB card. When DPAPI has
+   a saved secret for that UUID, the main button changes to
+   `저장된 비밀번호로 모니터링 시작` and the password field is **not
+   required**. Press that button or the separate `저장된 연결` action
+   to reconnect without retyping the SQL login password. If the local
+   developer SQL Server uses a self-signed certificate, explicitly tick
+   the exception in `고급 연결 설정` before starting; it is intentionally
+   never automatically enabled from stored credentials. The backend
+   still revalidates the host allow-list/TLS and performs the read-only
+   SQL connection probe.
 7. Stop native Java with Ctrl+C. Launch the Windows backend script again.
    It should retain the encrypted file and offer `저장된 연결`. It does
    **not** make unapproved background database connections automatically.
