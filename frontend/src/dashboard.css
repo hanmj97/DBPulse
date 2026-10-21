@@ -1261,3 +1261,50 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     align-self:start;
   }
 }
+
+
+/* v0.13 Overview: two independent vertical flows.
+   Previous shared CSS-grid rows left empty rectangles whenever a chart,
+   timeline and right-hand cards had unequal heights. The columns now
+   stack their own cards, with intrinsic rather than fixed panel heights.
+   No clipping or fake filler data and no scrolling inside summary cards. */
+.rev-ops-independent-columns{
+  display:grid;
+  grid-template-columns:minmax(0,2.1fr) minmax(310px,.92fr);
+  gap:14px;
+  align-items:start;
+}
+.rev-ops-independent-columns>.rev-ops-main-column,
+.rev-ops-independent-columns>.rev-ops-side-stack{
+  display:flex;
+  flex-direction:column;
+  align-self:start;
+  min-width:0;
+  gap:14px;
+}
+.rev-ops-independent-columns .rev-panel{
+  height:auto;
+  min-height:0;
+  flex:0 0 auto;
+}
+.rev-ops-independent-columns .rev-incident-timeline,
+.rev-ops-independent-columns .rev-ops-action-panel,
+.rev-ops-independent-columns .rev-recent-table{
+  align-self:stretch;
+  height:auto;
+  min-height:0;
+}
+.rev-ops-independent-columns .rev-recent-table{
+  min-width:0;
+}
+.rev-ops-independent-columns .rev-ops-action-list{
+  gap:7px;
+}
+.rev-ops-independent-columns .rev-ops-action-list button{
+  padding:10px 12px;
+}
+@media(max-width:1150px){
+  .rev-ops-independent-columns{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
