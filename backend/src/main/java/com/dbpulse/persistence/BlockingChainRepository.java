@@ -105,7 +105,8 @@ public class BlockingChainRepository {
         // Child rows cascade-delete automatically.
         return jdbc.update("""
             DELETE FROM blocking_chain_samples
-             WHERE collected_at < now() - interval '7 days'
-            """);
+             WHERE collected_at < ?
+            """, Timestamp.from(java.time.Instant.now().minus(7,
+                java.time.temporal.ChronoUnit.DAYS)));
     }
 }
