@@ -145,12 +145,15 @@ public class LocalTargetService {
             || "HYT00".equals(state) || "HYT01".equals(state)) {
             return "CONNECTION_TIMEOUT";
         }
+        // A TLS handshake error is not always a certificate trust failure.
+        // Only return the more specific untrusted-certificate code if a
+        // certificate exception was actually observed in the cause chain.
         Throwable cause = error;
         for (int level = 0; cause != null && level < 12; level++, cause = cause.getCause()) {
             if (cause instanceof CertificateException) return "TLS_CERTIFICATE_UNTRUSTED";
-            if (cause instanceof javax.net.ssl.SSLHandshakeException) {
-                return "TLS_CERTIFICATE_UNTRUSTED";
-            }
+        }
+        cause = error;
+        for (int level = 0; cause != null && level < 12; level++, cause = cause.getCause()) {
             if (cause instanceof SSLException) return "TLS_HANDSHAKE_FAILED";
             if (cause instanceof SocketTimeoutException) return "CONNECTION_TIMEOUT";
             if (cause instanceof ConnectException || cause instanceof NoRouteToHostException
