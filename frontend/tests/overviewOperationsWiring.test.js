@@ -63,3 +63,23 @@ test('Navy and Midnight Dark + responsive operations layout are preserved',()=>{
   assert.match(css,/@media\(max-width:670px\)/);
   assert.match(css,/background:var\(--t-card\)/);
 });
+
+test('right-hand rail renders a bounded signal and Wait preview, not every event',()=>{
+  assert.match(overview,/const PREVIEW_LIMIT = 2/);
+  assert.match(overview,/const previewAlerts = alerts\.slice\(0, PREVIEW_LIMIT\)/);
+  assert.match(overview,/const visibleWaitGroups = waitGroups\.slice\(0, PREVIEW_LIMIT\)/);
+  assert.match(overview,/previewAlerts\.map\(a=>/);
+  assert.match(overview,/visibleWaitGroups\.map\(\(\[kind,count\],index\)=>/);
+  assert.match(overview,/hiddenAlertCount>0/);
+  assert.match(overview,/hiddenWaitGroupCount>0/);
+  assert.match(overview,/인시던트 이력/);
+  assert.match(overview,/다른 대기 유형/);
+  // Only the preview is capped; the incident table and route remain intact.
+  assert.match(overview,/open\.map\(i=>/);
+  assert.match(overview,/incidents\.slice\(0,6\)/);
+  assert.match(css,/\.rev-ops-alert-preview \.rev-alert-item\{/);
+  assert.match(css,/height:49px/);
+  assert.match(css,/overflow:hidden/);
+  assert.match(css,/\.rev-ops-more-signals/);
+  assert.match(css,/\.rev-ops-more-link/);
+});
