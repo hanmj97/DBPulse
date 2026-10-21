@@ -17,6 +17,16 @@ test('Targets tab contains a real local connection form and preserves existing t
   assert.match(form,/autoComplete="new-password"/);
   assert.match(form,/trustLocalCertificate:false/);
   assert.match(form,/type="checkbox" checked=\{form\.trustLocalCertificate\}/);
+  assert.match(form,/<details className="dbp-local-advanced">/);
+  assert.match(form,/<summary><SlidersHorizontal size=\{16\}/);
+  assert.doesNotMatch(form,/<details className="dbp-local-advanced" open/);
+  assert.match(css,/\.dbp-local-advanced\[open\]>summary/);
+  assert.match(form,/TLS_CERTIFICATE_UNTRUSTED/);
+  assert.match(form,/CONNECTION_TIMEOUT/);
+  assert.match(form,/className="dbp-local-collector-status"/);
+  assert.match(form,/collectorStatus==='ONLINE'/);
+  assert.match(form,/collectorStatus==='OFFLINE'/);
+  assert.match(form,/setInterval\(refresh,5000\)/);
   assert.match(form,/DBPULSE_LOCAL_TRUST_SELF_SIGNED=true/);
 });
 
@@ -41,7 +51,7 @@ test('the target is clearly inactive and sensitive password is cleared after reg
   assert.match(form,/ACTIVE_IN_MEMORY/);
   assert.match(form,/선택한 DB 모니터링 시작/);
   assert.match(form,/disabled=\{busy\|\|!verified\}/);
-  assert.match(form,/현재 선택됨 · 수집 중/);
+  assert.match(form,/현재 선택됨 · 수집 상태 확인/);
   assert.match(css,/\.dbp-local-form/);
   assert.match(css,/@media\(max-width:670px\)/);
 });
