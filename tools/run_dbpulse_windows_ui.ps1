@@ -19,7 +19,7 @@ if (-not (Get-Command jar.exe -ErrorAction SilentlyContinue)) {
 
 $frontend=Join-Path $root 'frontend'
 $dist=Join-Path $frontend 'dist'
-$jar=Join-Path $root 'backend\target\dbpulse-api.jar'
+# Runtime JAR path is assigned after building to a unique versioned file.
 
 Push-Location $frontend
 try {
@@ -39,29 +39,43 @@ if (-not (Test-Path (Join-Path $dist 'index.html'))) {
     throw 'Vite dist/index.html is missing.'
 }
 
-# Build an independent Java executable JAR with all production static assets.
-if (Get-Command mvn.cmd -ErrorAction SilentlyContinue) {
-    Push-Location (Join-Path $root 'backend')
-    try {
-        mvn.cmd -B -Pdesktop-bundle -DskipTests package
-        if ($LASTEXITCODE -ne 0) { throw 'Maven desktop-bundle build failed.' }
-    } finally { Pop-Location }
-} else {
-    # Docker is only a build tool: its root context is restricted by
-    # .dockerignore to backend sources + frontend/dist. NO .env is sent.
-    docker build -f tools/Dockerfile.windows-ui-bundle --tag dbpulse-windows-ui-builder .
-    if ($LASTEXITCODE -ne 0) { throw 'Docker desktop-bundle build failed.' }
-    $cid=(docker create dbpulse-windows-ui-builder).Trim()
-    if (-not $cid) { throw 'Could not create temporary build container.' }
-    try {
-        if (-not (Test-Path (Split-Path $jar -Parent))) {
-            New-Item -ItemType Directory -Force (Split-Path $jar -Parent) | Out-Null
-        }
-        docker cp ("${cid}:/workspace/backend/target/dbpulse-api.jar") $jar
-        if ($LASTEXITCODE -ne 0) { throw 'Could not copy desktop-bundle JAR.' }
-    } finally {
-        docker rm -f $cid | Out-Null
+# Detect only a known DBPulse Windows JVM. Never terminate other Java processes.
+# A running local DBPulse instance has an active database connection and may
+# still be polling; the operator should close its original window with Ctrl+C.
+$listenerPids=@(Get-NetTCPConnection -LocalPort 18081 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique)
+foreach ($listenerPid in $listenerPids) {
+    $proc=Get-CimInstance Win32_Process -Filter "ProcessId = $listenerPid" -ErrorAction SilentlyContinue
+    if ($null -eq $proc) { continue }
+    $cmdLine=[string]$proc.CommandLine
+    if ($proc.Name -match '^javaw?\\.exe$' -and
+        ($cmdLine.IndexOf('dbpulse-api.jar',[System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+         $cmdLine.IndexOf('dbpulse-desktop-',[System.StringComparison]::OrdinalIgnoreCase) -ge 0)) {
+        throw "An existing Windows DBPulse backend (PID $listenerPid) is using port 18081. Press Ctrl+C in its original PowerShell window, wait for exit, then rerun this launcher. No other Java process was stopped."
     }
+}
+
+# Build into a UNIQUE VERSIONED FILE instead of replacing dbpulse-api.jar.
+# Windows keeps the JAR locked while the old Spring Boot Java process runs.
+# Docker is already a prerequisite for the existing PostgreSQL container,
+# so the isolated Maven builder is used consistently (even if Maven exists).
+# Root .dockerignore permits sources + React dist ONLY, never the .env file.
+$bundleDir=Join-Path $root 'backend\\target\\desktop-bundles'
+if (-not (Test-Path $bundleDir)) {
+    New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
+}
+$jar=Join-Path $bundleDir ('dbpulse-desktop-' + [guid]::NewGuid().ToString('N') + '.jar')
+docker build -f tools/Dockerfile.windows-ui-bundle --tag dbpulse-windows-ui-builder .
+if ($LASTEXITCODE -ne 0) { throw 'Docker desktop-bundle build failed.' }
+$cid=(docker create dbpulse-windows-ui-builder).Trim()
+if (-not $cid) { throw 'Could not create temporary build container.' }
+try {
+    docker cp ("${cid}:/workspace/backend/target/dbpulse-api.jar") $jar
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not copy desktop-bundle JAR into a new versioned file.'
+    }
+} finally {
+    docker rm -f $cid | Out-Null
 }
 
 if (-not (Test-Path $jar)) { throw 'Bundled JAR is missing.' }
@@ -76,4 +90,4 @@ Write-Host 'Stopping only the Docker backend; existing PostgreSQL remains intact
 
 # Reuse proven Windows-native DPAPI and metadata configuration.
 # This launcher opens the browser automatically AFTER the UI responds.
-& (Join-Path $PSScriptRoot 'run_dbpulse_windows_host_lab.ps1') -SkipBuild -BundledUi
+& (Join-Path $PSScriptRoot 'run_dbpulse_windows_host_lab.ps1') -SkipBuild -BundledUi -JarPath $jar
