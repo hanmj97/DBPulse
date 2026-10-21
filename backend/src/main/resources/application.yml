@@ -21,6 +21,9 @@ spring:
   jackson:
     time-zone: UTC
 dbpulse:
+  credentials:
+    # Opt-in current-Windows-user DPAPI; unavailable in Linux/Docker.
+    windows-dpapi-enabled: ${DBPULSE_WINDOWS_DPAPI_ENABLED:false}
   # Manual localhost onboarding; default disabled until operator opts in.
   local-targets:
     enabled: ${DBPULSE_LOCAL_TARGETS_ENABLED:false}
