@@ -27,8 +27,12 @@ public class MonitorService {
         this.collector = collector;
         this.metrics = metrics;
         this.incidents = incidents;
-        target.onTargetChanged(() ->
-            state.set(new CollectorState("INITIALIZING", null, null)));
+        target.onTargetChanged(() -> {
+            state.set(target.isEnabled()
+                ? new CollectorState("INITIALIZING", null, null)
+                : new CollectorState("NOT_CONFIGURED", null, "MSSQL_NOT_CONFIGURED"));
+            if (incidents != null) incidents.resetTransientSignals();
+        });
         if (target.isEnabled()) {
             state.set(new CollectorState("INITIALIZING", null, null));
         }
