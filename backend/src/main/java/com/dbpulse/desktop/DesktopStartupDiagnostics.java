@@ -66,6 +66,7 @@ public final class DesktopStartupDiagnostics {
             if (cause instanceof ConnectException) return "METADATA_DB_UNREACHABLE";
             String message = cause.getMessage();
             if (cause instanceof IllegalStateException && message != null) {
+                if ("PORT_18081_ALREADY_IN_USE".equals(message)) return message;
                 if (message.matches("DESKTOP_[A-Z_]{3,70}")) return message;
             }
         }
@@ -84,7 +85,7 @@ public final class DesktopStartupDiagnostics {
             case "METADATA_DATABASE_NOT_FOUND" ->
                 "Check that the existing dbpulse PostgreSQL database is running on 127.0.0.1:5544.";
             case "PORT_18081_ALREADY_IN_USE" ->
-                "Close the earlier DBPulse Java/EXE console using Ctrl+C, then retry. Do not terminate unrelated Java processes.";
+                "Another program is using 18081. If it is DBPulse, close its original console or try reopening once it is ready. Do not terminate unrelated Java processes.";
             default ->
                 "Open DBPulse in a PowerShell window to inspect the original startup exception. Hide passwords and SQL text before sharing.";
         };
