@@ -34,10 +34,15 @@ public class QueryPerformanceService {
         this.queryStore = queryStore;
         this.repository = repository;
         this.overheadGuard = new QueryStoreOverheadGuard(intervalMs, adaptiveEnabled);
+        target.onTargetChanged(() -> {
+            overheadGuard.resetForNewTarget();
+            state.set(new AnalysisState("INITIALIZING", null, 0, null));
+        });
     }
 
     @Scheduled(fixedDelayString = "${dbpulse.query-analytics.interval-ms:60000}", initialDelay = 10000)
     public void collect() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
             overheadGuard.reset();
             state.set(new AnalysisState("NOT_CONFIGURED", null, 0, "MSSQL_NOT_CONFIGURED"));
@@ -69,6 +74,8 @@ public class QueryPerformanceService {
             log.warn("Query Store analysis failed ({})", ex.getClass().getSimpleName());
             state.set(new AnalysisState("OFFLINE", state.get().lastCollectedAt(), 0, "QUERY_STORE_COLLECTION_FAILED"));
         }
+    
+        });
     }
 
     @Scheduled(cron = "0 0 3 * * *", zone = "UTC")
