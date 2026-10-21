@@ -250,3 +250,20 @@
 @media(max-width:700px){
   .dbp-local-registry-actions{flex-wrap:wrap}
 }
+
+
+/* Visible only for a chosen registered target with Windows DPAPI credentials. */
+.dbp-local-saved-selection{
+  grid-column:1/-1;
+  display:flex;
+  gap:9px;
+  align-items:center;
+  padding:10px 13px;
+  font-size:11px;
+  line-height:1.7;
+  border:1px solid var(--t-ok-border);
+  background:var(--t-inner);
+  color:var(--t-ok-text);
+  border-radius:8px;
+}
+.dbp-local-saved-selection svg{flex:0 0 auto}
