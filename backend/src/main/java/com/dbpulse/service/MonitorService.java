@@ -60,13 +60,13 @@ public class MonitorService {
 
             if (ex instanceof java.sql.SQLException sqlEx) {
                 log.warn(
-                    "DBPulse MSSQL collection failed for target {}. SQLState={}, ErrorCode={}, Message={}",
-                    target.getId(), sqlEx.getSQLState(), sqlEx.getErrorCode(), sqlEx.getMessage(), sqlEx
+                    "DBPulse MSSQL collection failed. SQLState={}, ErrorCode={}",
+                    sqlEx.getSQLState(), sqlEx.getErrorCode()
                 );
             } else {
                 log.warn(
-                    "DBPulse collection failed for target {} ({}): {}",
-                    target.getId(), ex.getClass().getSimpleName(), ex.getMessage(), ex
+                    "DBPulse collection failed ({})",
+                    ex.getClass().getSimpleName()
                 );
             }
         }
