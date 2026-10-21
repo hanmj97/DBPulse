@@ -7,7 +7,7 @@ const INITIAL = {
   databaseName:'',username:'',password:'',trustLocalCertificate:false
 };
 const CODES={
-  READ_ONLY_CONNECTION_CONFIRMED:'데이터베이스 연결을 확인했습니다. 읽기 전용 연결로 확인했습니다.',
+  READ_ONLY_QUERY_SUCCEEDED:'SQL Server 연결 성공. 읽기 전용 SELECT만 실행했습니다. 계정의 쓰기 권한까지 검증한 것은 아닙니다.',
   DATABASE_MISMATCH:'연결된 데이터베이스가 입력한 이름과 다릅니다.',
   AUTHENTICATION_FAILED:'SQL Server 로그인이나 비밀번호를 확인해 주세요.',
   CONNECTION_FAILED:'SQL Server에 연결하지 못했습니다. 호스트·포트·방화벽을 확인해 주세요.',
