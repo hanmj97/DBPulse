@@ -15,7 +15,12 @@ public class TargetCredentialStoreConfiguration {
         boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT)
             .startsWith("windows");
         String localAppData = System.getenv("LOCALAPPDATA");
-        if (!enabled || !windows || localAppData == null || localAppData.isBlank()) {
+        String currentUser = System.getProperty("user.name", "");
+        boolean sharedSystemAccount = currentUser.equalsIgnoreCase("SYSTEM")
+            || currentUser.equalsIgnoreCase("LOCAL SERVICE")
+            || currentUser.equalsIgnoreCase("NETWORK SERVICE");
+        if (!enabled || !windows || sharedSystemAccount
+            || localAppData == null || localAppData.isBlank()) {
             return new DisabledTargetCredentialStore();
         }
         return new WindowsDpapiCredentialStore(
