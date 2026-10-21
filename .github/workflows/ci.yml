@@ -46,6 +46,20 @@ jobs:
   desktop-bundle:
     name: Unified Windows-host JAR bundle
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dbpulse
+          POSTGRES_PASSWORD: ci_only_local_test
+          POSTGRES_DB: dbpulse
+        ports:
+          - 5544:5432
+        options: >-
+          --health-cmd "pg_isready -U dbpulse -d dbpulse"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,3 +92,37 @@ jobs:
             echo 'ERROR: development or secret files inside desktop JAR'
             exit 1
           fi
+      - name: Smoke-test self-hosted UI, JS asset and API on one port
+        shell: bash
+        env:
+          DBPULSE_BIND_ADDRESS: 127.0.0.1
+          DBPULSE_API_PORT: '18081'
+          DBPULSE_META_JDBC_URL: jdbc:postgresql://127.0.0.1:5544/dbpulse
+          DBPULSE_META_USERNAME: dbpulse
+          DBPULSE_META_PASSWORD: ci_only_local_test
+          DBPULSE_MSSQL_ENABLED: 'false'
+          DBPULSE_LOCAL_TARGETS_ENABLED: 'false'
+        run: |
+          set -euo pipefail
+          java -jar backend/target/dbpulse-api.jar > /tmp/dbpulse-ui-smoke.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 45); do
+            if curl --max-time 2 -fsS http://127.0.0.1:18081/ -o /tmp/dbpulse-ui-index; then
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "DBPulse server exited before serving dashboard"
+              tail -80 /tmp/dbpulse-ui-smoke.log
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s /tmp/dbpulse-ui-index
+          grep -q 'DBPulse' /tmp/dbpulse-ui-index
+          asset=$(grep -oE '/assets/[^" ]+\.js' /tmp/dbpulse-ui-index | head -1)
+          test -n "$asset"
+          curl -fsS "http://127.0.0.1:18081${asset}" -o /tmp/dbpulse-ui-app.js
+          test -s /tmp/dbpulse-ui-app.js
+          curl -fsS http://127.0.0.1:18081/api/v1/targets -o /tmp/dbpulse-targets.json
+          grep -q 'local-mssql' /tmp/dbpulse-targets.json
