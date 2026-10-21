@@ -10,13 +10,71 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## v0.14 UI 연결 — 기존 DBPulseLab 자동 연결을 끄고 원하는 DB 모니터링 시작
+
+> **이번 개발 기능은 실제 모니터링까지 연결됩니다.** SQL Server DBA 읽기 전용 계정의 DMV/Query Store 권한은 별도로 필요하며, Java 프로세스를 종료하면 암호화되지 않은 **메모리 전용** 연결 비밀번호는 사라집니다. 새로운 Windows EXE 설치기는 아직 구현되지 않았습니다.
+
+**기존 PostgreSQL volume / 이력 / SQL Server DB는 절대로 삭제하지 않습니다.** 아래는 기존 자동 연결만 해제하는 절차입니다.
+
+```powershell
+# 현재 v0.14 브랜치 확인 및 소스 반영
+Set-Location D:\Projects\dbpulse-platform
+git branch --show-current
+git status --short
+git pull --ff-only origin feature/target-onboarding-v0.14
+
+# 기존 .env 파일은 백업해 두고 편집
+Copy-Item .env .env.bak -ErrorAction Stop
+notepad .env
+```
+
+`.env`에서 다음 항목을 맞춥니다. `DBPULSE_MSSQL_USERNAME` 및 `DBPULSE_MSSQL_PASSWORD`의 **이전 값은 지우고 빈 값으로** 둡니다. `DBPULSE_LOCAL_TRUST_SELF_SIGNED=true`는 자신이 관리하는 로컬 SQL Server Developer 자체 서명 인증서에서만 사용할 수 있습니다.
+
+```dotenv
+# 현재 SQL Server 자동 연결 중지. 기존 데이터·이력은 삭제되지 않음.
+DBPULSE_MSSQL_ENABLED=false
+DBPULSE_MSSQL_USERNAME=
+DBPULSE_MSSQL_PASSWORD=
+
+# 사용자가 직접 연결할 로컬 대상 서버 등록·모니터링 활성화
+DBPULSE_LOCAL_TARGETS_ENABLED=true
+DBPULSE_LOCAL_ALLOWED_DB_HOSTS=host.docker.internal,localhost,127.0.0.1
+DBPULSE_LOCAL_TRUST_SELF_SIGNED=false
+```
+
+```powershell
+# 백엔드 코드와 .env 변경 반영 (PostgreSQL volume 보존)
+docker compose up -d --build --force-recreate backend
+
+# 연결 해제 상태 확인. status NOT_CONFIGURED가 예상됨
+Invoke-RestMethod http://127.0.0.1:18081/api/v1/targets
+
+# 다른 PowerShell 창에서 프론트엔드 개발 서버 재실행
+Set-Location .\frontend
+npm.cmd run dev
+```
+
+브라우저 `http://127.0.0.1:5174/#targets`에서 이름·호스트(`host.docker.internal`)·포트·DB명·모니터링 로그인·비밀번호를 입력합니다.
+
+1. **연결 테스트** — `SELECT DB_NAME()`만 수행. 성공해도 DMV/Query Store 권한이 충분한지는 따로 확인해야 합니다.
+2. **선택한 DB 모니터링 시작** — 새 DB의 UUID를 실시간 수집기 대상으로 설정. 약 5~15초 후 개요 `collectorStatus=ONLINE` 여부를 확인합니다.
+3. 개요 `http://127.0.0.1:5174/#overview`로 이동. 5초 DMV 요청 그래프와 별도 CPU 그래프의 실제 데이터·범례를 확인합니다. 값이 0인 것은 수집 시점에 진행 중인 요청이 없을 수 있다는 뜻입니다.
+4. Query Store 기능은 선택한 DB에서 Query Store 활성화/필요 권한이 있어야 합니다. 새로운 수집은 대체로 60초 이상 기다려야 데이터가 보일 수 있습니다.
+5. **다른 DB로 변경하려면** `docker compose up -d --no-deps --force-recreate backend`로 백엔드만 재시작한 다음 다시 연결해 주세요. **실행 중 다중 DB 선택/동시 수집은 다음 개발 단계**입니다.
+
+**주의:** `docker compose down --volumes`는 PostgreSQL 데이터를 삭제하므로 실행하지 마세요. 비밀번호가 들어간 `.env`, `.env.bak`, 로컬 로그 및 XEL 원본은 GitHub에 업로드하지 마세요. 이 경로는 개발 PC의 `127.0.0.1` 전용이고, 연결이 승인된 테스트 DB에서만 사용합니다.
+
+[실제 연결 개발 및 검증 계획](docs/PHASE14_IMPLEMENTATION_PLAN.md).
+
+---
+
 ## 다음 작업 브랜치: v0.14.0-alpha — 설치형 로컬 웹 DBPulse
 
 > **확정된 제품 방향:** 각 사용자가 자기 Windows PC에서 설치·실행하는 로컬 웹 대시보드. **회원가입·로그인·도메인·별도 SaaS 서버는 필요하지 않습니다.** 현재는 Docker + Vite 개발환경이며 Windows 설치기(.exe)는 후속 작업입니다.
 
 - 작업 브랜치: `feature/target-onboarding-v0.14` · [Draft PR #13](https://github.com/hanmj97/DBPulse/pull/13). 아직 v0.13 Draft PR #12 위에 쌓인 개발 브랜치입니다.
-- `대상 서버`에 SQL Server **연결 테스트 / 대상 메타데이터 등록** UI 및 로컬 API가 구현되었습니다.
-- **중요:** 저장되는 것은 연결 이름·호스트·포트·DB명·로그인명 등의 비밀번호 제외 메타데이터뿐입니다. 실제 비밀번호는 임시 테스트에만 사용하며 **암호화 자격증명 영속 저장이나 동적 모니터링은 아직 제공하지 않습니다.**
+- `대상 서버`에 SQL Server **연결 테스트 / 대상 메타데이터 등록 및 단일 DB 모니터링 시작** UI 및 로컬 API가 구현되었습니다.
+- **중요:** 저장되는 것은 연결 이름·호스트·포트·DB명·로그인명 등의 비밀번호 제외 메타데이터뿐입니다. 실제 비밀번호는 연결 중 **Java 프로세스 메모리에만 보관**하며 암호화된 영속 저장이나 실행 중 다중 DB 전환은 아직 제공하지 않습니다.
 - 신규 로컬 API는 기본 비활성화되며, 서버가 명시적으로 허용한 DB 호스트에서만 연결 테스트를 수행합니다. Docker와 Vite를 로컬 `127.0.0.1`에만 바인딩하세요.
 
 ### 로컬 대상 등록 기능을 개발 환경에서 시험하기
@@ -65,7 +123,7 @@ React → Spring Boot REST API → PostgreSQL 메트릭 저장소 → 읽기 전
 - **Query Store**: 실행계획별 성능 통계/튜닝 후보, 근거 연산자, 플랜 비교 및 옵트인 SQL 원문 조회(기본 비활성).
 - **v0.13 adaptive guard**: Query Store 분석 수집의 관측 비용에 따라 60초 기본 주기를 120초까지 완화하는 휴리스틱. DMV 5초 수집은 그대로입니다. 단기 A/B 로컬 측정에서 Query Store 수집 비용 감소를 관측했으나 **업무 SQL의 성능 개선 또는 운영환경 무영향을 입증한 것은 아닙니다**.
 - **2개 분리 그래프**: 왼쪽은 요청 수(건), 오른쪽은 선택적 **SQL Server 인스턴스 전체 프로세스 CPU(%)**. 일반 MSSQL에서 특정 DB만의 CPU(%)를 뜻하지 않습니다. 약 60초 CPU 표본은 실제 수집값만 표시합니다.
-- **현재 미구현**: 사용자 회원가입/로그인, 웹에서 새로운 고객 DB 직접 등록, 고객별 접근 격리, 검증된 안전 자동복구, 외부 사용자용 공개 배포.
+- **현재 미구현**: 실행 중 여러 DB 동시 수집/전환, 안전한 자격증명 영구 저장, 검증된 자동복구 및 Windows 설치기. 회원가입/로그인은 설치형 도구 목표에서 제외.
 
 구체적인 상태 및 주의사항은 [개발 현황](docs/PROJECT_STATUS_2026-10-21.md), [아키텍처](docs/ARCHITECTURE.md), [v0.13 검증 체크리스트](docs/PHASE13_FINAL_UI_REGRESSION.md), [다음 단계 대상 등록 설계](docs/PHASE14_TARGET_ONBOARDING_DESIGN.md)를 참고하세요.
 
