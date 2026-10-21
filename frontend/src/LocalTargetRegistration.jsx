@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw} from 'lucide-react';
+import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown} from 'lucide-react';
 import './local-target-registration.css';
 
 const INITIAL = {
@@ -10,11 +10,13 @@ const CODES={
   READ_ONLY_QUERY_SUCCEEDED:'SQL Server 연결 성공. 읽기 전용 SELECT만 실행했습니다. 계정의 쓰기 권한까지 검증한 것은 아닙니다.',
   DATABASE_MISMATCH:'연결된 데이터베이스가 입력한 이름과 다릅니다.',
   AUTHENTICATION_FAILED:'SQL Server 로그인이나 비밀번호를 확인해 주세요.',
-  CONNECTION_FAILED:'SQL Server에 연결하지 못했습니다. 호스트·포트·방화벽을 확인해 주세요.',
-  CONNECTION_OR_TLS_FAILED:'연결 또는 TLS 인증서 검증에 실패했습니다.',
+  CONNECTION_FAILED:'SQL Server TCP 연결이 거부되었거나 호스트에 접근할 수 없습니다. 호스트·포트·방화벽을 확인해 주세요.',
+  CONNECTION_TIMEOUT:'SQL Server 연결 시간이 초과됐습니다. 네트워크 상태와 서버 응답을 확인해 주세요.',
+  TLS_CERTIFICATE_UNTRUSTED:'SQL Server TLS 인증서를 신뢰할 수 없습니다. 서버 인증서를 확인하세요. 자신이 관리하는 로컬 개발 DB인 경우에만 고급 설정의 예외를 검토해 주세요.',
+  CONNECTION_OR_TLS_FAILED:'SQL Server 연결에 실패했습니다. TLS 설정, SQL Server 로그, 서버 접근 권한을 확인해 주세요.',
   TARGET_ALREADY_REGISTERED:'같은 서버·DB·로그인 대상이 이미 등록되어 있습니다.',
   CREDENTIAL_NOT_STORED_COLLECTOR_NOT_STARTED:'대상 정보만 등록되었습니다. 비밀번호는 저장되지 않았고 아직 모니터링하지 않습니다.',
-  MONITORING_STARTED_SESSION_ONLY:'선택한 DB를 모니터링하기 시작했습니다. 이 연결은 백엔드 실행 중에만 유지되며, 재시작 후 다시 연결해야 합니다.'
+  MONITORING_STARTED_SESSION_ONLY:'연결 대상이 활성화됐습니다. 실제 DMV 수집 성공 여부를 확인 중입니다. 재시작 후에는 비밀번호를 다시 입력해야 합니다.'
 };
 
 export default function LocalTargetRegistration(){
@@ -24,7 +26,9 @@ export default function LocalTargetRegistration(){
   const [busy,setBusy]=useState(false);
   const [feedback,setFeedback]=useState(null);
   const [verified,setVerified]=useState(false);
+  const [collector,setCollector]=useState(null);
   const activeItem=items.find(item=>item.status==='ACTIVE_IN_MEMORY');
+  const activeCollector=activeItem && collector?.id===activeItem.id ? collector : null;
 
   const load=async()=>{
     try{
@@ -37,6 +41,25 @@ export default function LocalTargetRegistration(){
     }catch{setEnabled(null);}
   };
   useEffect(()=>{load();},[]);
+  useEffect(()=>{
+    if(!activeItem){setCollector(null);return undefined;}
+    let mounted=true;
+    const refresh=async()=>{
+      try{
+        const response=await fetch('/api/v1/targets',{cache:'no-store'});
+        if(!response.ok)throw Error('status unavailable');
+        const targets=await response.json();
+        const current=Array.isArray(targets)
+          ?targets.find(target=>target.id===activeItem.id):null;
+        if(mounted)setCollector(current||{id:activeItem.id,collectorStatus:'UNKNOWN'});
+      }catch{
+        if(mounted)setCollector({id:activeItem.id,collectorStatus:'UNKNOWN'});
+      }
+    };
+    refresh();
+    const timer=setInterval(refresh,5000);
+    return ()=>{mounted=false;clearInterval(timer);};
+  },[activeItem?.id]);
 
   const update=(field,value)=>{
     setForm(previous=>({...previous,[field]:value}));
@@ -121,13 +144,23 @@ export default function LocalTargetRegistration(){
         <input required type="password" maxLength={512} autoComplete="new-password"
           value={form.password} onChange={e=>update('password',e.target.value)}/>
       </label>
-      <label className="dbp-local-tls-option">
-        <input type="checkbox" checked={form.trustLocalCertificate}
-          onChange={e=>update('trustLocalCertificate',e.target.checked)}/>
-        <span>로컬 개발용 자체 서명 인증서 허용 (추가 설정 필요, 원격 DB 사용 불가)
-          <small>기본값은 TLS 인증서 검증입니다. 로컬 SQL Server Developer 테스트에서만 서버의 DBPULSE_LOCAL_TRUST_SELF_SIGNED=true 옵션을 명시적으로 켜세요.</small>
-        </span>
-      </label>
+      <details className="dbp-local-advanced">
+        <summary><SlidersHorizontal size={16}/><span>고급 연결 설정</span>
+          <small>기본값은 TLS 서버 인증서 검증</small><ChevronDown size={16} className="dbp-local-advanced-chevron"/></summary>
+        <div className="dbp-local-advanced-content">
+          <label className="dbp-local-tls-option">
+            <input type="checkbox" checked={form.trustLocalCertificate}
+              onChange={e=>update('trustLocalCertificate',e.target.checked)}/>
+            <span>로컬 개발용 자체 서명 인증서 허용
+              <small>암호화 연결은 유지하지만 서버 인증서의 신원을 확인하지 않습니다.
+                자신이 관리하는 로컬 SQL Server Developer 환경에 한해서만 사용하세요.
+                백엔드의 DBPULSE_LOCAL_TRUST_SELF_SIGNED=true 설정이 추가로 필요합니다.
+                원격 DB에서는 사용할 수 없습니다.</small>
+            </span>
+          </label>
+          <p>운영용 SQL Server는 신뢰할 수 있는 인증서를 설치하고 위 옵션을 해제한 상태에서 연결하세요.</p>
+        </div>
+      </details>
       <div className="dbp-local-actions">
         <button type="submit" disabled={busy||enabled!==true}>
           <PlugZap size={16}/>{busy?'검사 중…':'연결 테스트'}
@@ -153,9 +186,15 @@ export default function LocalTargetRegistration(){
       <button type="button" onClick={load}><RefreshCcw size={14}/>새로고침</button>
     </div>
     {activeItem && <div className="dbp-local-feedback ok" role="status">
-      <ShieldCheck size={17}/>현재 <strong>{activeItem.databaseName}</strong> 모니터링 중입니다.
-      다른 DB를 선택하려면 백엔드 재시작 후 다시 연결하세요.
-      <a href="#overview">개요에서 상태 확인 →</a>
+      <ShieldCheck size={17}/>선택 대상 <strong>{activeItem.databaseName}</strong>
+      <span className="dbp-local-collector-status">
+        {activeCollector?.collectorStatus==='ONLINE'?'실제 수집 정상 (ONLINE)'
+          :activeCollector?.collectorStatus==='OFFLINE'?'실제 수집 실패 (OFFLINE) · 수집 권한/DB 상태 확인'
+          :activeCollector?.collectorStatus==='INITIALIZING'?'수집 초기화 중'
+          :'수집 상태 확인 중'}
+      </span>
+      <span>다른 DB를 선택하려면 백엔드 재시작 후 다시 연결하세요.</span>
+      <a href="#overview">개요에서 확인 →</a>
     </div>}
     {items.length ? <div className="dbp-local-list">
       {items.map(item=><div className="dbp-local-item" key={item.id}>
@@ -163,7 +202,7 @@ export default function LocalTargetRegistration(){
         <div><strong>{item.databaseName}</strong>
           <small>{item.name} · {item.host}:{item.port}</small></div>
         <span className={item.status==='ACTIVE_IN_MEMORY'?'active':''}>
-          {item.status==='ACTIVE_IN_MEMORY'?'현재 선택됨 · 수집 중':'등록됨 · 수집 미시작'}
+          {item.status==='ACTIVE_IN_MEMORY'?'현재 선택됨 · 수집 상태 확인':'등록됨 · 수집 미시작'}
         </span>
       </div>)}
     </div>:<div className="dbp-local-empty">
