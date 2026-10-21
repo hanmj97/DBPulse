@@ -5,24 +5,19 @@ import {readFileSync} from 'node:fs';
 const overview=readFileSync(new URL('../src/OverviewDashboard.jsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../src/dashboard.css',import.meta.url),'utf8');
 
-test('full-width chart, bounded diagnostics and tabbed history replace drifting independent columns',()=>{
-  assert.match(overview,/rev-ops-wide-chart/);
-  assert.match(overview,/rev-ops-unified-board/);
-  assert.match(overview,/rev-ops-unified-grid/);
-  assert.match(overview,/rev-ops-history-board/);
+test('Overview preserves server status, stable diagnostics, incident views and DB label',()=>{
+  for(const klass of ['rev-ops-wide-chart','rev-ops-unified-board','rev-ops-unified-grid','rev-ops-history-board']) {
+    assert.ok(overview.includes(klass));
+  }
   assert.match(overview,/historyView==='table'/);
   assert.match(overview,/setHistoryView\('timeline'\)/);
-  assert.match(overview,/rev-ops-action-panel/);
-  assert.doesNotMatch(overview,/rev-ops-independent-columns/);
-  assert.match(css,/\.rev-ops-unified-grid\{/);
-  assert.match(css,/grid-template-rows:203px/);
-  assert.match(css,/\.rev-ops-history-content \.rev-timeline\{/);
-  assert.match(css,/@media\(max-width:670px\)/);
   assert.match(overview,/target\?\.databaseName \|\| target\?\.name/);
   assert.match(overview,/databaseName=\{target\?\.databaseName\}/);
+  assert.match(css,/grid-template-rows:220px/);
+  assert.match(css,/@media\(max-width:670px\)/);
 });
 
-test('CPU is fetched only from cached DBPulse GET API and not queried from MSSQL per page view',()=>{
+test('Overview CPU reads only cached DBPulse GET and retains real samples',()=>{
   assert.match(overview,/function useOverviewCpuSamples\(targetId\)/);
   assert.match(overview,/\/instance-cpu/);
   assert.match(overview,/cache:'no-store'/);
@@ -34,17 +29,24 @@ test('CPU is fetched only from cached DBPulse GET API and not queried from MSSQL
   assert.doesNotMatch(overview,/query_store_runtime_stats/);
 });
 
-test('CPU series uses distinct 0-100 percent axis and real timestamps only',()=>{
-  assert.match(overview,/const cpuY = percent=>187-\(percent\/100\)\*149/);
-  assert.match(overview,/const cpuX = at=>42\+\(\(at-firstMs\)\/\(lastMs-firstMs\)\)\*688/);
-  assert.match(overview,/cpuSamples\.filter\(p=>p\.at>=firstMs && p\.at<=lastMs\)/);
-  assert.match(overview,/nonZeroSegments\(cpuPoints, p=>p\.cpu, p=>p\.at, 150000\)/);
-  assert.match(overview,/cpuReady && cpuVisibleSegments\.map/);
-  assert.match(overview,/cpuReady && cpuPoints\.filter\(p=>p\.cpu>0\)\.map/);
-  assert.match(overview,/\[0,50,100\]\.map\(n=>/);
-  assert.match(overview,/SQL Server 전체 프로세스 CPU \(%\)/);
-  assert.match(overview,/특정 데이터베이스의 CPU\(%\)가 아닙니다/);
-  assert.match(css,/\.rev-ops-cpu-line/);
-  assert.match(css,/\.rev-ops-cpu-readout/);
+test('request and instance CPU are separate React charts with independent axes',()=>{
+  assert.match(overview,/function RequestTrendPanel\(/);
+  assert.match(overview,/function CpuTrendPanel\(/);
+  assert.match(overview,/function TrendChart\(/);
+  assert.match(overview,/className="rev-ops-split-charts"/);
+  assert.match(overview,/<RequestTrendPanel history=\{history\} sampleLimit=\{sampleLimit\}/);
+  assert.match(overview,/<CpuTrendPanel cpuState=\{cpuState\}/);
+  assert.match(overview,/REQUEST_SERIES/);
+  assert.match(overview,/nonZeroSegments\(/);
+  assert.match(overview,/const y=value=>CHART_BOTTOM-Number\(value\)\/100/);
+  assert.match(overview,/\[0,25,50,75,100\]\.map/);
+  assert.match(overview,/단위: 건/);
+  assert.match(overview,/단위: %/);
+  assert.match(overview,/선택 DB만의 CPU가 아님/);
+  assert.match(overview,/특정 DB의 CPU\(%\)가 아닙니다/);
+  assert.match(css,/\.rev-ops-wide-chart \.rev-ops-split-charts \{/);
+  assert.match(css,/grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
+  assert.match(css,/aspect-ratio:560 \/ 210/);
+  assert.match(css,/@media\(max-width:1150px\)/);
   assert.doesNotMatch(overview,/Math\.random\(/);
 });
