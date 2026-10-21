@@ -9,6 +9,19 @@
 - 로그인은 요구하지 않지만 **로컬 API를 LAN/인터넷에 노출하지 않고**, 브라우저에서의 예기치 않은 POST를 방지해야 합니다. 로컬 소유자=단일 사용자로 가정하며 Windows 사용자 간 접근격리는 설치·서비스 사용자 계정 설계에서 따로 고려합니다.
 - SQL Server DB명은 모니터링 대상 라벨이 됩니다. 인스턴스 전체 CPU(%)를 DB별 CPU라고 표시하지 않습니다.
 
+## 14.3 Windows 사용자 DPAPI 비밀번호 저장 (개발 구현)
+
+- **서버 OS 경계:** native Windows signed-in user JVM에서만 `DBPULSE_WINDOWS_DPAPI_ENABLED=true`로 실행 시 DPAPI 자격증명 암호화 사용. Docker/Linux JVM 또는 Windows 서비스 공용 계정은 **암호화 저장 기능을 제공하지 않음**.
+- **암호화 저장 형식:** 현재 사용자 `%LOCALAPPDATA%\\DBPulse\\credentials\\<UUID>.dpapi`에 DPAPI 보호 바이트만 저장. 파일 이름 UUID 검증, 심볼릭 링크 차단, 임시 암호문 파일 및 원자적 교체, 복호화 바이트 배열 초기화. Java String은 JDBC 수명 동안 메모리에 있을 수 있으며 영구 평문 파일/HTTP 응답은 금지.
+- **저장 API:** 현재 활성/검증된 UI 대상만 `remember-credential`로 명시적 저장. `GET credential-capability`은 지원 여부만 반환. Registry GET에는 비밀 대신 `savedCredential` 불리언만 추가.
+- **재접속 API:** `/{id}/start-saved`는 등록 UUID를 서버 저장소에서 읽고 동일한 허용 호스트/TLS 정책과 읽기 전용 DB 접속 검증 후 대상 활성화. 실행 중 활성 DB가 있으면 409. 브라우저에는 비밀번호를 돌려주지 않음.
+- **삭제 API:** `forget-credential`로 암호문만 삭제, 등록 해제 시 연결 정보 행 제거 전에 해당 암호문 정리. 원본 MSSQL 데이터·기존 메트릭 이력은 절대로 삭제하지 않음.
+- **Windows 실행 모드:** 개발 PowerShell 도구 `tools/run_dbpulse_windows_host_lab.ps1`는 Docker 메타 PostgreSQL만 유지하고 기존 Docker backend를 멈춘 뒤, Windows 사용자 계정으로 Java 21 API를 loopback에 실행. Maven 미설치 시 Docker Builder stage를 사용. 프론트엔드는 기존 `npm.cmd run dev`.
+- **다음 필요한 개발:** 실제 Windows DPAPI 저장/복호화/계정 변경/잠금 테스트, 내장된 React 정적 파일·Java 런타임·로컬 메타 저장소를 묶은 Windows 패키징, 사용자의 명시적인 자동재연결 선택 옵션(현재는 버튼으로 수동 연결).
+- 보안/실행 안내: `docs/PHASE14_WINDOWS_DPAPI_HANDOFF.md`. GitHub CI는 Linux에서 **DPAPI 네이티브 복호화를 테스트하지 못합니다**. Windows 수용검증 전에는 Draft 유지.
+
+---
+
 ## 14.2 등록된 DB 관리 — 표시 이름 변경·등록 해제 (2026-10-21)
 
 - `POST /api/v1/local-targets/{id}/rename` : 화면 표시 이름만 변경합니다(`name`, 최대 100자). 기존 `target_id`, 호스트/포트/DB명/로그인, 이력과 수집기의 연결 동작은 유지합니다.
