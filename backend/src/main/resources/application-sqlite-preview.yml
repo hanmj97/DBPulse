@@ -1,0 +1,18 @@
+# ISOLATED EXPERIMENTAL SQLITE PROFILE — NOT ENABLED FOR DBPulse.exe.
+# Existing PostgreSQL/DPAPI/monitoring history remains the default.
+# Pass DBPULSE_SQLITE_PREVIEW_PATH explicitly; never auto-switch a user's DB.
+spring:
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:${DBPULSE_SQLITE_PREVIEW_PATH}
+    username: ''
+    password: ''
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+      connection-init-sql: PRAGMA foreign_keys=ON
+      connection-timeout: 5000
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-sqlite.sql
