@@ -36,8 +36,12 @@ test('the target is clearly inactive and sensitive password is cleared after reg
   assert.match(form,/REGISTERED_INACTIVE/);
   assert.match(form,/password:''/);
   assert.match(form,/등록됨 · 수집 미시작/);
-  assert.match(form,/비밀번호를 저장하지 않으므로/);
+  assert.match(form,/비밀번호는 디스크에 저장하지 않으며/);
+  assert.match(form,/\/api\/v1\/local-targets\/start-monitoring/);
+  assert.match(form,/ACTIVE_IN_MEMORY/);
+  assert.match(form,/선택한 DB 모니터링 시작/);
   assert.match(form,/disabled=\{busy\|\|!verified\}/);
+  assert.match(form,/현재 선택됨 · 수집 중/);
   assert.match(css,/\.dbp-local-form/);
   assert.match(css,/@media\(max-width:670px\)/);
 });
