@@ -33,6 +33,13 @@
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <!-- SQLite proof-of-compatibility for future Docker-free Windows metadata storage.
+         The current desktop EXE still uses the existing PostgreSQL database. -->
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <version>3.46.1.0</version>
+    </dependency>
     <!-- Windows user-scoped DPAPI. Called only by optional native-Windows host mode. -->
     <dependency>
       <groupId>net.java.dev.jna</groupId>
