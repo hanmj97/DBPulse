@@ -4,7 +4,7 @@ import './local-target-registration.css';
 
 const INITIAL = {
   name:'',host:'host.docker.internal',port:'1433',
-  databaseName:'',username:'',password:''
+  databaseName:'',username:'',password:'',trustLocalCertificate:false
 };
 const CODES={
   READ_ONLY_CONNECTION_CONFIRMED:'데이터베이스 연결을 확인했습니다. 읽기 전용 연결로 확인했습니다.',
@@ -111,6 +111,13 @@ export default function LocalTargetRegistration(){
       <label>비밀번호 (저장되지 않음)
         <input required type="password" maxLength={512} autoComplete="new-password"
           value={form.password} onChange={e=>update('password',e.target.value)}/>
+      </label>
+      <label className="dbp-local-tls-option">
+        <input type="checkbox" checked={form.trustLocalCertificate}
+          onChange={e=>update('trustLocalCertificate',e.target.checked)}/>
+        <span>로컬 개발용 자체 서명 인증서 허용 (추가 설정 필요, 원격 DB 사용 불가)
+          <small>기본값은 TLS 인증서 검증입니다. 로컬 SQL Server Developer 테스트에서만 서버의 DBPULSE_LOCAL_TRUST_SELF_SIGNED=true 옵션을 명시적으로 켜세요.</small>
+        </span>
       </label>
       <div className="dbp-local-actions">
         <button type="submit" disabled={busy||enabled!==true}>
