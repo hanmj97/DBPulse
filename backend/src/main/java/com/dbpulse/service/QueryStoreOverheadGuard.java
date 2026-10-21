@@ -137,6 +137,22 @@ public final class QueryStoreOverheadGuard {
         reason = "NOT_CONFIGURED";
     }
 
+    /** Clear per-database observations when changing the monitored target. */
+    public synchronized void resetForNewTarget() {
+        reset();
+        skippedCycles = 0;
+        totalCollectorAttempts = 0;
+        successfulCollections = 0;
+        failedCollections = 0;
+        cumulativeJdbcWallMs = 0;
+        lastCollectorWallMs = 0;
+        internalSampleCount = 0;
+        peakInternalAvgCpuMs = 0;
+        peakInternalAvgReadsPages = 0;
+        lastObservedAt = null;
+        reason = "NOT_MEASURED";
+    }
+
     public synchronized Snapshot snapshot() {
         return new Snapshot(
             throttled ? "THROTTLED" : "NORMAL",
