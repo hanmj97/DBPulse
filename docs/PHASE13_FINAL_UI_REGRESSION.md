@@ -1,3 +1,65 @@
+## 2026-10-21 — operations overview stable-band redesign
+
+**Why:** The user correctly rejected two consecutive layouts where
+separately sized side panels shifted independently when incident / Wait
+records arrived, leaving blank rectangles. Preserving independent
+Masonry-like columns is not a satisfactory operational dashboard.
+
+**Implemented** (React and CSS only):
+- Full-width live DMV/optional SQL Server process CPU chart.
+- Single **unified, bounded-height** diagnostics strip with three
+  portions: top Wait categories, current signals, and read-only
+  operator shortcuts. All three occupy one stable ~203px row on wide
+  screens. Each section has its own bounded scrolling fallback for
+  exceptional text/translation growth. Incoming events do not move
+  the strip or unrelated content. At tablet/mobile widths the strip
+  uses predictable two/one-column responsive layouts.
+- Single full-width recent incidents surface. A keyboard-accessible
+  "표 / 타임라인" switch changes the *view*, so those same incidents
+  are never duplicated in two competing-height columns. Bounded
+  records: at most six table records or four timeline events, with
+  "전체 보기" routing to full incident history. Each record retains
+  user-triggered Investigation.
+- Existing server bar, real-data KPI and query/drill-down shortcuts
+  remain. No backend or extra SQL Server requests added.
+
+**Graph zero design:**
+- Draw **one neutral bluish zero baseline** even when request counts
+  and CPU are all 0, rather than painting several colored zero lines
+  or hiding the baseline completely.
+- True 0→positive, positive→positive, and positive→0 intervals
+  continue to use each request-series' original blue/red/purple
+  color. Missing intervals remain disconnected.
+- SQL Server **instance-wide** process CPU percent (not selected DB
+  CPU) remains its own right-hand percentage axis. The CPU legend,
+  axis labels and readout stay readable **bright orange (#ffbd60)**
+  even when the latest actual percent is zero. A zero-only CPU trace
+  does not add a second colored line over the shared baseline.
+
+**Manual acceptance still required:**
+- [ ] Wait goes empty→2 types→5 types; unified band stays the
+      same desktop height and important categories + remaining link
+      stay functional.
+- [ ] OPEN incidents and current Blocking/long requests increase;
+      only two previews render, unified row height remains stable.
+- [ ] Switch "표" and "타임라인"; latest real incident remains
+      clickable for Investigation; there is no duplicate second
+      incident card or blank aligned column.
+- [ ] At an all-zero observation window a visible neutral line
+      remains, never stacked colored lines; introduce only lab
+      workload and verify each real nonzero series uses its own
+      blue/red/purple stroke and returns to neutral at zero.
+- [ ] CPU legend is bright orange in Navy and Midnight Dark at
+      0% and above; no fake per-database CPU claim.
+- [ ] Desktop 1920px/1366px and narrow/mobile: no content overlap,
+      unexpected strip growth, unreachable detail link or
+      artificially coupled columns.
+- [ ] No browser errors; existing Query Store/Blocking/Deadlock/
+      Wait/Incident/SQL drawer routes behave as before.
+
+Source-level Node tests and CI are not substitutes for real user
+browser acceptance. Keep PR #12 in Draft until verified.
+
 ## 2026-10-21 — independent shortcut height and CPU (%) overlay
 
 The user's second screenshot confirmed that the *lower*
