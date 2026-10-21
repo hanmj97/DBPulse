@@ -1,3 +1,64 @@
+## 2026-10-21 — independent shortcut height and CPU (%) overlay
+
+The user's second screenshot confirmed that the *lower*
+`운영 바로가기` card was stretched to the taller sibling
+`최근 인시던트 타임라인` by legacy
+`.rev-overview-secondary > .rev-panel {height:100%}`.
+`dashboard.css` now overrides the height at the *operations*
+layout scope, using `align-items:start` and intrinsic
+`height:auto/fit-content` for its cards. The right card has a
+stable height determined by the three fixed shortcuts and will
+no longer expand as the left incident timeline changes; the
+left list remains fully accessible without introducing internal
+scroll or clipping. Narrow-screen stacking is preserved.
+
+CPU is a new optional overlaid time series **only when true
+saved measurements exist**. `OverviewDashboard.jsx` polls
+`GET /api/v1/targets/{id}/instance-cpu` every 15 seconds.
+This API returns an **existing cached JVM CPU sample**, so no
+SQL Server query is triggered by page polling. The optional
+backend sampler operates about every 60 seconds when
+`DBPULSE_SQLSERVER_CPU_ENABLED=true`; when disabled or
+unavailable the chart does not invent a numeric CPU sample.
+
+Each distinct `collectedAt` is held in memory while the
+Overview is open, max 60 samples. There is **no persistent
+CPU history API** yet, so the graph begins at the first
+observed sample after opening and resets upon unmount/reload.
+Only CPU points inside the visible real DMV window are
+displayed, without filling missing timestamps; gaps over
+150 seconds are not connected. The right axis is always
+0–100% and orange dashed, distinct from **left axis request
+counts**. The readout shows the nearest actual CPU sample
+time to avoid falsely implying CPU was measured every 5s.
+
+**Semantic limit:** `sqlProcessCpuPercent` is SQL Server
+**instance/process-wide CPU (%) across all databases**,
+not the connected `DBPulseLab` database CPU percent. No
+per-database CPU% estimator has been added. Per-query SQL
+CPU time (ms) continues to come from Query Store; do not
+conflate it with host/process CPU %. The optional CPU
+feature uses SQL Server ring-buffer diagnostics and may
+be DISABLED, INITIALIZING, PERMISSION_DENIED or UNAVAILABLE.
+Do not grant additional SQL privileges to bypass errors.
+
+Acceptance:
+- [ ] At `http://127.0.0.1:5174/#overview`, right
+      "운영 바로가기" panel ends after the 3 actions without
+      an empty internal block forced by the taller left list.
+- [ ] In Navy and Midnight Dark, graph displays orange
+      CPU series/0–100% axis when actual CPU samples arrive
+      (usually wait until TWO different 60s samples for a line).
+- [ ] If CPU unavailable, no fake 0% line appears; the
+      status is noted. Existing DMV graph count series still work.
+- [ ] Hover shows the actual recorded CPU sample's time and
+      value; time gaps remain gaps.
+- [ ] Resize to desktop 1366px and mobile; no clipped actions.
+- [ ] Query-page CPU widget and SQL text drawer remain unchanged.
+
+The user has not yet visually verified this latest code.
+Draft PR #12 remains unmerged.
+
 ## Overview right-rail growth fix (2026-10-21; local visual feedback)
 
 The owner observed that multiple "현재 관측 신호" entries could
