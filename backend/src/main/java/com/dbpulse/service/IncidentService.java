@@ -14,7 +14,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class IncidentService {
     private final IncidentRepository repository;
-    private final IncidentSignalTracker tracker = new IncidentSignalTracker();
+    private IncidentSignalTracker tracker = new IncidentSignalTracker();
+
+    /** Avoid linking consecutive-sample incident decisions across two databases. */
+    public synchronized void resetTransientSignals() {
+        tracker = new IncidentSignalTracker();
+    }
 
     public IncidentService(IncidentRepository repository) { this.repository = repository; }
 
