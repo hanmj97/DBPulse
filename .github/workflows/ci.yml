@@ -126,3 +126,42 @@ jobs:
           test -s /tmp/dbpulse-ui-app.js
           curl -fsS http://127.0.0.1:18081/api/v1/targets -o /tmp/dbpulse-targets.json
           grep -q 'local-mssql' /tmp/dbpulse-targets.json
+
+  windows-launcher:
+    name: Windows PowerShell launcher syntax
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Windows launcher scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'tools/run_dbpulse_windows_ui.ps1',
+            'tools/run_dbpulse_windows_host_lab.ps1'
+          )
+          $allErrors = @()
+          foreach ($file in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path, [ref]$tokens, [ref]$parseErrors
+            )
+            if ($parseErrors.Count -gt 0) {
+              $allErrors += $parseErrors
+            }
+          }
+          if ($allErrors.Count -gt 0) {
+            $allErrors | ForEach-Object { Write-Error $_.ToString() }
+            exit 1
+          }
+          Write-Host 'Both Windows PowerShell scripts passed syntax validation.'
+      - name: Verify unique bundle output and preserved old JAR
+        shell: pwsh
+        run: |
+          $scriptText = Get-Content tools/run_dbpulse_windows_ui.ps1 -Raw
+          if (-not $scriptText.Contains('desktop-bundles')) { throw 'Unique staging directory missing.' }
+          if (-not $scriptText.Contains('[guid]::NewGuid()')) { throw 'Versioned filename missing.' }
+          if (-not $scriptText.Contains('-JarPath $jar')) { throw 'Runtime unique bundle handoff missing.' }
+          if ($scriptText.Contains('docker cp ("\${cid}:/workspace/backend/target/dbpulse-api.jar") (Join-Path $root')) {
+            throw 'Old fixed destination copy remains.'
+          }
