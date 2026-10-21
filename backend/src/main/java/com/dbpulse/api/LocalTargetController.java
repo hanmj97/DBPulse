@@ -8,12 +8,15 @@ import com.dbpulse.service.LocalTargetService.StartResult;
 import com.dbpulse.service.LocalTargetService.StopRequest;
 import com.dbpulse.service.LocalTargetService.StopResult;
 import com.dbpulse.service.LocalTargetService.TestResult;
+import com.dbpulse.service.LocalTargetService.RenameRequest;
+import com.dbpulse.service.LocalTargetService.RegistryResult;
 import java.util.List;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -61,6 +64,22 @@ public class LocalTargetController {
         @RequestHeader(value="Origin", required=false) String origin) {
         requireLocalPost(guard, origin);
         return targets.stopMonitoring(request.id());
+    }
+
+    @PostMapping(path="/{id}/rename", consumes=MediaType.APPLICATION_JSON_VALUE)
+    public RegistryResult rename(@PathVariable String id, @RequestBody RenameRequest request,
+        @RequestHeader(value="X-DBPulse-Local-Request", required=false) String guard,
+        @RequestHeader(value="Origin", required=false) String origin) {
+        requireLocalPost(guard, origin);
+        return targets.renameRegistered(id, request.name());
+    }
+
+    @PostMapping(path="/{id}/unregister", consumes=MediaType.APPLICATION_JSON_VALUE)
+    public RegistryResult unregister(@PathVariable String id,
+        @RequestHeader(value="X-DBPulse-Local-Request", required=false) String guard,
+        @RequestHeader(value="Origin", required=false) String origin) {
+        requireLocalPost(guard, origin);
+        return targets.unregister(id);
     }
 
     @PostMapping(consumes=MediaType.APPLICATION_JSON_VALUE)
