@@ -35,6 +35,19 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
 
 PowerShell 창은 현재 개발용 Java 런처를 관리하므로 열어 두어야 합니다. Ctrl+C 종료 시 백엔드 Java 프로세스도 중지하도록 설계했습니다.
 
+## Windows JAR 사용 중 파일 잠금 오류 해결 (2026-10-21)
+
+기존 통합 스크립트는 `backend/target/dbpulse-api.jar`를 **같은 경로로 교체**하다가, 이전 Windows Spring Boot 프로세스가 파일을 사용 중이면 `RemoveAll dbpulse-api.jar: The process cannot access the file because it is being used by another process` 오류를 냈습니다. React 테스트/빌드와 Docker Maven 빌드는 성공한 다음 마지막 `docker cp`에서 실패했습니다.
+
+- 현재 수정 버전은 **매 실행마다 고유한 이름**(`backend/target/desktop-bundles/dbpulse-desktop-<UUID>.jar`)으로 새 통합 JAR를 저장합니다. 실행 중인 오래된 `backend/target/dbpulse-api.jar`를 수정하거나 삭제하지 않습니다. 버전별 임시 실행 JAR는 무시되는 `target` 내부에 남으므로 용량 정리는 나중에 **실행 중이 아닌 파일에 대해서만** 처리해야 합니다.
+- 스크립트 실행 전에 `18081`을 사용하는 **기존 Windows DBPulse Java 프로세스**를 감지하면 사용자에게 해당 PowerShell 창에서 `Ctrl+C`로 정상 종료하도록 안내하며, 다른 Java 프로그램을 임의로 중지하지 않습니다. Docker 백엔드만 기존처럼 분리하여 중지합니다.
+- Spring Boot Windows 호스트 스크립트는 `-JarPath`로 이 고유 JAR를 실행할 수 있게 확장했습니다. 기존 단독 API 개발 스크립트(기본 인자) 동작은 그대로입니다.
+- GitHub Windows Runner CI가 두 PowerShell 런처를 네이티브 파서로 검사합니다. React+JAR 동일 포트 실행·PostgreSQL 연동은 기존 Linux CI에서 검증하지만, 실제 사용자의 Windows에서 실행 중인 JAR 잠금/DPAPI 복호화/브라우저 실행은 현장 테스트가 필요합니다.
+
+**사용자 복구 순서:** 예전 Windows Java Spring Boot 로그를 보여주는 PowerShell에서 `Ctrl+C`로 종료 → 새 PowerShell에서 `git pull --ff-only origin feature/target-onboarding-v0.14` → `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force` → `.\\tools\\run_dbpulse_windows_ui.ps1`. 기존 SQL Server DB, PostgreSQL 볼륨, DPAPI 저장 비밀번호를 삭제하지 마세요.
+
+---
+
 ## 로컬 검증 체크리스트
 
 1. `http://127.0.0.1:18081/` 페이지에서 기존 Navy/Midnight Dark 화면이 나오는지 확인.
