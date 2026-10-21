@@ -39,6 +39,10 @@ test('operator summary previews have no drag scrollbar at any breakpoint',()=>{
   assert.match(overview,/const PREVIEW_LIMIT = 2/);
   assert.match(overview,/const previewAlerts = alerts\.slice\(0, PREVIEW_LIMIT\)/);
   assert.match(overview,/const visibleWaitGroups = waitGroups\.slice\(0, PREVIEW_LIMIT\)/);
+  // The category inventory itself must not be truncated at five before
+  // computing hiddenWaitGroupCount; 10 categories must show "8 more".
+  assert.doesNotMatch(overview,/sort\(\(a,b\)=>b\[1\]-a\[1\]\)\.slice\(0,5\)/);
+  assert.match(overview,/const hiddenWaitGroupCount = waitGroups\.length - visibleWaitGroups\.length/);
   assert.match(overview,/hiddenAlertCount>0/);
   assert.match(overview,/hiddenWaitGroupCount>0/);
   assert.match(css,/\.rev-ops-dashboard \.rev-ops-unified-grid\{[\s\S]*?grid-template-rows:220px;[\s\S]*?overflow:hidden;/);
