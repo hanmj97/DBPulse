@@ -292,6 +292,17 @@ function App() {
     return () => { active = false; clearInterval(timer); };
   }, []);
 
+  // A UI-selected database receives its own target ID. Never keep incident,
+  // SQL text, or query statistics selected from the previous database.
+  useEffect(() => {
+    setQueryAnalysis([]);
+    setQueryState(null);
+    setQueryError('');
+    setIncidents([]);
+    setSelectedIncidentId(null);
+    setSqlSelection(null);
+  }, [target?.id]);
+
   // Query Store is a separate service with a slower cadence than the DMV collector.
   useEffect(() => {
     if (!target?.id) return undefined;
@@ -517,7 +528,7 @@ function App() {
             {queryState?.lastCollectedAt && <span>마지막 분석 {timeFmt(queryState.lastCollectedAt)}</span>}
           </div>
           {queryError && <div className="banner error"><AlertCircle size={16}/>{queryError}</div>}
-          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>DBPulseLab에서 Query Store를 활성화해야 완료된 쿼리 통계를 분석할 수 있어요.</div>}
+          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>선택한 DB에서 Query Store를 활성화해야 완료된 쿼리 통계를 분석할 수 있어요.</div>}
           <div className="rev-query-table-toolbar">
             <label htmlFor="dbpulse-query-table-sort">기존 Query Store 표 정렬</label>
             <select id="dbpulse-query-table-sort" value={queryTableSort}
@@ -569,16 +580,16 @@ function App() {
     <div className="target-bar card">
       <div className="server-icon"><Server size={23}/></div>
       <div className="target-info"><strong>{target?.name || '연결 대상 확인 중'}</strong>
-        <span>MSSQL · {target?.databaseName || 'DBPulseLab'} · 로컬 단일 수집기</span></div>
+        <span>MSSQL · {target?.databaseName || '선택된 DB 없음'} · 로컬 단일 수집기</span></div>
       <div className={`status status-${status.tone}`}><span className="status-dot"/>{status.label}</div>
     </div>
     <article className="rev-panel"><div className="rev-panel-heading"><div><h2>연결 대상 정보</h2>
       <p>현재 릴리스는 단일 MSSQL 모니터링 대상만 지원합니다.</p></div></div>
-      <p>현재 연결된 단일 MSSQL 수집기의 상태입니다. 아래에서 추가 연결을 테스트하고 대상 정보만 등록할 수 있지만, 등록한 대상의 실시간 수집은 다음 단계에서 지원합니다.</p>
+      <p>화면에서 선택한 MSSQL DB를 모니터링합니다. 기존 .env 자동 수집을 꺼야 새 DB를 시작할 수 있으며, 실행 중인 수집기를 바꾸려면 백엔드를 재시작해야 합니다.</p>
     </article>
     <LocalTargetRegistration/>
     {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info">
-      <Terminal size={18}/>.env에 MSSQL 연결 정보를 설정하고 백엔드를 재시작해 주세요.</div>}
+      <Terminal size={18}/>아래 연결 등록 폼에서 특정 SQL Server DB를 선택하고 모니터링을 시작해 주세요.</div>}
     {target?.collectorStatus === 'OFFLINE' && <div className="banner error">
       <WifiOff size={18}/>연결 및 수집 오류: {target?.errorCode || 'UNKNOWN'}</div>}
   </section>}
