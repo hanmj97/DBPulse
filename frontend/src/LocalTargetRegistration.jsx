@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown} from 'lucide-react';
+import {Database,ShieldCheck,PlugZap,AlertCircle,RefreshCcw,SlidersHorizontal,ChevronDown,Unplug} from 'lucide-react';
 import './local-target-registration.css';
 
 const INITIAL = {
@@ -18,7 +18,8 @@ const CODES={
   CONNECTION_OR_TLS_FAILED:'SQL Server 연결에 실패했습니다. TLS 설정, SQL Server 로그, 서버 접근 권한을 확인해 주세요.',
   TARGET_ALREADY_REGISTERED:'같은 서버·DB·로그인 대상이 이미 등록되어 있습니다.',
   CREDENTIAL_NOT_STORED_COLLECTOR_NOT_STARTED:'대상 정보만 등록되었습니다. 비밀번호는 저장되지 않았고 아직 모니터링하지 않습니다.',
-  MONITORING_STARTED_SESSION_ONLY:'연결 대상이 활성화됐습니다. 실제 DMV 수집 성공 여부를 확인 중입니다. 재시작 후에는 비밀번호를 다시 입력해야 합니다.'
+  MONITORING_STARTED_SESSION_ONLY:'선택한 DB 모니터링 시작 요청을 완료했습니다. 실제 수집 ONLINE 여부를 확인해 주세요.',
+  MONITORING_STOPPED:'현재 DB 수집을 중지하고 연결을 해제했습니다. 등록된 DB를 선택하고 비밀번호를 다시 입력하면 다른 DB에 연결할 수 있습니다.'
 };
 
 export default function LocalTargetRegistration(){
@@ -28,6 +29,7 @@ export default function LocalTargetRegistration(){
   const [busy,setBusy]=useState(false);
   const [feedback,setFeedback]=useState(null);
   const [verified,setVerified]=useState(false);
+  const [selectedId,setSelectedId]=useState(null);
   const [collector,setCollector]=useState(null);
   const activeItem=items.find(item=>item.status==='ACTIVE_IN_MEMORY');
   const activeCollector=activeItem && collector?.id===activeItem.id ? collector : null;
@@ -63,11 +65,48 @@ export default function LocalTargetRegistration(){
     return ()=>{mounted=false;clearInterval(timer);};
   },[activeItem?.id]);
 
+  const chooseRegistered=(item)=>{
+    setSelectedId(item.id);
+    setForm({
+      name:item.name,host:item.host,port:String(item.port),
+      databaseName:item.databaseName,username:item.username || '',
+      password:'',trustLocalCertificate:false
+    });
+    setVerified(false);
+    setFeedback({ok:true,text:'등록된 DB 정보를 불러왔습니다. 비밀번호를 입력한 후 모니터링 시작을 누르면 연결 테스트를 자동으로 수행합니다.'});
+  };
+
   const update=(field,value)=>{
+    if(['name','host','port','databaseName','username'].includes(field))setSelectedId(null);
     setForm(previous=>({...previous,[field]:value}));
     setVerified(false);
     setFeedback(null);
   };
+  const stopCurrent=async()=>{
+    if(busy||!activeItem)return;
+    if(!window.confirm('현재 DB 수집을 중지하고 연결을 해제할까요? 기존 수집 이력은 삭제되지 않습니다.'))return;
+    setBusy(true);setFeedback(null);
+    try{
+      const response=await fetch('/api/v1/local-targets/stop-monitoring',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-DBPulse-Local-Request':'1'},
+        body:JSON.stringify({id:activeItem.id})
+      });
+      if(response.status===409)throw Error('현재 대상이 변경됐거나 기존 .env 자동 수집 중입니다. 화면을 새로고침해 주세요.');
+      if(!response.ok)throw Error('모니터링 중지 요청에 실패했습니다.');
+      const result=await response.json();
+      if(result.status!=='DISCONNECTED')throw Error('중지 상태를 확인하지 못했습니다.');
+      setVerified(false);
+      setCollector(null);
+      setForm(previous=>({...previous,password:''}));
+      await load();
+      setFeedback({ok:true,text:CODES[result.code]});
+    }catch(error){
+      setFeedback({ok:false,text:error.message||'연결 해제에 실패했습니다.'});
+      await load();
+    }finally{setBusy(false);}
+  };
+
   const submit=async(action)=>{
     if(busy)return;
     setBusy(true);setFeedback(null);
@@ -81,7 +120,7 @@ export default function LocalTargetRegistration(){
           body:JSON.stringify({...form,port:Number(form.port)})
         });
       if(response.status===429)throw Error('잠시 후 다시 시도해 주세요. 연결 시도 횟수가 제한되어 있습니다.');
-      if(response.status===409)throw Error('이미 다른 DB가 수집 중입니다. 현재 백엔드를 재시작해야 다른 DB를 선택할 수 있습니다. .env의 기존 DB 자동 연결도 비활성화해 주세요.');
+      if(response.status===409)throw Error('이미 다른 DB가 수집 중입니다. 아래의 연결 해제 버튼으로 수집을 중지한 뒤 다시 시도해 주세요. 기존 .env 자동 연결은 비활성화해야 합니다.');
       if(response.status===404)throw Error('로컬 등록 기능을 먼저 활성화해야 합니다.');
       if(response.status===400)throw Error('입력값 또는 서버 측 허용 호스트 목록을 확인해 주세요.');
       if(!response.ok)throw Error('로컬 API가 요청을 처리하지 못했습니다.');
@@ -112,7 +151,7 @@ export default function LocalTargetRegistration(){
       <span><strong>직접 입력한 MSSQL DB를 모니터링할 수 있습니다.</strong>
         기존 .env 자동 연결을 비활성화한 다음 연결 테스트 → 모니터링 시작을 진행해 주세요.
         비밀번호는 디스크에 저장하지 않으며, 현재 백엔드 실행 중에만 연결을 유지합니다.
-        다른 DB를 선택할 때는 백엔드를 재시작해야 합니다.</span>
+        다른 DB로 전환할 때는 ‘현재 DB 연결 해제’ 버튼을 사용하세요. 백엔드나 Docker를 재시작할 필요는 없습니다.</span>
     </div>
     {enabled===false && <div className="dbp-local-note">
       기능이 기본 비활성 상태입니다. 로컬 `.env`의
@@ -172,7 +211,7 @@ export default function LocalTargetRegistration(){
           <Database size={16}/>대상 정보만 등록
         </button>
         <button className="dbp-local-start" type="button"
-          disabled={busy||!verified||Boolean(activeItem)}
+          disabled={busy||enabled!==true||!form.password||Boolean(activeItem)}
           onClick={()=>submit('start')}>
           <PlugZap size={16}/>선택한 DB 모니터링 시작
         </button>
@@ -195,21 +234,27 @@ export default function LocalTargetRegistration(){
           :activeCollector?.collectorStatus==='INITIALIZING'?'수집 초기화 중'
           :'수집 상태 확인 중'}
       </span>
-      <span>다른 DB를 선택하려면 백엔드 재시작 후 다시 연결하세요.</span>
+      <button type="button" className="dbp-local-disconnect"
+        onClick={stopCurrent} disabled={busy}>
+        <Unplug size={15}/>{busy?'처리 중…':'현재 DB 연결 해제 · 다른 DB 선택'}
+      </button>
       <a href="#overview">개요에서 확인 →</a>
     </div>}
     {items.length ? <div className="dbp-local-list">
-      {items.map(item=><div className="dbp-local-item" key={item.id}>
+      {items.map(item=><button type="button" className={
+          'dbp-local-item dbp-local-selectable'+(selectedId===item.id?' selected':'')
+        } key={item.id} aria-pressed={selectedId===item.id}
+        onClick={()=>chooseRegistered(item)} disabled={busy}>
         <Database size={18}/>
         <div><strong>{item.databaseName}</strong>
           <small>{item.name} · {item.host}:{item.port}</small></div>
         <span className={item.status==='ACTIVE_IN_MEMORY'?'active':''}>
-          {item.status==='ACTIVE_IN_MEMORY'?'현재 선택됨 · 수집 상태 확인':'등록됨 · 수집 미시작'}
+          {item.status==='ACTIVE_IN_MEMORY'?'현재 모니터링 대상':'선택하여 연결'}
         </span>
-      </div>)}
+      </button>)}
     </div>:<div className="dbp-local-empty">
       등록한 대상이 없습니다. 연결을 검사한 다음 대상 정보를 등록해 보세요.
     </div>}
-    <p className="dbp-local-foot">등록만 한 대상은 수집하지 않습니다. ‘모니터링 시작’을 누르면 기존 자동 연결 대신 이 DB에서 DMV·Query Store 등의 수집기가 작동합니다. 안전한 비밀번호 영구 보관과 실행 중 DB 전환은 후속 개발 항목입니다.</p>
+    <p className="dbp-local-foot">등록 목록의 DB를 클릭하면 연결 정보가 자동 입력됩니다. 비밀번호는 보안상 저장하지 않으므로 다시 입력해야 하며, ‘모니터링 시작’이 연결 검증도 자동 수행합니다. 현재 DB는 화면에서 안전하게 연결 해제할 수 있고 수집 이력은 유지됩니다.</p>
   </section>;
 }
