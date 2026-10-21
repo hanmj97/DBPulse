@@ -10,6 +10,20 @@
 
 [불변 프로젝트 헌장](docs/PROJECT_CHARTER.md) · [아키텍처](docs/ARCHITECTURE.md) · [로드맵 및 검증 기준](docs/ROADMAP.md)
 
+## Phase 15 — Docker 없는 로컬 SQLite 저장소 준비 (호환성 검증 단계)
+
+Windows 설치형 제품의 남은 Docker PostgreSQL 의존성을 없애기 위한 **SQLite 파일 저장소 호환성 기반**을 추가했습니다.
+
+- PostgreSQL 메타데이터의 **10개 테이블**에 대응하는 SQLite 스키마와 별도의 sqlite-preview 실행 프로필 추가. 기존 Windows EXE와 PostgreSQL 기본 동작은 변경되지 않습니다.
+- 저장 계층의 PostgreSQL 날짜 INTERVAL 계산을 JDBC UTC 시간 매개변수로 교체해 두 저장소에서 동일한 보존 기간과 최신성 기준을 사용하도록 함.
+- Java 통합 테스트는 **PostgreSQL 서버 없이** SQLite 임시 파일로 Spring Boot 컨텍스트와 외래 키 사용을 검증하고, metric/incident/Query Store/Wait/Blocking/Deadlock/대상 등록 저장·조회 기능도 테스트합니다.
+- 기존 PostgreSQL을 삭제하지 않고 테이블별 건수만 읽는 **--desktop-storage-inventory** 개발 진단 명령 추가. 새 EXE 빌드 뒤 DBPulse 프로세스를 중단한 상태에서 사용합니다.
+- **아직 미구현:** 기존 PostgreSQL 이력의 실제 SQLite 이동, 원본/대상 건수 대조와 트랜잭션 검증, 데이터 파일 복구/백업, 최종 EXE의 SQLite 전환. 이 검증이 완료되기 전까지 기존 Docker 데이터를 지우면 안 됩니다.
+
+[Phase 15 SQLite 호환성·안전한 데이터 이전 계획](docs/PHASE15_SQLITE_METADATA_FOUNDATION.md)
+
+---
+
 ## DBPulse.exe 중복 실행 → 실행 중인 화면 다시 열기
 
 Windows DBPulse.exe가 이미 `127.0.0.1:18081`에서 실행 중일 때 동일한 앱 이미지를 다시 더블클릭하면, **새 데이터 수집/Java 서버를 시작하지 않고 기존 브라우저 화면만 다시 엽니다.** 시작 전 `/api/v1/health`의 DBPulse 정보와 정적 React 화면이 실제로 확인된 경우에만 수행합니다. 잘 모르는 다른 프로그램이 18081 포트를 사용 중이라면 **안전하게 오류 안내만 표시하며 해당 프로그램을 종료하거나 브라우저로 열지 않습니다.**
