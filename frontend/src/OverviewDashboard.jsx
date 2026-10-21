@@ -214,6 +214,17 @@ function CpuTrendPanel({cpuState}) {
       ? CHART_LEFT+(rows[index].at-firstAt)/(lastAt-firstAt)*(CHART_RIGHT-CHART_LEFT)
       :chartX(index,rows.length);
   const y=value=>CHART_BOTTOM-Number(value)/100*(CHART_BOTTOM-CHART_TOP);
+  const pickCpuIndex=event=>{
+    if(!rows.length)return;
+    const rect=event.currentTarget.getBoundingClientRect();
+    if(!rect.width)return;
+    const position=(event.clientX-rect.left)*CHART_WIDTH/rect.width;
+    let nearest=0;
+    for(let index=1;index<rows.length;index++){
+      if(Math.abs(x(index)-position)<Math.abs(x(nearest)-position))nearest=index;
+    }
+    setSelectedIndex(nearest);
+  };
   const currentIndex=selectedIndex!==null&&selectedIndex<rows.length
     ?selectedIndex:rows.length-1;
   const selected=rows[currentIndex];
@@ -244,7 +255,7 @@ function CpuTrendPanel({cpuState}) {
         <svg viewBox="0 0 560 210" preserveAspectRatio="xMidYMid meet"
           role="img" tabIndex={rows.length?0:-1}
           aria-label="SQL Server 전체 프로세스 CPU 사용률. 세로축 0~100퍼센트. 방향키로 CPU 표본 시점을 선택하세요."
-          onMouseMove={event=>rows.length&&setSelectedIndex(pickChartIndex(event,rows.length))}
+          onMouseMove={pickCpuIndex}
           onMouseLeave={()=>setSelectedIndex(null)}
           onKeyDown={event=>chartArrowIndex(event,currentIndex,rows.length,setSelectedIndex)}
           onBlur={()=>setSelectedIndex(null)}>
