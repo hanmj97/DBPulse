@@ -1,0 +1,52 @@
+/* Phase 14 localhost-only SQL Server onboarding; uses existing dashboard dark tokens. */
+.dbp-local-targets {margin-top:14px;min-width:0}
+.dbp-local-targets .rev-panel-heading {margin-bottom:14px}
+.dbp-local-caution,.dbp-local-note,.dbp-local-feedback {
+  display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+  background:var(--t-inner);border:1px solid var(--t-line);border-radius:8px;
+  color:var(--t-secondary);font-size:12px;line-height:1.65;margin-bottom:12px
+}
+.dbp-local-caution svg,.dbp-local-feedback svg {flex:0 0 auto;margin-top:2px;color:var(--t-accent)}
+.dbp-local-caution strong {color:var(--t-text)}
+.dbp-local-note code {font-weight:750;color:var(--t-accent);overflow-wrap:anywhere}
+.dbp-local-form {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.dbp-local-form label {display:flex;min-width:0;flex-direction:column;gap:6px;font-weight:700;font-size:12px;color:var(--t-secondary)}
+.dbp-local-form input {
+  box-sizing:border-box;width:100%;min-width:0;padding:11px 12px;border:1px solid var(--t-line);
+  border-radius:8px;background:var(--t-inner);color:var(--t-text);font:inherit;font-size:13px
+}
+.dbp-local-form input:focus-visible,.dbp-local-actions button:focus-visible,
+.dbp-local-registered-header button:focus-visible{
+  outline:2px solid var(--t-accent);outline-offset:2px
+}
+.dbp-local-actions {display:flex;flex-wrap:wrap;gap:9px;align-items:center;grid-column:1/-1}
+.dbp-local-actions button,.dbp-local-registered-header button {
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 14px;border-radius:8px;border:1px solid var(--t-accent);
+  background:var(--t-accent-soft);color:var(--t-accent);font-weight:800;
+  font-size:12px;cursor:pointer
+}
+.dbp-local-actions button.secondary {background:var(--t-inner);color:var(--t-text);border-color:var(--t-line)}
+.dbp-local-actions button:disabled {opacity:.45;cursor:not-allowed}
+.dbp-local-feedback {margin:13px 0 0}
+.dbp-local-feedback.ok {color:var(--t-ok-text);border-color:var(--t-ok-border)}
+.dbp-local-feedback.ok svg {color:var(--t-ok-text)}
+.dbp-local-feedback.fail {color:#fda4af;border-color:#8b4b59}
+.dbp-local-feedback.fail svg {color:#fda4af}
+.dbp-local-registered-header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin:21px 0 10px}
+.dbp-local-registered-header h3 {color:var(--t-text);font-size:14px;margin:0}
+.dbp-local-registered-header button {padding:7px 10px}
+.dbp-local-list {display:grid;gap:7px}
+.dbp-local-item {
+  display:flex;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--t-line);
+  border-radius:8px;background:var(--t-inner);min-width:0
+}
+.dbp-local-item>svg {flex:0 0 auto;color:var(--t-accent)}
+.dbp-local-item>div {min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.dbp-local-item strong {color:var(--t-text);overflow-wrap:anywhere;font-size:13px}
+.dbp-local-item small {color:var(--t-secondary);overflow-wrap:anywhere;font-size:11px}
+.dbp-local-item>span {color:var(--t-secondary);font-size:11px;white-space:nowrap}
+.dbp-local-empty {padding:18px;border-radius:8px;border:1px dashed var(--t-line);color:var(--t-secondary);font-size:12px}
+.dbp-local-foot {margin:13px 0 0;color:var(--t-secondary);font-size:11px;line-height:1.6}
+@media(max-width:1050px){.dbp-local-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:670px){.dbp-local-form{grid-template-columns:1fr}.dbp-local-item{flex-wrap:wrap}.dbp-local-item>span{margin-left:30px}}
