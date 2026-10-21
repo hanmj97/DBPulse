@@ -199,15 +199,15 @@ public class LocalTargetService {
     }
 
     /**
-     * The first UI target replaces disabled .env monitoring for this JVM run.
-     * A different target requires backend restart; no live switches or
-     * mixed collector histories are allowed. Password remains in RAM only.
+     * Starts a target only while no other monitoring target is active.
+     * The user can first disconnect the running target without restarting
+     * Java or granting Docker privileges to a browser session.
      */
     public synchronized StartResult startMonitoring(ConnectionDetails details) {
         requireEnabled();
         if (activeTarget.isEnabled()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "RESTART_BACKEND_TO_CHANGE_TARGET");
+                "STOP_CURRENT_TARGET_FIRST");
         }
         TestResult probe = test(details);
         if (!"CONNECTED".equals(probe.status())) {
@@ -265,6 +265,26 @@ public class LocalTargetService {
             "MONITORING_STARTED_SESSION_ONLY", id);
     }
 
+    /**
+     * Stops collectors and clears the in-memory SQL credential only after
+     * in-flight lease holders finish. Registered metadata/history are retained.
+     */
+    public synchronized StopResult stopMonitoring(String id) {
+        requireEnabled();
+        if (activeTarget.isLegacyConfigured()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "LEGACY_ENV_TARGET_CANNOT_STOP");
+        }
+        if (!activeTarget.isUiActivated() || !activeTarget.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "NO_MATCHING_ACTIVE_TARGET");
+        }
+        if (!activeTarget.disconnectUiTarget()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "STOP_FAILED");
+        }
+        return new StopResult("DISCONNECTED", "MONITORING_STOPPED", id);
+    }
+
+    public record StopRequest(String id) {}
+    public record StopResult(String status, String code, String id) {}
     public record StartResult(String status, String code, String id) {}
 
     public record ConnectionDetails(String name, String host, int port,
