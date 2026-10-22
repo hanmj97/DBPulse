@@ -54,7 +54,10 @@ test('Phase19 footer identifies current installer while preserving adaptive poll
   assert.ok(shell.includes('v0.19.0-preview · 로컬 단일 대상'));
   assert.doesNotMatch(shell,/v0\.13\.0-alpha · 로컬 단일 대상/);
   assert.ok(app.includes('60s 기본 · 자동 완화'));
-  assert.ok(advisor.includes('SQL Tuning Advisor <small>v0.13 alpha</small>'));
+  assert.ok(advisor.includes('SQL Tuning Advisor <small>Query Store</small>'));
+  const guard=read('../src/QueryObserverOverheadPanel.jsx');
+  assert.ok(guard.includes('수집 부하 보호 <small>Query Store</small>'));
+  assert.doesNotMatch(guard,/v0\.13 alpha/);
   assert.doesNotMatch(shell,/v0\.8\.0/);
   assert.doesNotMatch(app,/<span className="small-pill">60s collect<\/span>/);
   assert.doesNotMatch(advisor,/v0\.12 alpha/);

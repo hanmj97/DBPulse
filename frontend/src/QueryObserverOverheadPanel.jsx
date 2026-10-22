@@ -52,7 +52,7 @@ export default function QueryObserverOverheadPanel({targetId}) {
   return <section className="rev-observer-guard" aria-label="DBPulse 자체 수집 부하 상태">
     <div className="rev-observer-guard-head">
       <div>
-        <h3><Activity size={16}/> 수집 부하 보호 <small>v0.13 alpha</small></h3>
+        <h3><Activity size={16}/> 수집 부하 보호 <small>Query Store</small></h3>
         <p>Query Store 수집기의 관측 비용을 확인하고, 부담 징후가 반복되면 이 수집만 완화합니다.</p>
       </div>
       <span className={`rev-observer-guard-status ${isBackoff?'throttled':'normal'}`}>
