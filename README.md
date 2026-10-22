@@ -1,6 +1,6 @@
 # DBPulse — SQL Server Monitoring & Diagnostics
 
-**Windows release target (CI verification required): [v0.21.3](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.3)** · Windows x64 · Unsigned installer · Local desktop application
+**Latest public Windows release: [v0.21.3](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.3)** · Windows x64 · Unsigned installer · Local desktop application
 
 DBPulse is a Windows-local SQL Server monitoring and DBA diagnostic application. Connect to an authorized SQL Server, monitor active requests and blocking, examine deadlock/wait/incident evidence, and analyze Query Store history, query plans and tuning candidates. The packaged version opens a native desktop window and stores local application data in SQLite.
 
@@ -16,6 +16,7 @@ DBPulse is a Windows-local SQL Server monitoring and DBA diagnostic application.
 - Query Store performance/plan analysis, query history, read-only SQL text on explicit request, and tuning candidates
 - Local SQLite history, backup/recovery tooling, installer upgrades designed to preserve user data
 - Navy/midnight monitoring dashboard and Windows application icon with adaptive initial window sizing
+- Single-instance desktop window: repeat shortcut launches activate the existing window rather than creating duplicates
 
 **Important:** This is a local diagnostic and analysis tool, not a production-certified autonomous recovery system. The project contains historical development documentation below; earlier Docker, PostgreSQL and Vite instructions do **not** describe the recommended end-user Windows installation path.
 
