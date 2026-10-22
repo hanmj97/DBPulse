@@ -15,3 +15,13 @@
 *.key
 *.pfx
 *.p12
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.dump
+*.dpapi
+*.zip
+lab-baseline-*.json

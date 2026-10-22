@@ -1,0 +1,13 @@
+# SECURITY: root-context desktop build must NEVER send local secrets
+# (especially .env, Windows credential files, Git history, build caches).
+# Deny everything, then allow only sources needed by desktop build.
+**
+!backend/
+!backend/pom.xml
+!backend/src/
+!backend/src/**
+!frontend/
+!frontend/dist/
+!frontend/dist/**
+!tools/
+!tools/Dockerfile.windows-ui-bundle

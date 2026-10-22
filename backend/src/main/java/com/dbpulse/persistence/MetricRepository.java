@@ -12,6 +12,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class MetricRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public MetricRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
@@ -21,7 +31,7 @@ public class MetricRepository {
               (target_id, collected_at, active_requests, blocked_requests,
                long_running_requests, max_elapsed_ms, total_cpu_ms)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, targetId, Timestamp.from(item.collectedAt()), item.activeRequests(),
+            """, targetId, MetadataTimestampValue.value(sqlite(), item.collectedAt()), item.activeRequests(),
             item.blockedRequests(), item.longRunningRequests(), item.maxElapsedMs(), item.totalCpuMs());
     }
 
@@ -38,7 +48,7 @@ public class MetricRepository {
 
     private static MetricSnapshot map(ResultSet rs) throws SQLException {
         return new MetricSnapshot(
-            rs.getTimestamp("collected_at").toInstant(),
+            ImportedTimestampReader.instant(rs, "collected_at"),
             rs.getLong("active_requests"), rs.getLong("blocked_requests"),
             rs.getLong("long_running_requests"), rs.getLong("max_elapsed_ms"),
             rs.getLong("total_cpu_ms"));

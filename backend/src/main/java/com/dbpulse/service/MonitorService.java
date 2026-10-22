@@ -27,6 +27,12 @@ public class MonitorService {
         this.collector = collector;
         this.metrics = metrics;
         this.incidents = incidents;
+        target.onTargetChanged(() -> {
+            state.set(target.isEnabled()
+                ? new CollectorState("INITIALIZING", null, null)
+                : new CollectorState("NOT_CONFIGURED", null, "MSSQL_NOT_CONFIGURED"));
+            if (incidents != null) incidents.resetTransientSignals();
+        });
         if (target.isEnabled()) {
             state.set(new CollectorState("INITIALIZING", null, null));
         }
@@ -34,6 +40,7 @@ public class MonitorService {
 
     @Scheduled(fixedDelayString = "${dbpulse.collector.interval-ms:5000}", initialDelay = 2000)
     public void poll() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
             state.set(new CollectorState("NOT_CONFIGURED", null, "MSSQL_NOT_CONFIGURED"));
             return;
@@ -60,20 +67,29 @@ public class MonitorService {
 
             if (ex instanceof java.sql.SQLException sqlEx) {
                 log.warn(
-                    "DBPulse MSSQL collection failed for target {}. SQLState={}, ErrorCode={}, Message={}",
-                    target.getId(), sqlEx.getSQLState(), sqlEx.getErrorCode(), sqlEx.getMessage(), sqlEx
+                    "DBPulse MSSQL collection failed. SQLState={}, ErrorCode={}",
+                    sqlEx.getSQLState(), sqlEx.getErrorCode()
                 );
             } else {
                 log.warn(
-                    "DBPulse collection failed for target {} ({}): {}",
-                    target.getId(), ex.getClass().getSimpleName(), ex.getMessage(), ex
+                    "DBPulse collection failed ({})",
+                    ex.getClass().getSimpleName()
                 );
             }
         }
+    
+        });
     }
 
     public CollectorState state() {
-        return state.get();
+        CollectorState current = state.get();
+        // UI activation happens after application startup. Between the
+        // successful connection probe and the next scheduled DMV poll,
+        // distinguish "collector starting" from "no DB configured".
+        if (target.isEnabled() && "NOT_CONFIGURED".equals(current.status())) {
+            return new CollectorState("INITIALIZING", null, null);
+        }
+        return current;
     }
 
     public record CollectorState(String status, Instant lastCollectedAt, String errorCode) {}

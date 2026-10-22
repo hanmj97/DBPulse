@@ -5,6 +5,10 @@ import com.dbpulse.config.MssqlTargetProperties;
 import com.dbpulse.persistence.QueryPerformanceRepository;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.Duration;
+import java.util.List;
+import com.dbpulse.domain.QueryPerformanceSnapshot;
+import org.springframework.beans.factory.annotation.Value;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,39 +22,67 @@ public class QueryPerformanceService {
     private final MssqlTargetProperties target;
     private final MssqlQueryStoreCollector queryStore;
     private final QueryPerformanceRepository repository;
+    private final QueryStoreOverheadGuard overheadGuard;
     private final AtomicReference<AnalysisState> state = new AtomicReference<>(
         new AnalysisState("INITIALIZING", null, 0, null));
 
     public QueryPerformanceService(MssqlTargetProperties target, MssqlQueryStoreCollector queryStore,
-                                   QueryPerformanceRepository repository) {
+                                   QueryPerformanceRepository repository,
+                                   @Value("${dbpulse.query-analytics.interval-ms:60000}") long intervalMs,
+                                   @Value("${dbpulse.query-analytics.adaptive-enabled:true}") boolean adaptiveEnabled) {
         this.target = target;
         this.queryStore = queryStore;
         this.repository = repository;
+        this.overheadGuard = new QueryStoreOverheadGuard(intervalMs, adaptiveEnabled);
+        target.onTargetChanged(() -> {
+            overheadGuard.resetForNewTarget();
+            state.set(new AnalysisState("INITIALIZING", null, 0, null));
+        });
     }
 
     @Scheduled(fixedDelayString = "${dbpulse.query-analytics.interval-ms:60000}", initialDelay = 10000)
     public void collect() {
+        target.withReadLease(() -> {
         if (!target.isEnabled()) {
+            overheadGuard.reset();
             state.set(new AnalysisState("NOT_CONFIGURED", null, 0, "MSSQL_NOT_CONFIGURED"));
             return;
         }
+        // Skip at most one scheduled Query Store poll after a costly collection.
+        // This does NOT affect the independent five-second DMV incident monitor.
+        if (overheadGuard.shouldSkipScheduledTick()) return;
+        long started = System.nanoTime();
+        String stage = "QUERY_STORE_READ";
         try {
             var result = queryStore.collect();
+            long jdbcMs = Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis();
             if ("QUERY_STORE_DISABLED".equals(result.status())) {
+                overheadGuard.recordSuccess(jdbcMs, List.of(), Instant.now());
                 state.set(new AnalysisState("QUERY_STORE_DISABLED", null, 0, "QUERY_STORE_DISABLED"));
                 return;
             }
+            stage = "LOCAL_SNAPSHOT_STORE";
             repository.save(target.getId(), result.rows());
+            overheadGuard.recordSuccess(jdbcMs, result.rows(), Instant.now());
             Instant sampledAt = result.rows().isEmpty() ? Instant.now() : result.rows().get(0).collectedAt();
-            state.set(new AnalysisState(result.status(), sampledAt, result.rows().size(), null));
+            state.set(new AnalysisState(result.status(), sampledAt,
+                result.rows().size(), null, result.databaseCpuMs(), result.databaseExecutions()));
         } catch (SQLException ex) {
+            overheadGuard.recordFailure(Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis(), Instant.now());
             // Never log passwords or raw SQL here; do not return driver messages to the UI.
             log.warn("Query Store read failed. SQLState={}, vendorCode={}", ex.getSQLState(), ex.getErrorCode());
-            state.set(new AnalysisState("OFFLINE", state.get().lastCollectedAt(), 0, "QUERY_STORE_COLLECTION_FAILED"));
+            String errorCode = safeSqlFailureCode(ex);
+            state.set(new AnalysisState(
+                isPermissionFailure(ex) ? "PERMISSION_DENIED" : "OFFLINE",
+                null, 0, errorCode));
         } catch (Exception ex) {
+            overheadGuard.recordFailure(Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis(), Instant.now());
             log.warn("Query Store analysis failed ({})", ex.getClass().getSimpleName());
-            state.set(new AnalysisState("OFFLINE", state.get().lastCollectedAt(), 0, "QUERY_STORE_COLLECTION_FAILED"));
+            state.set(new AnalysisState("OFFLINE", null, 0,
+                "QUERY_STORE_" + stage + "_FAILED"));
         }
+    
+        });
     }
 
     @Scheduled(cron = "0 0 3 * * *", zone = "UTC")
@@ -63,7 +95,36 @@ public class QueryPerformanceService {
         }
     }
 
-    public AnalysisState state() { return state.get(); }
+    static String safeSqlFailureCode(SQLException failure) {
+        String stage = failure instanceof MssqlQueryStoreCollector.StageFailure wrapped
+            ? wrapped.stage() : "UNCLASSIFIED";
+        if (!List.of("CONNECT", "STATE", "STATS").contains(stage)) stage = "UNCLASSIFIED";
+        int code = Math.max(0, failure.getErrorCode());
+        // Numeric SQL Server vendor error only. Never relay driver messages.
+        return "QUERY_STORE_" + stage + "_SQL_" + code;
+    }
 
-    public record AnalysisState(String status, Instant lastCollectedAt, int sampledQueries, String errorCode) {}
+    private static boolean isPermissionFailure(SQLException failure) {
+        for (SQLException current = failure; current != null; current = current.getNextException()) {
+            if (current.getErrorCode() == 229 || current.getErrorCode() == 297) return true;
+        }
+        return false;
+    }
+
+    public AnalysisState state() { return state.get(); }
+    public QueryStoreOverheadGuard.Snapshot overhead() { return overheadGuard.snapshot(); }
+
+    /** Fresh enough across a single adaptive skip; still strictly bounded. */
+    public boolean isFresh(Instant sampledAt) {
+        return sampledAt != null && Duration.between(sampledAt, Instant.now()).toMillis() <= overheadGuard.allowedAgeMs();
+    }
+
+    public record AnalysisState(
+        String status, Instant lastCollectedAt, int sampledQueries, String errorCode,
+        Double databaseCpuMs, Long databaseExecutions
+    ) {
+        public AnalysisState(String status, Instant lastCollectedAt, int sampledQueries, String errorCode) {
+            this(status, lastCollectedAt, sampledQueries, errorCode, null, null);
+        }
+    }
 }

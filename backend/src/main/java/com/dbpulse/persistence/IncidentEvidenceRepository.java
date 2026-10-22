@@ -1,6 +1,7 @@
 package com.dbpulse.persistence;
 
-import java.sql.Timestamp;
+import com.dbpulse.persistence.ImportedTimestampReader;
+import com.dbpulse.persistence.MetadataTimestampValue;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -10,14 +11,24 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class IncidentEvidenceRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public IncidentEvidenceRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
     public Evidence read(String targetId, Instant from, Instant to) {
-        Timestamp begin = Timestamp.from(from);
-        Timestamp end = Timestamp.from(to);
+        Object begin = MetadataTimestampValue.value(sqlite(), from);
+        Object end = MetadataTimestampValue.value(sqlite(), to);
         MetricAggregate aggregate = jdbc.queryForObject("""
             SELECT COUNT(*) AS samples,
                    COALESCE(MAX(blocked_requests),0) AS peak_blocked,
@@ -39,7 +50,7 @@ public class IncidentEvidenceRepository {
              ORDER BY s.collected_at DESC, e.wait_ms DESC
              LIMIT 12
             """, (rs, i) -> new BlockingObservation(
-                rs.getTimestamp("collected_at").toInstant(),
+                ImportedTimestampReader.instant(rs, "collected_at"),
                 rs.getInt("blocked_session_id"), rs.getInt("blocking_session_id"),
                 rs.getString("wait_type"), rs.getLong("wait_ms"),
                 (Integer) rs.getObject("root_candidate_session_id"),
@@ -52,7 +63,7 @@ public class IncidentEvidenceRepository {
              ORDER BY occurred_at DESC, id DESC
              LIMIT 8
             """, (rs, i) -> new DeadlockObservation(
-                rs.getLong("id"), rs.getTimestamp("occurred_at").toInstant(),
+                rs.getLong("id"), ImportedTimestampReader.instant(rs, "occurred_at"),
                 rs.getInt("local_participant_count"),
                 (Integer) rs.getObject("victim_session_id")), targetId, begin, end);
 

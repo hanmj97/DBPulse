@@ -1,0 +1,269 @@
+/* Phase 14 localhost-only SQL Server onboarding; uses existing dashboard dark tokens. */
+.dbp-local-targets {margin-top:14px;min-width:0}
+.dbp-local-targets .rev-panel-heading {margin-bottom:14px}
+.dbp-local-caution,.dbp-local-note,.dbp-local-feedback {
+  display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+  background:var(--t-inner);border:1px solid var(--t-line);border-radius:8px;
+  color:var(--t-secondary);font-size:12px;line-height:1.65;margin-bottom:12px
+}
+.dbp-local-caution svg,.dbp-local-feedback svg {flex:0 0 auto;margin-top:2px;color:var(--t-accent)}
+.dbp-local-caution strong {color:var(--t-text)}
+.dbp-local-note code {font-weight:750;color:var(--t-accent);overflow-wrap:anywhere}
+.dbp-local-form {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.dbp-local-form label {display:flex;min-width:0;flex-direction:column;gap:6px;font-weight:700;font-size:12px;color:var(--t-secondary)}
+.dbp-local-form input {
+  box-sizing:border-box;width:100%;min-width:0;padding:11px 12px;border:1px solid var(--t-line);
+  border-radius:8px;background:var(--t-inner);color:var(--t-text);font:inherit;font-size:13px
+}
+.dbp-local-form input:focus-visible,.dbp-local-actions button:focus-visible,
+.dbp-local-registered-header button:focus-visible{
+  outline:2px solid var(--t-accent);outline-offset:2px
+}
+.dbp-local-actions {display:flex;flex-wrap:wrap;gap:9px;align-items:center;grid-column:1/-1}
+.dbp-local-actions button,.dbp-local-registered-header button {
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 14px;border-radius:8px;border:1px solid var(--t-accent);
+  background:var(--t-accent-soft);color:var(--t-accent);font-weight:800;
+  font-size:12px;cursor:pointer
+}
+.dbp-local-actions button.secondary {background:var(--t-inner);color:var(--t-text);border-color:var(--t-line)}
+.dbp-local-actions button:disabled {opacity:.45;cursor:not-allowed}
+.dbp-local-feedback {margin:13px 0 0}
+.dbp-local-feedback.ok {color:var(--t-ok-text);border-color:var(--t-ok-border)}
+.dbp-local-feedback.ok svg {color:var(--t-ok-text)}
+.dbp-local-feedback.fail {color:#fda4af;border-color:#8b4b59}
+.dbp-local-feedback.fail svg {color:#fda4af}
+.dbp-local-registered-header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin:21px 0 10px}
+.dbp-local-registered-header h3 {color:var(--t-text);font-size:14px;margin:0}
+.dbp-local-registered-header button {padding:7px 10px}
+.dbp-local-list {display:grid;gap:7px}
+.dbp-local-item {
+  display:flex;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--t-line);
+  border-radius:8px;background:var(--t-inner);min-width:0
+}
+.dbp-local-item>svg {flex:0 0 auto;color:var(--t-accent)}
+.dbp-local-item>div {min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.dbp-local-item strong {color:var(--t-text);overflow-wrap:anywhere;font-size:13px}
+.dbp-local-item small {color:var(--t-secondary);overflow-wrap:anywhere;font-size:11px}
+.dbp-local-item>span {color:var(--t-secondary);font-size:11px;white-space:nowrap}
+.dbp-local-empty {padding:18px;border-radius:8px;border:1px dashed var(--t-line);color:var(--t-secondary);font-size:12px}
+.dbp-local-foot {margin:13px 0 0;color:var(--t-secondary);font-size:11px;line-height:1.6}
+@media(max-width:1050px){.dbp-local-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:670px){.dbp-local-form{grid-template-columns:1fr}.dbp-local-item{flex-wrap:wrap}.dbp-local-item>span{margin-left:30px}}
+
+
+/* Hidden by default: Windows lab-only certificate exception is not a
+ * required step for users with a trusted SQL Server certificate. */
+.dbp-local-form .dbp-local-advanced {
+  grid-column:1/-1;
+  border:1px solid var(--t-line);
+  border-radius:9px;
+  background:var(--t-inner);
+  min-width:0;
+}
+.dbp-local-advanced>summary {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:12px 14px;
+  cursor:pointer;
+  color:var(--t-text);
+  font-size:12px;
+  font-weight:800;
+  list-style:none;
+}
+.dbp-local-advanced>summary::-webkit-details-marker {display:none}
+.dbp-local-advanced>summary small {
+  font-size:11px;
+  color:var(--t-secondary);
+  font-weight:400;
+  margin-left:auto;
+}
+.dbp-local-advanced>summary .dbp-local-advanced-chevron {
+  transition:transform .15s ease;
+}
+.dbp-local-advanced[open]>summary .dbp-local-advanced-chevron {transform:rotate(180deg)}
+.dbp-local-advanced>summary:focus-visible {
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+  border-radius:8px;
+}
+.dbp-local-advanced-content {
+  border-top:1px solid var(--t-line);
+  padding:12px 14px;
+  display:grid;
+  gap:9px;
+}
+.dbp-local-advanced-content p {
+  margin:0;
+  font-size:11px;
+  color:var(--t-secondary);
+  line-height:1.6;
+}
+.dbp-local-form .dbp-local-tls-option {
+  display:flex;
+  flex-direction:row;
+  gap:10px;
+  align-items:flex-start;
+  line-height:1.55;
+  font-weight:700;
+}
+.dbp-local-form .dbp-local-tls-option input {
+  flex:0 0 auto;
+  width:16px;
+  min-width:16px;
+  height:16px;
+  padding:0;
+  margin:3px 0 0;
+  accent-color:var(--t-accent);
+}
+.dbp-local-form .dbp-local-tls-option span {
+  display:flex;flex-direction:column;gap:5px;
+}
+.dbp-local-form .dbp-local-tls-option small {
+  font-size:11px;
+  font-weight:400;
+  color:var(--t-secondary);
+}
+.dbp-local-collector-status {
+  color:var(--t-text);
+  font-weight:800;
+}
+@media(max-width:670px){
+  .dbp-local-advanced>summary{flex-wrap:wrap}
+  .dbp-local-advanced>summary small{order:3;width:100%;margin-left:25px}
+}
+.dbp-local-actions button.dbp-local-start {
+  background:var(--t-accent-soft);
+  border:1px solid var(--t-accent);
+  color:var(--t-accent);
+}
+.dbp-local-item>span.active {
+  color:var(--t-ok-text);
+  font-weight:800;
+}
+.dbp-local-feedback a {
+  color:var(--t-accent);
+  font-weight:800;
+  text-decoration:underline;
+}
+
+
+/* Reconnect a saved MSSQL target without exposing process/Docker controls. */
+.dbp-local-selectable{
+  width:100%;
+  text-align:left;
+  cursor:pointer;
+  color:inherit;
+  font:inherit;
+  transition:border-color .15s ease, background .15s ease;
+}
+.dbp-local-selectable:hover,
+.dbp-local-selectable.selected{
+  border-color:var(--t-accent);
+  background:var(--t-accent-soft);
+}
+.dbp-local-selectable.selected{
+  box-shadow:inset 3px 0 var(--t-accent);
+}
+.dbp-local-selectable:focus-visible,
+.dbp-local-disconnect:focus-visible{
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+}
+.dbp-local-selectable:disabled{opacity:.6;cursor:not-allowed}
+.dbp-local-disconnect{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid #b55b6d;background:rgba(175,62,89,.12);
+  border-radius:7px;padding:8px 10px;
+  color:#ffb5c1;font-weight:800;font-size:11px;
+  cursor:pointer;
+}
+.dbp-local-disconnect:disabled{cursor:wait;opacity:.6}
+.dbp-local-feedback.ok{flex-wrap:wrap;align-items:center}
+
+
+/* Saved-target management: a separate action rail avoids nesting buttons,
+ * preserves full-width selection and adapts to narrow local browser windows. */
+.dbp-local-registry-entry{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:stretch;
+  gap:8px;
+  min-width:0;
+}
+.dbp-local-registry-entry>.dbp-local-selectable{
+  min-width:0;width:100%;border-radius:8px;
+}
+.dbp-local-registry-actions{display:flex;align-items:stretch;gap:7px}
+.dbp-local-registry-actions button{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  min-width:64px;padding:9px 10px;border:1px solid var(--t-line);border-radius:8px;
+  background:var(--t-inner);color:var(--t-secondary);
+  font-size:11px;font-weight:700;cursor:pointer;
+}
+.dbp-local-registry-actions button:hover:enabled{
+  color:var(--t-accent);border-color:var(--t-accent);
+}
+.dbp-local-registry-actions button.danger:hover:enabled{
+  color:#fda4af;border-color:#b55b6d;
+}
+.dbp-local-registry-actions button:disabled{opacity:.36;cursor:not-allowed}
+.dbp-local-registry-actions button:focus-visible{
+  outline:2px solid var(--t-accent);outline-offset:2px;
+}
+@media(max-width:650px){
+  .dbp-local-registry-entry{grid-template-columns:1fr}
+  .dbp-local-registry-actions{justify-content:flex-end}
+}
+
+
+/* Windows-native, explicit opt-in credential vault. Never shown as available in Docker. */
+.dbp-local-credential-availability{
+  display:flex;gap:9px;align-items:center;
+  border:1px solid var(--t-line);
+  border-radius:8px;
+  padding:10px 12px;
+  margin-bottom:10px;
+  color:var(--t-accent);
+  font-size:11px;
+  font-weight:650;
+  background:var(--t-inner);
+}
+.dbp-local-credential-availability.inactive{color:var(--t-secondary)}
+.dbp-local-credential-availability svg{flex-shrink:0}
+.dbp-local-vault-save{
+  display:inline-flex;gap:7px;align-items:center;
+  padding:8px 10px;border-radius:7px;
+  border:1px solid var(--t-accent);
+  background:var(--t-accent-soft);
+  color:var(--t-accent);
+  cursor:pointer;font-size:11px;font-weight:750;
+}
+.dbp-local-vault-save:disabled{cursor:default;opacity:.65}
+.dbp-local-registry-actions button.dbp-local-vault-reconnect{
+  color:var(--t-accent);border-color:var(--t-accent);
+}
+.dbp-local-registry-actions button.dbp-local-vault-forget{
+  color:var(--t-secondary);border-color:var(--t-line);
+}
+@media(max-width:700px){
+  .dbp-local-registry-actions{flex-wrap:wrap}
+}
+
+
+/* Visible only for a chosen registered target with Windows DPAPI credentials. */
+.dbp-local-saved-selection{
+  grid-column:1/-1;
+  display:flex;
+  gap:9px;
+  align-items:center;
+  padding:10px 13px;
+  font-size:11px;
+  line-height:1.7;
+  border:1px solid var(--t-ok-border);
+  background:var(--t-inner);
+  color:var(--t-ok-text);
+  border-radius:8px;
+}
+.dbp-local-saved-selection svg{flex:0 0 auto}

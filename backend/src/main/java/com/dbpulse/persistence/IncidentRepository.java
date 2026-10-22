@@ -12,6 +12,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class IncidentRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
     public IncidentRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public void upsert(String target, String type, Instant at, long value, String message) {
@@ -22,14 +32,14 @@ public class IncidentRepository {
             ON CONFLICT (target_id, type) WHERE status = 'OPEN'
             DO UPDATE SET last_observed_at = EXCLUDED.last_observed_at,
                           observed_value = EXCLUDED.observed_value
-            """, target, type, Timestamp.from(at), Timestamp.from(at), value, message);
+            """, target, type, MetadataTimestampValue.value(sqlite(), at), MetadataTimestampValue.value(sqlite(), at), value, message);
     }
 
     public void resolve(String target, String type, Instant at) {
         jdbc.update("""
             UPDATE incidents SET status = 'RESOLVED', resolved_at = ?
             WHERE target_id = ? AND type = ? AND status = 'OPEN'
-            """, Timestamp.from(at), target, type);
+            """, MetadataTimestampValue.value(sqlite(), at), target, type);
     }
 
     public Optional<IncidentRecord> byId(String target, long id) {
@@ -38,12 +48,12 @@ public class IncidentRepository {
                    resolved_at, observed_value, summary
               FROM incidents WHERE target_id = ? AND id = ?
             """, (rs, i) -> {
-                Timestamp resolved = rs.getTimestamp("resolved_at");
+                Instant resolved = ImportedTimestampReader.instantOrNull(rs, "resolved_at");
                 return new IncidentRecord(rs.getLong("id"), rs.getString("target_id"),
                     rs.getString("type"), rs.getString("severity"), rs.getString("status"),
-                    rs.getTimestamp("started_at").toInstant(),
-                    rs.getTimestamp("last_observed_at").toInstant(),
-                    resolved == null ? null : resolved.toInstant(),
+                    ImportedTimestampReader.instant(rs, "started_at"),
+                    ImportedTimestampReader.instant(rs, "last_observed_at"),
+                    resolved,
                     rs.getLong("observed_value"), rs.getString("summary"));
             }, target, id);
         return rows.stream().findFirst();
@@ -57,12 +67,12 @@ public class IncidentRepository {
             ORDER BY CASE WHEN status='OPEN' THEN 0 ELSE 1 END,
                      last_observed_at DESC, id DESC LIMIT ?
             """, (rs, i) -> {
-                Timestamp resolved = rs.getTimestamp("resolved_at");
+                Instant resolved = ImportedTimestampReader.instantOrNull(rs, "resolved_at");
                 return new IncidentRecord(rs.getLong("id"), rs.getString("target_id"),
                     rs.getString("type"), rs.getString("severity"), rs.getString("status"),
-                    rs.getTimestamp("started_at").toInstant(),
-                    rs.getTimestamp("last_observed_at").toInstant(),
-                    resolved == null ? null : resolved.toInstant(),
+                    ImportedTimestampReader.instant(rs, "started_at"),
+                    ImportedTimestampReader.instant(rs, "last_observed_at"),
+                    resolved,
                     rs.getLong("observed_value"), rs.getString("summary"));
             }, target, limit);
     }

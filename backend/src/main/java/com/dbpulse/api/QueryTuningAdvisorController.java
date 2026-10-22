@@ -60,8 +60,7 @@ public class QueryTuningAdvisorController {
                 state.status(), state.lastCollectedAt(), SOURCE, COVERAGE,
                 state.errorCode(), List.of());
         }
-        if (Duration.between(state.lastCollectedAt(), Instant.now())
-            .compareTo(Duration.ofMinutes(2)) > 0) {
+        if (!service.isFresh(state.lastCollectedAt())) {
             return new QueryTuningAdvisor.Report(
                 "STALE", state.lastCollectedAt(), SOURCE, COVERAGE,
                 "QUERY_STORE_SAMPLE_STALE", List.of());

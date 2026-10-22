@@ -1,0 +1,68 @@
+name: Publish DBPulse v0.21.1 Windows Release
+
+# Publishes the tested Windows artifact ONLY after DBPulse CI has passed on main.
+# No release uploads from forks, PRs, feature branches or failing runs.
+on:
+  workflow_run:
+    workflows: ["DBPulse CI"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    name: Publish publicly downloadable Windows Setup
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact tested main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Download Windows Setup from matching successful CI run
+        uses: actions/download-artifact@v4
+        with:
+          name: DBPulse-v0.21.1-Windows-Setup
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist
+
+      - name: Validate SHA-256, release notes, and exact assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/DBPulse-Setup-v0.21.1.exe
+          test -s dist/SHA256SUMS.txt
+          test -s docs/releases/v0.21.1.md
+          (cd dist && sha256sum -c SHA256SUMS.txt)
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
+          echo 'DBPULSE_PUBLIC_RELEASE_ASSETS_VERIFIED'
+
+      - name: Publish v0.21.1 non-prerelease GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if gh release view v0.21.1 >/dev/null 2>&1; then
+            echo 'Release v0.21.1 already exists; refusing to overwrite published assets.'
+            exit 0
+          fi
+          gh release create v0.21.1 \
+            dist/DBPulse-Setup-v0.21.1.exe \
+            dist/SHA256SUMS.txt \
+            --target "$TESTED_SHA" \
+            --title 'DBPulse v0.21.1 — Windows Initial Public Release (Unsigned)' \
+            --notes-file docs/releases/v0.21.1.md \
+            --latest
+          gh release view v0.21.1 --json tagName,isDraft,isPrerelease,url,assets

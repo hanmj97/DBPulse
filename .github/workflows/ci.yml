@@ -10,6 +10,19 @@ permissions:
   contents: read
 
 jobs:
+  release-preflight:
+    name: Safe release-preflight and localhost soak tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test read-only SQLite preflight and no-network health probe
+        run: |
+          python -m unittest discover -s tools -p 'test_dbpulse_release_preflight.py' -v
+          python -m unittest discover -s tools -p 'test_dbpulse_local_soak_probe.py' -v
+
   backend:
     name: Java backend tests
     runs-on: ubuntu-latest
@@ -42,3 +55,296 @@ jobs:
       - name: Build dashboard
         working-directory: frontend
         run: npm run build
+
+  desktop-bundle:
+    name: Unified Windows-host JAR bundle
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dbpulse
+          POSTGRES_PASSWORD: ci_only_local_test
+          POSTGRES_DB: dbpulse
+        ports:
+          - 5544:5432
+        options: >-
+          --health-cmd "pg_isready -U dbpulse -d dbpulse"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Build production React dashboard
+        working-directory: frontend
+        run: npm run build
+      - name: Bundle dashboard in Spring Boot JAR
+        working-directory: backend
+        run: mvn -B --no-transfer-progress -Pdesktop-bundle -DskipTests package
+      - name: Verify classpath static index and bundled JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar tf backend/target/dbpulse-api.jar > /tmp/dbpulse-jar-entries.txt
+          grep -Fx 'BOOT-INF/classes/static/index.html' /tmp/dbpulse-jar-entries.txt
+          grep -E '^BOOT-INF/classes/static/assets/[^/]+\.js$' /tmp/dbpulse-jar-entries.txt | head -1
+          grep -Fx 'BOOT-INF/classes/application.yml' /tmp/dbpulse-jar-entries.txt
+          if grep -E '^BOOT-INF/classes/static/(src|node_modules|\.env)' /tmp/dbpulse-jar-entries.txt; then
+            echo 'ERROR: development or secret files inside desktop JAR'
+            exit 1
+          fi
+      - name: Smoke-test self-hosted UI, JS asset and API on one port
+        shell: bash
+        env:
+          DBPULSE_BIND_ADDRESS: 127.0.0.1
+          DBPULSE_API_PORT: '18081'
+          DBPULSE_META_JDBC_URL: jdbc:postgresql://127.0.0.1:5544/dbpulse
+          DBPULSE_META_USERNAME: dbpulse
+          DBPULSE_META_PASSWORD: ci_only_local_test
+          DBPULSE_MSSQL_ENABLED: 'false'
+          DBPULSE_LOCAL_TARGETS_ENABLED: 'false'
+        run: |
+          set -euo pipefail
+          java -jar backend/target/dbpulse-api.jar > /tmp/dbpulse-ui-smoke.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 45); do
+            if curl --max-time 2 -fsS http://127.0.0.1:18081/ -o /tmp/dbpulse-ui-index; then
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "DBPulse server exited before serving dashboard"
+              tail -80 /tmp/dbpulse-ui-smoke.log
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s /tmp/dbpulse-ui-index
+          grep -q 'DBPulse' /tmp/dbpulse-ui-index
+          asset=$(grep -oE '/assets/[^" ]+\.js' /tmp/dbpulse-ui-index | head -1)
+          test -n "$asset"
+          curl -fsS "http://127.0.0.1:18081${asset}" -o /tmp/dbpulse-ui-app.js
+          test -s /tmp/dbpulse-ui-app.js
+          curl -fsS http://127.0.0.1:18081/api/v1/targets -o /tmp/dbpulse-targets.json
+          grep -q 'local-mssql' /tmp/dbpulse-targets.json
+
+  windows-launcher:
+    name: Windows PowerShell launcher syntax
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Windows launcher scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'tools/run_dbpulse_windows_ui.ps1',
+            'tools/run_dbpulse_windows_host_lab.ps1',
+            'tools/build_dbpulse_windows_app_image.ps1',
+            'tools/provision_dbpulse_windows_app.ps1',
+            'tools/diagnose_dbpulse_windows_app.ps1',
+            'tools/build_dbpulse_webview2_window_preview.ps1',
+            'tools/diagnose_dbpulse_webview2_port.ps1',
+            'tools/build_dbpulse_windows_installer.ps1',
+            'tools/test_dbpulse_windows_installer.ps1',
+            'tools/start_dbpulse_query_text_opt_in.ps1'
+          )
+          $allErrors = @()
+          foreach ($file in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path, [ref]$tokens, [ref]$parseErrors
+            )
+            if ($parseErrors.Count -gt 0) {
+              $allErrors += $parseErrors
+            }
+          }
+          if ($allErrors.Count -gt 0) {
+            $allErrors | ForEach-Object { Write-Error $_.ToString() }
+            exit 1
+          }
+          Write-Host 'Both Windows PowerShell scripts passed syntax validation.'
+      - name: Verify unique bundle output and preserved old JAR
+        shell: pwsh
+        run: |
+          $scriptText = Get-Content tools/run_dbpulse_windows_ui.ps1 -Raw
+          if (-not $scriptText.Contains('desktop-bundles')) { throw 'Unique staging directory missing.' }
+          if (-not $scriptText.Contains('[guid]::NewGuid()')) { throw 'Versioned filename missing.' }
+          if (-not $scriptText.Contains('-JarPath $jar')) { throw 'Runtime unique bundle handoff missing.' }
+          if ($scriptText.Contains('docker cp ("\${cid}:/workspace/backend/target/dbpulse-api.jar") (Join-Path $root')) {
+            throw 'Old fixed destination copy remains.'
+          }
+
+  windows-app-image:
+    name: Windows DBPulse.exe preview + native DPAPI smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build React dashboard
+        shell: pwsh
+        working-directory: frontend
+        run: |
+          npm.cmd install --no-package-lock --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+          npm.cmd run build
+          if ($LASTEXITCODE -ne 0) { throw 'Vite build failed' }
+      - name: Bundle Spring Boot JAR with React
+        shell: pwsh
+        working-directory: backend
+        run: |
+          mvn.cmd -B --no-transfer-progress -Pdesktop-bundle -DskipTests package
+          if ($LASTEXITCODE -ne 0) { throw 'Maven desktop bundle failed' }
+      - name: Verify existing-instance handoff and fail-closed port handling on Windows
+        shell: pwsh
+        working-directory: backend
+        run: |
+          mvn.cmd -B --no-transfer-progress '-Dtest=DesktopInstanceHandoffTest,DesktopStartupDiagnosticsTest,SqliteMetadataCompatibilityTest,SqliteSpringStartupTest,MetadataInventoryTest' test
+          if ($LASTEXITCODE -ne 0) { throw 'Windows desktop handoff or SQLite compatibility tests failed' }
+      - name: Create native Windows app-image with private Java runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'backend/target/windows-ci/input' | Out-Null
+          Copy-Item 'backend/target/dbpulse-api.jar' 'backend/target/windows-ci/input/dbpulse-api.jar'
+          $args = @(
+            '--type','app-image',
+            '--name','DBPulse',
+            '--app-version','0.21.1',
+            '--vendor','DBPulse',
+            '--input','backend/target/windows-ci/input',
+            '--dest','backend/target/windows-ci',
+            '--main-jar','dbpulse-api.jar',
+            '--main-class','org.springframework.boot.loader.launch.JarLauncher',
+            '--java-options','-Ddbpulse.desktop.enabled=true',
+            '--add-modules','ALL-MODULE-PATH',
+            '--win-console'
+          )
+          & jpackage.exe @args
+          if ($LASTEXITCODE -ne 0) { throw 'Windows jpackage failed' }
+          $exe = 'backend/target/windows-ci/DBPulse/DBPulse.exe'
+          if (-not (Test-Path $exe)) { throw 'DBPulse.exe not found' }
+          if (-not (Test-Path 'backend/target/windows-ci/DBPulse/runtime')) {
+            throw 'Bundled Java runtime not found'
+          }
+      - name: Test native Windows user DPAPI enrollment and decryption
+        shell: pwsh
+        env:
+          DBPULSE_META_PASSWORD: ci_only_fake_metadata_password
+          DBPULSE_LOCAL_TRUST_SELF_SIGNED: 'false'
+        run: |
+          $exe = (Resolve-Path 'backend/target/windows-ci/DBPulse/DBPulse.exe').Path
+          $vaultDir = Join-Path $env:LOCALAPPDATA 'DBPulse/desktop'
+          if (Test-Path $vaultDir) { throw 'CI desktop credential directory unexpectedly exists' }
+          try {
+            & $exe --desktop-provision
+            if ($LASTEXITCODE -ne 0) { throw 'Native DPAPI provision failed' }
+            $blob = Join-Path $vaultDir 'metadata.dpapi'
+            if (-not (Test-Path $blob)) { throw 'Encrypted metadata not persisted' }
+            $raw = [IO.File]::ReadAllBytes($blob)
+            $text = [Text.Encoding]::UTF8.GetString($raw)
+            if ($text.Contains('ci_only_fake_metadata_password')) {
+              throw 'Plaintext metadata password was stored'
+            }
+            & $exe --desktop-check
+            if ($LASTEXITCODE -ne 0) { throw 'Native Windows DPAPI decrypt check failed' }
+          } finally {
+            Remove-Item $vaultDir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish self-contained WebView2 native window (Phase 17)
+        shell: pwsh
+        run: |
+          $target = 'backend/target/windows-ci/DBPulse/window'
+          dotnet publish desktop/DBPulse.WindowHost/DBPulse.WindowHost.csproj -c Release -r win-x64 --self-contained true -o $target -p:PublishSingleFile=false
+          if ($LASTEXITCODE -ne 0) { throw 'WebView2 host publish failed' }
+          $shellExe = Join-Path $target 'DBPulse.WindowHost.exe'
+          if (-not (Test-Path $shellExe)) { throw 'WebView2 host EXE missing' }
+          $check = Start-Process -FilePath $shellExe -ArgumentList '--self-test' -PassThru -Wait
+          if ($check.ExitCode -ne 0) { throw 'WebView2 origin and navigation policy self-test failed' }
+          if (-not (Test-Path 'backend/target/windows-ci/DBPulse/DBPulse.exe')) {
+            throw 'Backend Java EXE missing from app bundle'
+          }
+
+      - name: Provision Inno Setup 6 compiler on CI runner
+        shell: pwsh
+        run: |
+          $pf86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $existing = Join-Path $pf86 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $existing) -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler install failed' }
+          }
+          if (-not (Test-Path $existing) -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            throw 'ISCC_NOT_AVAILABLE'
+          }
+      - name: Create per-user unsigned Windows Setup EXE (Phase 18)
+        shell: pwsh
+        run: |
+          .\tools\build_dbpulse_windows_installer.ps1 -AppImagePath 'backend/target/windows-ci/DBPulse' -OutputDirectory 'backend/target/windows-ci/setup'
+          if ($LASTEXITCODE -ne 0) { throw 'Phase18 Setup EXE build failed' }
+          if (-not (Test-Path 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1.exe')) {
+            throw 'Phase18 Setup EXE missing'
+          }
+      - name: Silent setup, window self-test, uninstall, user data preservation
+        shell: pwsh
+        run: |
+          .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1.exe'
+          # The PowerShell test throws on failure; do not inspect a stale $LASTEXITCODE.
+      - name: Create and self-verify SHA256 checksum for unsigned setup
+        shell: pwsh
+        run: |
+          $folder = 'backend/target/windows-ci/setup'
+          $setup = Join-Path $folder 'DBPulse-Setup-v0.21.1.exe'
+          if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) {
+            throw 'UNSIGNED_SETUP_NOT_FOUND'
+          }
+          $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          $line = '{0}  {1}' -f $hash, (Split-Path -Leaf $setup)
+          $manifest = Join-Path $folder 'SHA256SUMS.txt'
+          if (Test-Path -LiteralPath $manifest) { throw 'MANIFEST_ALREADY_EXISTS' }
+          Set-Content -LiteralPath $manifest -Value $line -NoNewline -Encoding ascii
+          $readback = (Get-Content -LiteralPath $manifest -Raw).Trim()
+          if ($readback -ne $line -or $hash.Length -ne 64) {
+            throw 'SETUP_SHA256_MANIFEST_INVALID'
+          }
+          Write-Host 'DBPULSE_SETUP_SHA256_MANIFEST_VERIFIED'
+
+      - name: Upload tested unsigned Windows Setup for public release
+        uses: actions/upload-artifact@v4
+        with:
+          name: DBPulse-v0.21.1-Windows-Setup
+          path: |
+            backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1.exe
+            backend/target/windows-ci/setup/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload tested unpacked Windows app-image
+        uses: actions/upload-artifact@v4
+        with:
+          name: DBPulse-v0.21.1-Windows-app-image
+          path: backend/target/windows-ci/DBPulse/
+          retention-days: 30
+          if-no-files-found: error

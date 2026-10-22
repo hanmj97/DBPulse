@@ -84,7 +84,7 @@ export function DashboardShell({
         <span className={'rev-footer-status ' + (online ? 'on' : '')}>
           <span className="rev-status-dot"/>{label}
         </span>
-        <small>v0.8.0 · 로컬 단일 대상</small>
+        <small>v0.21.1 · 로컬 단일 대상</small>
       </div>
     </aside>
     {mobileOpen && <button className="rev-mobile-backdrop" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기"/>}

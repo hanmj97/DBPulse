@@ -1,4 +1,43 @@
-# DBPulse 아키텍처 v0.1.0
+# DBPulse 아키텍처 — v0.13.0-alpha (로컬 단일 MSSQL 대상)
+
+> PR #12 작업 브랜치 기준. 현재 **회원·대상 직접 등록·복수 고객 연결 미구현**. API와 메트릭 DB는 로컬 전용입니다. 아래에 v0.1 시점의 설계 메모를 참고자료로 남깁니다.
+
+```mermaid
+flowchart LR
+    B["브라우저 React/Vite (127.0.0.1:5174)"]
+    A["Spring Boot API (127.0.0.1:18081 외부 · 8081 컨테이너 내부)"]
+    P[("별도 PostgreSQL 메트릭/인시던트 저장소 (5544)")]
+    C["5초 DMV/Blocking/Wait/Deadlock 수집"]
+    Q["Query Store 적응형 가드 (기본 60초 · 완화 120초)"]
+    CPU["선택적 인스턴스 CPU 표본 (~60초)"]
+    S[("로컬에서 설정한 SQL Server / DBPulseLab")]
+    B -->|"읽기 전용 조회 API"| A
+    A --> P
+    A --> C
+    A --> Q
+    A --> CPU
+    C -->|"필요한 조회만"| S
+    Q -->|"Query Store 집계"| S
+    CPU -->|"인스턴스 전체 CPU 스냅샷"| S
+    C --> P
+    Q --> P
+```
+
+## 현재 성능 그래프: 서로 다른 지표와 축
+
+- **왼쪽:** `activeRequests`, `blockedRequests`, `longRunningRequests` — 수집 순간의 요청 수(건). Query Store QPS/TPS가 아닙니다.
+- **오른쪽:** 선택적 SQL Server **인스턴스 전체 프로세스 CPU 사용률(%)**. 수집된 개별 실제 표본만 보여주며, 연결 대상 DB만의 CPU 점유율이 아닙니다.
+- 양쪽을 서로 다른 SVG 및 단위/시각화로 분리하고, 누락 표본을 임의 보간하지 않습니다. CPU/DMV 값이 0이어도 서비스 오류를 뜻하는 것은 아닙니다.
+- UI 카드/탭의 읽기 전용 필터링은 기존 수집 스케줄/대상 SQL Server에 새 쓰기 작업을 만들지 않습니다.
+
+## 다음 버전의 설계 경계
+
+회원가입/인증과 사용자별 DB 등록은 아직 없으며, 현재 대상은 로컬 `.env`로 지정됩니다. [Phase 14](PHASE14_TARGET_ONBOARDING_DESIGN.md)에서 안전한 네트워크 연결/비밀정보/최소 권한과 **사용자-대상 매핑 검증**을 먼저 구현해야 멀티 DB UI를 활성화할 수 있습니다. 구체적인 SQL CPU 분석은 Query Store의 쿼리 CPU(ms/구간)와 인스턴스 CPU(%)를 구분해야 합니다.
+
+---
+
+## 초기 v0.1 설계 메모 (히스토리 · 최신 동작 설명 아님)
+
 
 ```mermaid
 flowchart TD

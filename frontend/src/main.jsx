@@ -8,10 +8,14 @@ import {
 import './style.css';
 import './dashboard.css';
 import { DashboardShell } from './DashboardShell.jsx';
+import LocalTargetRegistration from './LocalTargetRegistration.jsx';
 import OverviewDashboard from './OverviewDashboard.jsx';
 import IncidentInvestigation from './IncidentInvestigation.jsx';
 import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
+import QueryObserverOverheadPanel from './QueryObserverOverheadPanel.jsx';
+import SelectedDatabaseCpuPanel from './SelectedDatabaseCpuPanel.jsx';
+import {appendSelectedDbCpuSample} from './selectedDbCpuTrend.js';
 import QuerySqlDrawer from './QuerySqlDrawer.jsx';
 import { filterQuerySources } from './queryCandidateFilters.js';
 
@@ -223,10 +227,14 @@ function App() {
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
   const [queryAnalysis, setQueryAnalysis] = useState([]);
+  const [queryHistory, setQueryHistory] = useState([]);
+  const [queryHistoryError,setQueryHistoryError] = useState('');
+  const [queryView,setQueryView] = useState('live');
   const [queryTableSort,setQueryTableSort] = useState('recent');
   const [querySourceFilter,setQuerySourceFilter] = useState('exclude-dbpulse');
   const [sqlSelection,setSqlSelection] = useState(null);
   const [queryState, setQueryState] = useState(null);
+  const [selectedDbCpuTrend,setSelectedDbCpuTrend] = useState([]);
   const [queryError, setQueryError] = useState('');
   const [incidents, setIncidents] = useState([]);
   const [incidentError, setIncidentError] = useState('');
@@ -289,6 +297,21 @@ function App() {
     return () => { active = false; clearInterval(timer); };
   }, []);
 
+  // A UI-selected database receives its own target ID. Never keep incident,
+  // SQL text, or query statistics selected from the previous database.
+  useEffect(() => {
+    setQueryAnalysis([]);
+    setQueryHistory([]);
+    setQueryView('live');
+    setQueryHistoryError('');
+    setQueryState(null);
+    setSelectedDbCpuTrend([]);
+    setQueryError('');
+    setIncidents([]);
+    setSelectedIncidentId(null);
+    setSqlSelection(null);
+  }, [target?.id]);
+
   // Query Store is a separate service with a slower cadence than the DMV collector.
   useEffect(() => {
     if (!target?.id) return undefined;
@@ -313,6 +336,35 @@ function App() {
     const timer = setInterval(fetchAnalysis, 15000);
     return () => { active = false; clearInterval(timer); };
   }, [target?.id]);
+
+  // The CPU chart is a session-only derived series (no extra SQL Server reads
+  // or persistent DB writes). Only NEW Query Store snapshot stamps create a
+  // point. The first point is a baseline with no invented CPU percentage.
+  useEffect(() => {
+    setSelectedDbCpuTrend(prev =>
+      appendSelectedDbCpuSample(prev,queryState,target?.id));
+  }, [target?.id,queryState?.lastCollectedAt,queryState?.databaseCpuMs,queryState?.status]);
+
+  // Locally stored history is distinct from the latest 15-minute Query Store window.
+  useEffect(() => {
+    if (!target?.id || queryView !== 'history') return undefined;
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/targets/${encodeURIComponent(target.id)}/query-performance/history?limit=100`,
+          {cache:'no-store'});
+        if (!response.ok) throw Error('history unavailable');
+        const rows = await response.json();
+        if (active) {setQueryHistory(rows);setQueryHistoryError('');}
+      } catch {
+        if (active) setQueryHistoryError('저장된 쿼리 이력을 조회하지 못했습니다.');
+      }
+    };
+    load();
+    const timer=setInterval(load,30000);
+    return () => {active=false;clearInterval(timer);};
+  }, [target?.id,queryView]);
 
   // Separate from provisional signals; this shows persisted incident episodes.
   useEffect(() => {
@@ -390,7 +442,7 @@ function App() {
     {error && <div className="banner error"><AlertCircle size={18}/>{error}</div>}
     {page === 'overview' && <OverviewDashboard target={target} history={history}
       incidents={incidents} incidentError={incidentError}
-      queryAnalysis={queryAnalysis} sampleLimit={sampleLimit}
+      queryAnalysis={queryAnalysis} queryState={queryState} selectedDbCpuTrend={selectedDbCpuTrend} sampleLimit={sampleLimit}
       onNavigate={setPage} onInvestigate={investigate}/>}
     {(page === 'incidents' || page === 'investigation') &&
       <div id={page === 'incidents' ? 'incidents' : 'investigation'} className="rev-detail-content">
@@ -488,6 +540,8 @@ function App() {
     </div>}
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
+      <QueryObserverOverheadPanel targetId={target?.id}/>
+      <SelectedDatabaseCpuPanel queryState={queryState} databaseName={target?.databaseName} trend={selectedDbCpuTrend}/>
       <div className="rev-query-source-filter">
         <div>
           <strong>표시할 쿼리</strong>
@@ -502,17 +556,39 @@ function App() {
       </div>
       <QueryTuningAdvisorPanel targetId={target?.id} sourceFilter={querySourceFilter}
         onShowSql={(queryId,planId)=>setSqlSelection({queryId,planId})}/>
+
+        <div className="rev-query-history-mode" role="group" aria-label="쿼리 표시 기간">
+          <button type="button" className={queryView==='live'?'active':''}
+            aria-pressed={queryView==='live'} onClick={()=>setQueryView('live')}>
+            최신 수집 · 최근 15분
+          </button>
+          <button type="button" className={queryView==='history'?'active':''}
+            aria-pressed={queryView==='history'} onClick={()=>setQueryView('history')}>
+            저장 이력 · 최근 7일
+          </button>
+          <span>Query Store와 DBPulse 로컬 보관 이력을 구분합니다.</span>
+        </div>
+        {queryView==='history' && <div className="banner info">
+          과거 이력은 DBPulse가 수집해 저장한 Query/Plan별 마지막 통계입니다.
+          DBPulse가 수집하지 않은 쿼리는 표시되지 않습니다.
+        </div>}
+        {queryView==='history' && queryHistoryError && <div className="banner error">
+          {queryHistoryError}
+        </div>}
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
-            <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
-            <span className="small-pill">60s collect</span>
+            <div><h2>쿼리 성능 분석</h2><p>{queryView==='history'?'저장 이력 최근 7일 · Query/Plan별 마지막 수집값':'최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개'}</p></div>
+            <span className="small-pill">60s 기본 · 자동 완화</span>
           </div>
           <div className="query-state">
-            분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
+            분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', PERMISSION_DENIED:'DB 조회 권한 부족', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
             {queryState?.lastCollectedAt && <span>마지막 분석 {timeFmt(queryState.lastCollectedAt)}</span>}
           </div>
           {queryError && <div className="banner error"><AlertCircle size={16}/>{queryError}</div>}
-          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>DBPulseLab에서 Query Store를 활성화해야 완료된 쿼리 통계를 분석할 수 있어요.</div>}
+          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>선택한 DB의 Query Store가 비활성화되어 있어 쿼리 내역과 선택 DB CPU 시간이 표시되지 않습니다. DB 관리자가 상태를 확인해 주세요.</div>}
+          {queryState?.status === 'PERMISSION_DENIED' && <div className="banner info"><ShieldAlert size={16}/>해당 DB의 Query Store 조회 권한이 부족합니다. 오류 구분: {queryState.errorCode} · 관리자 권한을 자동 부여하지 않습니다.</div>}
+          {queryState?.status === 'OFFLINE' && <div className="banner info"><ShieldAlert size={16}/>Query Store 수집에 실패했습니다. 오류 구분: {queryState.errorCode || 'UNKNOWN'} · 개요/인시던트/대기 분석은 별도로 계속 수집됩니다.</div>}
+          {queryState?.status === 'ONLINE' && queryState.sampledQueries===0 && <div className="banner info"><Terminal size={16}/>Query Store는 활성 상태이지만 최근 집계에 해당하는 쿼리 기록이 없습니다. Query Store 포착 정책과 분석 주기(기본 60초)를 확인해 주세요.</div>}
           <div className="rev-query-table-toolbar">
             <label htmlFor="dbpulse-query-table-sort">기존 Query Store 표 정렬</label>
             <select id="dbpulse-query-table-sort" value={queryTableSort}
@@ -520,15 +596,20 @@ function App() {
               <option value="recent">최근 실행순 (기본)</option>
               <option value="duration">평균 실행시간순</option>
               <option value="reads">평균 논리 읽기순</option>
+              <option value="cpu">평균 CPU 시간순</option>
+              <option value="cpuTotal">집계 CPU 사용 총량순</option>
             </select>
           </div>
           <div className="query-table-scroll"><table className="query-table"><thead><tr>
-            <th>Query ID / Plan</th><th>최근 실행</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>논리 읽기</th><th>분석 신호</th>
+            <th>Query ID / Plan</th><th>최근 실행</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>CPU 총량 추정*</th><th>논리 읽기</th><th>분석 신호</th>
           </tr></thead><tbody>
-          {filterQuerySources(queryAnalysis, querySourceFilter).length ?
-            filterQuerySources(queryAnalysis, querySourceFilter).sort((a,b)=>
+          {filterQuerySources(queryView==='history'?queryHistory:queryAnalysis, querySourceFilter).length ?
+            filterQuerySources(queryView==='history'?queryHistory:queryAnalysis, querySourceFilter).sort((a,b)=>
             queryTableSort==='duration' ? Number(b.avgDurationMs)-Number(a.avgDurationMs)
             : queryTableSort==='reads' ? Number(b.avgLogicalReadsPages)-Number(a.avgLogicalReadsPages)
+            : queryTableSort==='cpu' ? Number(b.avgCpuMs)-Number(a.avgCpuMs)
+            : queryTableSort==='cpuTotal' ? Number(b.avgCpuMs)*Number(b.executionCount)-
+               Number(a.avgCpuMs)*Number(a.executionCount)
             : (Date.parse(b.lastExecutedAt)||0)-(Date.parse(a.lastExecutedAt)||0)
           ).map(row => {
             const [label, suggestion] = DIAGNOSIS[row.diagnosisCode] || DIAGNOSIS.OBSERVE;
@@ -543,6 +624,7 @@ function App() {
               <td>{fmt(row.executionCount)}</td>
               <td>{Number(row.avgDurationMs).toFixed(2)} ms</td>
               <td>{Number(row.avgCpuMs).toFixed(2)} ms</td>
+              <td>{(Number(row.avgCpuMs)*Number(row.executionCount)).toLocaleString('ko-KR',{maximumFractionDigits:2})} ms</td>
               <td>{Number(row.avgLogicalReadsPages).toFixed(1)} pages</td>
               <td><span className={row.diagnosisCode === 'OBSERVE' ? 'hint hint-neutral' : 'hint'}>{label}</span><small>{suggestion}</small></td>
             </tr>;
@@ -558,16 +640,16 @@ function App() {
     <div className="target-bar card">
       <div className="server-icon"><Server size={23}/></div>
       <div className="target-info"><strong>{target?.name || '연결 대상 확인 중'}</strong>
-        <span>MSSQL · {target?.databaseName || 'DBPulseLab'} · 로컬 단일 수집기</span></div>
+        <span>MSSQL · {target?.databaseName || '선택된 DB 없음'} · 로컬 단일 수집기</span></div>
       <div className={`status status-${status.tone}`}><span className="status-dot"/>{status.label}</div>
     </div>
     <article className="rev-panel"><div className="rev-panel-heading"><div><h2>연결 대상 정보</h2>
       <p>현재 릴리스는 단일 MSSQL 모니터링 대상만 지원합니다.</p></div></div>
-      <p>새로운 서버 등록 및 사용자별 DB 연결 기능은 이후에 개발됩니다.
-      아직 제공되지 않는 기능을 작동하는 것처럼 표시하지 않습니다.</p>
+      <p>화면에서 직접 MSSQL DB를 선택해 모니터링할 수 있습니다. 기존 .env 자동 수집을 비활성화한 뒤 등록 목록에서 DB를 선택하세요. 다른 DB로 변경할 때는 현재 연결 해제 버튼을 사용하면 됩니다.</p>
     </article>
+    <LocalTargetRegistration/>
     {target?.collectorStatus === 'NOT_CONFIGURED' && <div className="banner info">
-      <Terminal size={18}/>.env에 MSSQL 연결 정보를 설정하고 백엔드를 재시작해 주세요.</div>}
+      <Terminal size={18}/>아래 연결 등록 폼에서 특정 SQL Server DB를 선택하고 모니터링을 시작해 주세요.</div>}
     {target?.collectorStatus === 'OFFLINE' && <div className="banner error">
       <WifiOff size={18}/>연결 및 수집 오류: {target?.errorCode || 'UNKNOWN'}</div>}
   </section>}

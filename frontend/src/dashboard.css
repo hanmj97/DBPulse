@@ -926,3 +926,980 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   background:var(--t-accent-soft);color:var(--t-accent);
   border:1px solid var(--t-line)
 }
+
+/* Monitoring Overhead Guard — uses only DBPulse Navy / Midnight Dark variables. */
+.rev-observer-guard{background:var(--t-card);border:1px solid var(--t-line);
+  border-radius:11px;padding:19px 21px;color:var(--t-text)}
+.rev-observer-guard-head{display:flex;gap:14px;justify-content:space-between;
+  align-items:flex-start;flex-wrap:wrap}
+.rev-observer-guard-head h3,.rev-observer-guard>h3{display:flex;gap:8px;align-items:center;
+  color:var(--t-text);font-size:14px;margin:0 0 7px}
+.rev-observer-guard-head h3 small{color:var(--t-accent);font-size:10px}
+.rev-observer-guard-head p,.rev-observer-guard>p{color:var(--t-muted);
+  font-size:11px;line-height:1.7;margin:0}
+.rev-observer-guard-status{display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:750;border-radius:6px;padding:8px 11px;
+  color:var(--t-accent);background:var(--t-accent-soft);
+  border:1px solid var(--t-line)}
+.rev-observer-guard-status.throttled{color:#ffcd98;
+  background:rgba(153,100,45,.18);border-color:#8a6442}
+.rev-observer-guard-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;margin-top:17px}
+.rev-observer-guard-metrics>div{border:1px solid var(--t-line);
+  border-radius:8px;background:var(--t-inner);padding:11px 12px;min-width:0}
+.rev-observer-guard-metrics span{display:block;color:var(--t-muted);
+  font-size:11px;line-height:1.65;margin-bottom:6px}
+.rev-observer-guard-metrics strong{display:block;font-size:16px;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rev-observer-guard-reason{display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:8px 14px;margin-top:14px;font-size:11px}
+.rev-observer-guard-reason strong{color:var(--t-accent)}
+.rev-observer-guard-reason span{color:var(--t-text)}
+.rev-observer-guard-reason small{color:var(--t-muted)}
+.rev-observer-guard-disclaimer{color:var(--t-muted);font-size:10px;
+  line-height:1.8;margin:13px 0 0;padding-top:12px;border-top:1px solid var(--t-line)}
+@media(max-width:780px){
+  .rev-observer-guard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+  .rev-observer-guard{padding:14px}
+  .rev-observer-guard-metrics{grid-template-columns:1fr}
+}
+
+/* Optional SQL Server CPU telemetry: instance-wide, never a per-DB %. */
+.rev-cpu-panel{border:1px solid var(--t-line);background:var(--t-card);
+  border-radius:10px;color:var(--t-text);padding:19px 21px}
+.rev-cpu-panel-heading{display:flex;gap:12px;align-items:start;
+  justify-content:space-between;flex-wrap:wrap}
+.rev-cpu-panel-heading h3{display:flex;align-items:center;gap:8px;
+  font-size:14px;margin:0 0 7px}
+.rev-cpu-panel-heading h3 small{font-size:10px;color:var(--t-accent)}
+.rev-cpu-panel-heading p{margin:0;color:var(--t-muted);font-size:11px;line-height:1.6}
+.rev-cpu-panel-status{padding:8px 11px;border:1px solid var(--t-line);
+  border-radius:6px;color:var(--t-accent);background:var(--t-accent-soft);
+  font-size:11px;font-weight:700}
+.rev-cpu-panel-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;margin-top:15px}
+.rev-cpu-panel-grid>div{padding:14px;border:1px solid var(--t-line);
+  background:var(--t-inner);border-radius:8px}
+.rev-cpu-panel-grid span{display:block;color:var(--t-muted);font-size:11px}
+.rev-cpu-panel-grid strong{display:block;font-size:25px;margin:8px 0;
+  font-variant-numeric:tabular-nums;color:var(--t-text)}
+.rev-cpu-panel-grid strong.rev-cpu-panel-date{font-size:18px}
+.rev-cpu-panel-grid small{display:block;color:var(--t-muted);font-size:10px}
+.rev-cpu-panel-note{display:flex;align-items:start;gap:8px;color:#edc494;
+  font-size:11px;line-height:1.7;margin:12px 0}
+.rev-cpu-panel-note svg{flex-shrink:0;margin-top:2px}
+.rev-cpu-panel-limitation{border-top:1px solid var(--t-line);padding-top:11px;
+  margin:15px 0 0;color:var(--t-muted);font-size:11px;line-height:1.7}
+.rev-tuning-numeric{min-width:80px}
+@media(max-width:1100px){.rev-tuning-row-actions .rev-tuning-toggle{flex-wrap:wrap}
+  .rev-tuning-numeric{min-width:70px}}
+@media(max-width:640px){.rev-cpu-panel-grid{grid-template-columns:1fr}
+  .rev-cpu-panel{padding:14px}}
+
+
+/* v0.13 operations-centered Overview (presentation only).
+   Both Navy/Midnight themes inherit existing --t-* color tokens.
+   No metric calculation or target monitoring changes. */
+.rev-ops-dashboard{gap:14px}
+.rev-ops-server-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  min-width:0;padding:16px 20px;background:var(--t-card);
+  border:1px solid var(--t-line);border-radius:12px;
+  box-shadow:0 7px 21px var(--t-shadow);
+}
+.rev-ops-server-primary{display:flex;align-items:center;gap:13px;min-width:0}
+.rev-ops-server-icon{
+  display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;
+  border-radius:12px;background:var(--t-accent-soft);color:var(--t-accent);
+}
+.rev-ops-server-text{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rev-ops-eyebrow{font-size:10px;font-weight:800;letter-spacing:1.35px;color:var(--t-accent)}
+.rev-ops-server-text strong{font-size:18px;color:var(--t-text);line-height:1.3;overflow-wrap:anywhere}
+.rev-ops-server-text>span:last-child{color:var(--t-secondary);font-size:11px;line-height:1.5}
+.rev-ops-server-meta{
+  display:flex;align-items:flex-end;flex-direction:column;gap:5px;
+  flex:0 0 auto;text-align:right;
+}
+.rev-ops-health-pill{
+  display:inline-flex;gap:6px;align-items:center;justify-content:center;
+  border:1px solid var(--t-line);border-radius:25px;padding:5px 10px;
+  background:var(--t-inner);color:var(--t-muted);
+  font-size:12px;font-weight:800;white-space:nowrap;
+}
+.rev-ops-health-pill.good{
+  background:var(--t-ok-bg);border-color:var(--t-ok-border);color:var(--t-ok-text);
+}
+.rev-ops-health-pill.warning{color:#ffb96c;background:#4b362a;border-color:#815631}
+.rev-ops-server-secondary{font-size:11px;color:var(--t-secondary)}
+.rev-ops-server-link{
+  display:inline-flex;align-items:center;gap:4px;
+  cursor:pointer;color:var(--t-accent);background:transparent;
+  border:0;font-size:11px;font-weight:800;padding:2px 0;
+}
+.rev-ops-server-link:hover{text-decoration:underline}
+.rev-ops-kpis{grid-template-columns:repeat(5,minmax(0,1fr));gap:11px}
+.rev-ops-kpis .rev-kpi{min-height:94px;padding:13px 12px;gap:10px}
+.rev-ops-kpis .rev-kpi-info>span{max-width:none}
+.rev-ops-primary{grid-template-columns:minmax(0,2.1fr) minmax(290px,.92fr);align-items:start;gap:14px}
+.rev-ops-primary .rev-ops-side-stack{display:grid;gap:14px;align-content:start;min-width:0}
+.rev-ops-mini-panel{min-height:0;padding:16px!important}
+.rev-ops-mini-panel .rev-panel-heading{margin-bottom:11px}
+.rev-ops-mini-panel .rev-card-foot{margin-top:10px;padding-top:0}
+.rev-ops-mini-panel.rev-ops-compact{padding:15px!important}
+.rev-ops-mini-panel.rev-ops-compact .rev-panel-heading{margin-bottom:9px}
+.rev-ops-mini-panel.rev-ops-compact .rev-card-foot{margin-top:6px}
+.rev-ops-compact-state{
+  display:flex;align-items:center;gap:9px;min-height:40px;padding:9px 11px;
+  border:1px solid var(--t-line);background:var(--t-inner);
+  border-radius:8px;color:var(--t-ok-text);font-size:12px;font-weight:650;line-height:1.4;
+}
+.rev-ops-compact-state svg{flex:0 0 auto}
+.rev-ops-compact-state.unavailable{color:var(--t-muted)}
+.rev-ops-mini-panel .rev-alert-items{gap:0}
+.rev-ops-mini-panel .rev-alert-item{min-height:46px;padding:8px 5px}
+.rev-ops-mini-panel .rev-wait-bars{gap:9px;padding:2px 0}
+.rev-ops-mini-panel .rev-wait-row{grid-template-columns:80px minmax(0,1fr) 34px;gap:9px;font-size:11px}
+.rev-ops-trend .rev-panel-heading{margin-bottom:13px}
+.rev-ops-trend .rev-chart-legend{margin:0 0 9px}
+.rev-ops-trend .rev-ops-chart-area svg{height:224px;cursor:crosshair;touch-action:pan-y}
+.rev-ops-trend .rev-ops-chart-area svg:focus-visible{
+  outline:2px solid var(--t-accent);outline-offset:2px;border-radius:6px;
+}
+.rev-ops-trend .rev-chart-times{padding-left:36px}
+.rev-ops-chart-readout{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 19px;
+  padding:10px 13px;margin-top:13px;background:var(--t-inner);
+  border:1px solid var(--t-line);border-radius:8px;
+  color:var(--t-secondary);font-size:11px;
+}
+.rev-ops-chart-readout .rev-ops-chart-at{font-weight:800;color:var(--t-accent)}
+.rev-ops-chart-readout strong{color:var(--t-text);font-size:12px;margin-left:5px}
+.rev-ops-chart-hint{margin-top:10px;font-size:11px;line-height:1.5;color:var(--t-secondary)}
+.rev-ops-trend .rev-chart-caution{margin-top:8px}
+.rev-ops-secondary{grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:14px}
+.rev-ops-secondary .rev-incident-timeline{min-width:0}
+.rev-ops-secondary .rev-panel{min-height:0}
+.rev-ops-action-list{display:grid;gap:8px}
+.rev-ops-action-list button{
+  display:flex;align-items:center;gap:12px;width:100%;min-width:0;
+  text-align:left;padding:12px;border-radius:9px;
+  border:1px solid var(--t-line);background:var(--t-inner);
+  color:var(--t-text);cursor:pointer;transition:background .16s,border-color .16s;
+}
+.rev-ops-action-list button:hover{background:var(--t-hover);border-color:var(--t-accent)}
+.rev-ops-action-list button>svg:first-child{flex:0 0 auto;color:var(--t-accent)}
+.rev-ops-action-list button>svg:last-child{flex:0 0 auto;color:var(--t-secondary)}
+.rev-ops-action-list button>span{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.rev-ops-action-list button strong{font-size:12px}
+.rev-ops-action-list button small{font-size:11px;color:var(--t-secondary);line-height:1.4}
+.rev-ops-action-panel .rev-panel-heading{margin-bottom:13px}
+@media(max-width:1500px){
+  .rev-ops-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:1150px){
+  .rev-ops-primary,.rev-ops-secondary{grid-template-columns:minmax(0,1fr)}
+  .rev-ops-primary .rev-ops-side-stack{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:850px){
+  .rev-ops-server-bar{align-items:flex-start;flex-direction:column}
+  .rev-ops-server-meta{align-items:flex-start;text-align:left}
+  .rev-ops-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:670px){
+  .rev-ops-server-bar{padding:13px;gap:12px}
+  .rev-ops-server-icon{flex-basis:40px;width:40px;height:40px}
+  .rev-ops-server-text strong{font-size:16px}
+  .rev-ops-kpis .rev-kpi{min-height:88px}
+  .rev-ops-primary .rev-ops-side-stack{grid-template-columns:1fr}
+  .rev-ops-trend .rev-ops-chart-area svg{height:185px}
+  .rev-ops-chart-readout{gap:8px 12px;padding:9px}
+}
+
+
+/* v0.13 Overview right-rail density.
+   Keep the shared trend row stable as Wait/incident counts grow.
+   Additional observed items remain accessible in detail pages. */
+.rev-ops-primary .rev-ops-side-stack{
+  align-content:start;
+  align-self:start;
+}
+.rev-ops-primary .rev-ops-mini-panel .rev-panel-heading{
+  margin-bottom:8px;
+}
+.rev-ops-primary .rev-ops-mini-panel .rev-card-foot{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  line-height:1.45;
+  margin-top:8px;
+  padding:0;
+}
+.rev-ops-alert-preview .rev-alert-item{
+  height:49px;
+  min-height:0;
+  max-height:49px;
+  box-sizing:border-box;
+  overflow:hidden;
+  padding:6px 4px;
+  gap:9px;
+}
+.rev-ops-alert-preview .rev-alert-item>span:nth-child(2){
+  display:grid;
+  min-width:0;
+  gap:2px;
+  flex:1;
+}
+.rev-ops-alert-preview .rev-alert-item strong,
+.rev-ops-alert-preview .rev-alert-item small{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  -webkit-line-clamp:unset;
+  font-size:11px;
+  line-height:1.55;
+}
+.rev-ops-alert-preview .rev-alert-item small{
+  color:var(--t-secondary);
+  font-size:10px;
+}
+.rev-ops-more-signals{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px 9px;
+  padding-top:8px;
+  border-top:1px solid var(--t-line);
+  color:var(--t-muted);
+  font-size:11px;
+}
+.rev-ops-more-signals>span{font-weight:700}
+.rev-ops-more-link,
+.rev-ops-more-signals button{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  cursor:pointer;
+  border:0;
+  background:transparent;
+  padding:2px 0;
+  font-size:11px;
+  font-weight:700;
+  color:var(--t-accent);
+  text-align:left;
+}
+.rev-ops-more-link{margin-top:6px}
+.rev-ops-more-link:hover,
+.rev-ops-more-signals button:hover{text-decoration:underline}
+.rev-ops-mini-panel .rev-wait-bars{
+  gap:7px;
+}
+@media(max-width:670px){
+  .rev-ops-alert-preview .rev-alert-item strong{
+    font-size:11px;
+  }
+}
+
+
+/* v0.13: independent lower panels and honest dual-scale CPU chart.
+   The operator shortcuts must NOT stretch to the incident timeline height. */
+.rev-ops-secondary{
+  align-items:start;
+  grid-auto-rows:min-content;
+}
+.rev-ops-secondary>.rev-panel{
+  align-self:start;
+  height:auto;
+  min-height:0;
+}
+.rev-ops-secondary>.rev-ops-action-panel{
+  height:fit-content;
+  min-height:0;
+  padding-bottom:17px;
+}
+.rev-ops-secondary .rev-ops-action-list{
+  gap:7px;
+}
+.rev-ops-secondary .rev-ops-action-list button{
+  min-height:49px;
+  padding:10px 12px;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend{
+  color:#ffc06f;
+  gap:6px;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend small{
+  color:var(--t-secondary);
+}
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-title,
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-tick{
+  fill:#ffc06f;
+}
+.rev-ops-cpu-line{
+  pointer-events:none;
+}
+.rev-ops-cpu-readout{
+  display:inline-flex;
+  align-items:baseline;
+  gap:5px;
+  color:#ffc06f;
+}
+.rev-ops-cpu-readout strong{
+  color:#ffc06f;
+}
+.rev-ops-cpu-readout small{
+  color:var(--t-secondary);
+  font-size:10px;
+}
+@media(max-width:1150px){
+  .rev-ops-secondary>.rev-panel{
+    height:auto;
+    align-self:start;
+  }
+}
+
+
+/* v0.13 Overview: two independent vertical flows.
+   Previous shared CSS-grid rows left empty rectangles whenever a chart,
+   timeline and right-hand cards had unequal heights. The columns now
+   stack their own cards, with intrinsic rather than fixed panel heights.
+   No clipping or fake filler data and no scrolling inside summary cards. */
+.rev-ops-independent-columns{
+  display:grid;
+  grid-template-columns:minmax(0,2.1fr) minmax(310px,.92fr);
+  gap:14px;
+  align-items:start;
+}
+.rev-ops-independent-columns>.rev-ops-main-column,
+.rev-ops-independent-columns>.rev-ops-side-stack{
+  display:flex;
+  flex-direction:column;
+  align-self:start;
+  min-width:0;
+  gap:14px;
+}
+.rev-ops-independent-columns .rev-panel{
+  height:auto;
+  min-height:0;
+  flex:0 0 auto;
+}
+.rev-ops-independent-columns .rev-incident-timeline,
+.rev-ops-independent-columns .rev-ops-action-panel,
+.rev-ops-independent-columns .rev-recent-table{
+  align-self:stretch;
+  height:auto;
+  min-height:0;
+}
+.rev-ops-independent-columns .rev-recent-table{
+  min-width:0;
+}
+.rev-ops-independent-columns .rev-ops-action-list{
+  gap:7px;
+}
+.rev-ops-independent-columns .rev-ops-action-list button{
+  padding:10px 12px;
+}
+@media(max-width:1150px){
+  .rev-ops-independent-columns{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+
+
+/* Zero-only charts: one neutral baseline, no stacked colored 0 paths. */
+.rev-ops-trend .rev-chart-area text.rev-ops-chart-idle{
+  fill:var(--t-secondary);
+  pointer-events:none;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend.inactive{
+  color:var(--t-secondary);
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend.inactive i{
+  background:var(--t-secondary)!important;
+  opacity:.6;
+}
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-tick.idle,
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-title.idle{
+  fill:var(--t-secondary);
+}
+.rev-ops-cpu-readout.inactive,
+.rev-ops-cpu-readout.inactive strong{
+  color:var(--t-secondary);
+}
+
+
+/*
+ * v0.13 — Overview stable-band design.
+ * Chart (full width) -> unified 3-column diagnostic strip -> single
+ * incident history surface with table/timeline switch.
+ *
+ * The three diagnostics share ONE bounded row. Incoming Waits or incident
+ * events cannot expand the row or shift a neighbor independently.
+ * The separately bounded history view replaces two duplicative timelines.
+ * Existing Navy/Midnight tokens are inherited; no backend changes.
+ */
+.rev-ops-dashboard > .rev-ops-wide-chart,
+.rev-ops-dashboard > .rev-ops-unified-board,
+.rev-ops-dashboard > .rev-ops-history-board {
+  min-width:0;
+  width:100%;
+  box-sizing:border-box;
+}
+.rev-ops-wide-chart>.rev-ops-trend {
+  width:100%;
+  box-sizing:border-box;
+}
+.rev-ops-wide-chart .rev-ops-chart-area svg {
+  height:210px;
+}
+.rev-ops-unified-board {
+  padding:15px 18px 14px;
+  min-height:0;
+}
+.rev-ops-unified-heading,
+.rev-ops-history-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.rev-ops-unified-heading h2,
+.rev-ops-history-top h2{
+  margin:0 0 5px;
+  color:var(--t-text);
+  font-size:15px;
+  line-height:1.3;
+}
+.rev-ops-unified-heading p,
+.rev-ops-history-top p{
+  margin:0;
+  color:var(--t-secondary);
+  font-size:11px;
+}
+.rev-ops-unified-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1.1fr);
+  grid-template-rows:203px;
+  gap:0;
+  border:1px solid var(--t-line);
+  background:var(--t-inner);
+  border-radius:9px;
+  overflow:hidden;
+}
+.rev-ops-unified-grid>.rev-ops-summary-cell {
+  min-height:0;
+  max-height:203px;
+  min-width:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:12px 15px !important;
+  box-sizing:border-box;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.rev-ops-unified-grid>.rev-ops-summary-cell + .rev-ops-summary-cell{
+  border-left:1px solid var(--t-line);
+}
+.rev-ops-unified-grid .rev-panel-heading{
+  margin:0 0 9px;
+}
+.rev-ops-unified-grid .rev-panel-heading h2 {
+  font-size:12px;
+}
+.rev-ops-unified-grid .rev-panel-heading p{
+  font-size:10px;
+}
+.rev-ops-unified-grid .rev-ops-compact-state{
+  min-height:37px;
+  padding:8px 9px;
+}
+.rev-ops-unified-grid .rev-card-foot{
+  display:none;
+}
+.rev-ops-unified-grid .rev-ops-action-list {
+  gap:6px;
+}
+.rev-ops-unified-grid .rev-ops-action-list button{
+  padding:7px 9px;
+  min-height:38px;
+  gap:8px;
+}
+.rev-ops-unified-grid .rev-ops-action-list button strong{
+  font-size:11px;
+}
+.rev-ops-unified-grid .rev-ops-action-list button small{
+  font-size:10px;
+}
+.rev-ops-unified-grid .rev-ops-alert-preview .rev-alert-item{
+  min-height:0;
+  max-height:45px;
+  height:45px;
+}
+.rev-ops-unified-grid .rev-ops-more-signals{
+  padding-top:6px;
+}
+.rev-ops-unified-grid .rev-wait-row{
+  grid-template-columns:68px minmax(0,1fr) 29px;
+  gap:7px;
+}
+.rev-ops-history-board{
+  padding:16px 18px;
+}
+.rev-ops-history-top{
+  margin-bottom:12px;
+}
+.rev-ops-history-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.rev-ops-history-switch{
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:3px;
+  border:1px solid var(--t-line);
+  background:var(--t-inner);
+  border-radius:8px;
+}
+.rev-ops-history-switch button{
+  border:0;
+  background:transparent;
+  color:var(--t-secondary);
+  font-weight:750;
+  font-size:11px;
+  border-radius:5px;
+  padding:6px 12px;
+  cursor:pointer;
+}
+.rev-ops-history-switch button.active,
+.rev-ops-history-switch button[aria-pressed="true"]{
+  color:var(--t-text);
+  background:var(--t-accent-soft);
+  outline:1px solid var(--t-line);
+}
+.rev-ops-history-switch button:focus-visible,
+.rev-ops-unified-grid button:focus-visible{
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+}
+.rev-ops-history-content,
+.rev-ops-history-mode{
+  min-width:0;
+  min-height:0;
+  width:100%;
+}
+.rev-ops-history-content .rev-ops-history-mode{
+  border:0;
+  padding:0;
+  margin:0;
+  background:transparent;
+  box-shadow:none;
+}
+.rev-ops-history-content .rev-ops-history-mode>.rev-panel-heading{
+  display:none;
+}
+.rev-ops-history-content .rev-table-scroll{
+  overflow:auto;
+}
+.rev-ops-history-content .rev-timeline{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px 12px;
+  align-content:start;
+}
+.rev-ops-history-content .rev-timeline-item{
+  border:1px solid var(--t-line);
+  border-radius:8px;
+  min-height:57px;
+  padding:9px;
+  background:var(--t-inner);
+}
+.rev-ops-history-content .rev-timeline-item:hover{
+  background:var(--t-hover);
+}
+/* Exactly one neutral baseline for measured zero-valued request intervals.
+   All request series remain colored when they rise above 0. */
+.rev-ops-trend .rev-chart-area .rev-ops-neutral-zero{
+  stroke:#718ca9;
+  stroke-opacity:.9;
+  stroke-linecap:round;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend{
+  color:#ffbd60 !important;
+  font-weight:800;
+}
+.rev-ops-trend .rev-chart-legend .rev-ops-cpu-legend i{
+  background:#ffbd60 !important;
+  opacity:1 !important;
+}
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-title,
+.rev-ops-trend .rev-chart-area text.rev-ops-cpu-axis-tick{
+  fill:#ffbd60;
+}
+.rev-ops-trend .rev-ops-cpu-readout,
+.rev-ops-trend .rev-ops-cpu-readout strong{
+  color:#ffbd60;
+}
+@media(max-width:1150px){
+  .rev-ops-unified-grid{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:196px 190px;
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell{
+    max-height:196px;
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell:nth-child(3){
+    grid-column:1 / -1;
+    max-height:190px;
+    border-left:0;
+    border-top:1px solid var(--t-line);
+  }
+  .rev-ops-unified-grid .rev-ops-action-list{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+@media(max-width:670px){
+  .rev-ops-unified-board,
+  .rev-ops-history-board{padding:13px}
+  .rev-ops-unified-grid{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:166px 189px 186px;
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell,
+  .rev-ops-unified-grid>.rev-ops-summary-cell:nth-child(3){
+    grid-column:auto;
+    max-height:189px;
+    border-left:0;
+    border-top:1px solid var(--t-line);
+  }
+  .rev-ops-unified-grid>.rev-ops-summary-cell:first-child{
+    border-top:0;
+    max-height:166px;
+  }
+  .rev-ops-unified-grid .rev-ops-action-list{
+    grid-template-columns:1fr;
+  }
+  .rev-ops-history-top{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .rev-ops-history-content .rev-timeline{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+
+
+/* v0.13 overview polish 2026-10-21: readable undistorted SVG and
+   strictly bounded previews, with NO independent drag/scroll bars.
+   The overview displays two items and exposes full details by links;
+   incident/Wait data remains unchanged in the detail pages. */
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame{
+  width:100%;
+  max-width:940px;
+  margin:0 auto;
+  min-width:0;
+}
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame svg{
+  width:100%;
+  max-width:100%;
+  height:auto;
+  aspect-ratio:760 / 208;
+  display:block;
+  overflow:visible;
+}
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame .rev-chart-times{
+  padding-left:5.53%;
+  padding-right:3.95%;
+  margin-top:0;
+}
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame .rev-ops-metric-segment,
+.rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame .rev-ops-cpu-line{
+  stroke-opacity:1;
+  pointer-events:none;
+}
+.rev-layout[data-theme] .rev-ops-trend .rev-chart-area line.rev-ops-neutral-zero{
+  stroke:#718ca9;
+  stroke-width:2.1;
+  stroke-opacity:.95;
+}
+/* Older shared CSS applies grid color to ALL <line> nodes. All real
+   measured series are now separate SVG paths, never gridline <line>s. */
+.rev-ops-dashboard .rev-ops-unified-grid{
+  grid-template-rows:220px;
+  overflow:hidden;
+}
+.rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell{
+  box-sizing:border-box;
+  height:220px;
+  min-height:0;
+  max-height:220px;
+  overflow:hidden;
+  overscroll-behavior:auto;
+  padding:12px 15px !important;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-panel-heading{
+  margin-bottom:8px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list{
+  gap:6px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list button{
+  box-sizing:border-box;
+  height:42px;
+  min-height:42px;
+  max-height:42px;
+  overflow:hidden;
+  padding:6px 9px;
+  gap:9px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list button small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-alert-preview .rev-alert-item{
+  box-sizing:border-box;
+  height:43px;
+  min-height:43px;
+  max-height:43px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-ops-more-signals{
+  padding-top:7px;
+}
+.rev-ops-dashboard .rev-ops-unified-grid .rev-card-foot{
+  display:none;
+}
+@media(max-width:1150px){
+  .rev-ops-dashboard .rev-ops-unified-grid{
+    grid-template-rows:212px 142px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell{
+    height:212px;
+    max-height:212px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:nth-child(3){
+    height:142px;
+    max-height:142px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid .rev-ops-action-list button{
+    width:100%;
+  }
+}
+@media(max-width:670px){
+  .rev-ops-dashboard .rev-ops-unified-grid{
+    grid-template-rows:180px 210px 220px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:first-child{
+    height:180px;
+    max-height:180px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:nth-child(2){
+    height:210px;
+    max-height:210px;
+  }
+  .rev-ops-dashboard .rev-ops-unified-grid > .rev-ops-summary-cell:nth-child(3){
+    height:220px;
+    max-height:220px;
+  }
+  .rev-ops-dashboard .rev-ops-chart-area .rev-ops-chart-frame{
+    max-width:100%;
+  }
+}
+
+
+/* v0.13 isolated metrics: independent SVGs, axes and actual timestamps.
+   Two equally legible charts side-by-side at desktop widths, stacked on
+   narrow screens. Do not apply older single-chart SVG dimensions here. */
+.rev-ops-wide-chart .rev-ops-split-charts {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:14px;
+  width:100%;
+  align-items:stretch;
+}
+.rev-ops-wide-chart .rev-ops-split-charts > .rev-ops-chart-card {
+  min-width:0;
+  width:100%;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.rev-ops-split-charts .rev-panel-heading {
+  min-height:57px;
+  margin-bottom:9px;
+}
+.rev-ops-split-charts .rev-panel-heading h2 {
+  font-size:15px;
+  line-height:1.25;
+}
+.rev-ops-split-charts .rev-panel-heading p {
+  font-size:11px;
+  line-height:1.55;
+  margin:0;
+}
+.rev-ops-split-charts .rev-chart-legend {
+  min-height:32px;
+  margin:0 0 8px;
+  display:flex;
+  gap:6px 13px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.rev-ops-split-charts .rev-chart-legend span{
+  font-size:11px;
+  line-height:1.5;
+}
+.rev-ops-split-charts .rev-chart-legend .rev-ops-cpu-legend {
+  color:#ffbd60;
+  font-size:11px;
+  font-weight:800;
+}
+.rev-ops-split-charts .rev-chart-legend .rev-ops-cpu-legend i {
+  background:#ffbd60 !important;
+  opacity:1;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame {
+  width:100%;
+  max-width:620px;
+  min-width:0;
+  margin:0 auto;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame svg {
+  display:block;
+  width:100%;
+  max-width:100%;
+  height:auto;
+  aspect-ratio:560 / 210;
+  overflow:visible;
+  cursor:crosshair;
+  touch-action:pan-y;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame svg:focus-visible {
+  outline:2px solid var(--t-accent);
+  outline-offset:2px;
+  border-radius:6px;
+}
+.rev-ops-wide-chart .rev-ops-split-charts .rev-chart-times {
+  padding-left:7.68%;
+  padding-right:7.15%;
+  margin-top:2px;
+  font-size:10px;
+}
+.rev-ops-split-charts .rev-chart-area {
+  margin-top:auto;
+}
+.rev-ops-split-charts .rev-chart-area line {
+  stroke:var(--t-chart-grid);
+}
+.rev-ops-split-charts .rev-chart-area text {
+  fill:var(--t-secondary);
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-neutral-zero{
+  stroke:#718ca9;
+  stroke-width:1.8;
+  stroke-opacity:1;
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-metric-segment,
+.rev-ops-split-charts .rev-chart-area .rev-ops-cpu-line {
+  stroke-opacity:1;
+  pointer-events:none;
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-selected-marker{
+  stroke:var(--t-muted);
+  stroke-opacity:.7;
+}
+.rev-ops-split-charts .rev-ops-chart-readout {
+  display:flex;
+  gap:8px 13px;
+  align-items:center;
+  flex-wrap:wrap;
+  min-height:42px;
+  margin-top:11px;
+  padding:9px 11px;
+}
+.rev-ops-split-charts .rev-ops-cpu-readout,
+.rev-ops-split-charts .rev-ops-cpu-readout strong {
+  color:#ffbd60;
+}
+.rev-ops-split-charts .rev-ops-chart-hint {
+  min-height:43px;
+  line-height:1.55;
+  margin:10px 0 0;
+  font-size:11px;
+  color:var(--t-secondary);
+}
+.rev-ops-split-charts .rev-chart-area .rev-ops-chart-idle {
+  fill:var(--t-secondary);
+  pointer-events:none;
+}
+@media(max-width:1150px) {
+  .rev-ops-wide-chart .rev-ops-split-charts {
+    grid-template-columns:minmax(0,1fr);
+  }
+  .rev-ops-wide-chart .rev-ops-split-charts .rev-ops-chart-frame{
+    max-width:620px;
+  }
+  .rev-ops-split-charts .rev-ops-chart-hint{
+    min-height:0;
+  }
+}
+@media(max-width:670px) {
+  .rev-ops-split-charts .rev-panel-heading {
+    min-height:0;
+  }
+  .rev-ops-split-charts .rev-chart-legend {
+    min-height:0;
+  }
+  .rev-ops-split-charts .rev-ops-chart-readout{
+    padding:8px;
+    min-height:0;
+  }
+}
+
+
+/* Phase20: restore a distinct SQL Query Store per-DB CPU chart.
+   Keep both approved Navy/Midnight themes via inherited color tokens. */
+.rev-db-cpu-card-compact,.rev-db-cpu-card{
+  min-width:0; display:flex; flex-direction:column; gap:0;
+}
+.rev-db-cpu-card-compact{padding:15px 17px}
+.rev-db-cpu-card-compact .rev-cpu-panel-heading h3,
+.rev-db-cpu-card .rev-cpu-panel-heading h3{display:flex;align-items:center;gap:7px;margin:0 0 7px;font-size:14px}
+.rev-db-cpu-card-compact .rev-cpu-panel-heading h3 small,
+.rev-db-cpu-card .rev-cpu-panel-heading h3 small{color:var(--t-accent);font-size:10px}
+.rev-db-cpu-card-compact .rev-cpu-panel-heading p{color:var(--t-secondary);font-size:11px}
+.rev-db-cpu-card-compact .rev-cpu-panel-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.rev-db-cpu-card-compact .rev-cpu-panel-grid>div{padding:10px 11px}
+.rev-db-cpu-card-compact .rev-cpu-panel-grid strong{font-size:18px;margin:6px 0}
+.rev-db-cpu-card .rev-cpu-panel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rev-cpu-rate{color:#ffbd60 !important;font-variant-numeric:tabular-nums}
+.rev-db-cpu-graph{width:100%;min-width:0;margin-top:11px}
+.rev-db-cpu-graph-title{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+ font-size:11px;color:var(--t-secondary);margin:5px 0}
+.rev-db-cpu-graph-title span{font-weight:700;color:var(--t-text)}
+.rev-db-cpu-graph-title small{font-size:10px;color:var(--t-muted)}
+.rev-db-cpu-graph svg{display:block;width:100%;height:auto;aspect-ratio:560/210;
+ max-width:620px;margin:0 auto;overflow:visible}
+.rev-db-cpu-card-compact .rev-cpu-panel-limitation{font-size:10px;margin-top:8px;padding-top:8px}
+@media(max-width:670px){
+  .rev-db-cpu-card .rev-cpu-panel-grid{grid-template-columns:1fr}
+}
+
+/* Distinct current 15m Query Store view and persisted 7-day history. */
+.rev-query-history-mode{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 14px;
+ border:1px solid var(--t-line);border-radius:9px;background:var(--t-card)}
+.rev-query-history-mode button{padding:9px 12px;border:1px solid var(--t-line);border-radius:6px;
+ background:var(--t-inner);color:var(--t-text);cursor:pointer;font-weight:650}
+.rev-query-history-mode button.active{border-color:var(--t-accent);color:var(--t-accent);
+ background:var(--t-accent-soft)}
+.rev-query-history-mode span{font-size:11px;color:var(--t-muted)}

@@ -1,0 +1,10 @@
+# Produces a Windows-runnable Spring Boot JAR, NOT a Docker deployment.
+# Called only after npm has built frontend/dist on the Windows host.
+# Use the repo-root build context with the restrictive .dockerignore.
+FROM maven:3.9.11-eclipse-temurin-21 AS builder
+WORKDIR /workspace/backend
+COPY backend/pom.xml ./pom.xml
+RUN mvn -B -q dependency:go-offline
+COPY backend/src ./src
+COPY frontend/dist /workspace/frontend/dist
+RUN mvn -B -q -Pdesktop-bundle -DskipTests package

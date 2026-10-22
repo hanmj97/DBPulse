@@ -1,0 +1,817 @@
+## 2026-10-20 — SQL 15 temporal-overlap results (completed)
+
+The user ran `sql/15_ab_xe_temporal_overlap_lab_only.sql`
+on the privately archived A and B XEL files. Results confirmed:
+- A: **1,612** XE events, **1,200** timed workload RPCs, **2**
+  setup batches, **12** Query Store-related requests, zero unknown
+  interval starts.
+- B: **1,670** XE events, **1,200** timed workload RPCs, **2**
+  setup batches, **8** Query Store-related requests, zero unknown
+  interval starts.
+- Slow requests (>=100 ms): **A 17**, **B 5**.
+- Fixed ±100ms comparison window around each timed RPC completion:
+  * A fast <10ms: 171/1,155 (**14.81%**) near any monitor;
+    A slow >=100ms: 10/17 (**58.82%**) near any monitor.
+  * B fast <10ms: 189/1,171 (**16.14%**) near any monitor;
+    B slow >=100ms: 5/5 (**100%**) near any monitor.
+  * A slow near Query Store: **0/17**; B slow near Query Store:
+    **1/5**. The B slowest **4,180.761ms** request had no
+    Query Store execution interval overlap.
+- Monitor-overlap pairs among slow RPCs:
+  * A: DBPulseCollector **3**, DBPulseCpuSample **3**,
+    DBPulseDeadlocks **2**, DBPulseWaits **1**.
+  * B: DBPulseCollector **2**, DBPulseDeadlocks **2**,
+    DBPulseQueryStore **1**.
+
+**Interpretation:** It is valid to describe temporal co-occurrence,
+but **not** a lock-wait finding or proof that DBPulse caused any slow
+query. B slow cohort has only five observations; a 4.18-second query
+can overlap periodic monitoring by chance. Even when using a fixed
+±100ms endpoint-centered window, observational time clustering and
+unmeasured system load are confounders. No wait-type/scheduler
+causality was recorded with these RPC-completion XEvents.
+
+**Decision:** no release-blocking code defect in the adaptive guard was
+established by SQL 15. However, these two short synthetic lab trials
+do not prove customer-query nonregression; keep limitations explicit.
+Next, restore default `ADAPTIVE` policy (fixed baseline is LAB ONLY),
+run `tools/check_v013_api_regression_lab.ps1` against loopback backend
+(GET-only health, 5s metrics, Blocking, Deadlocks, Waits, incidents,
+Query Store, advisor, overhead, optional CPU), then manually review
+Query ID/Plan ID detail, SQL drawer with exclusion rules, incident
+investigation and navy/midnight UI. Record actual results rather than
+marking tests passed before execution.
+
+## 2026-10-20 — Step 15: archived A/B XEL temporal overlap investigation
+
+The archive-path contract is:
+- A retest: `D:\Projects\DBPulseLabXE\archive\A_20261020_retest\ObserverCost*.xel`
+- B adaptive: `D:\Projects\DBPulseLabXE\archive\B_20261020\ObserverCost*.xel`
+
+**Do not discard or move the raw archive files during this step.**
+With Windows-authenticated **local SSMS master**, run
+`sql/15_ab_xe_temporal_overlap_lab_only.sql` only after confirming
+both XEL archive paths contain at least one file. This read-only
+diagnostic does not start XE, restart DBPulse, use customer data,
+or require another 10-minute workload run.
+
+It parses only `client_app_name`, event completion timestamp,
+duration, CPU and logical reads. **It never displays or exports
+SQL text or parameters.** CPU and duration microsecond units were
+verified from SQL Server local XE metadata. Event start timestamps
+are **estimated** as completion time minus duration; they should
+not be mistaken for exact DB lock-wait start times.
+
+Expected scope:
+1. 1,200 timed RPC completions **for each** A and B;
+   otherwise it raises an error and the analysis is invalid.
+2. Detailed slow-RPC (>100ms) event times, CPU, counts of
+   intersecting Query Store and 5-second monitor request intervals.
+3. Count of intersections by monitor app name.
+4. A duration-neutral check: for *every* fast/medium/slow timed RPC
+   evaluate the same 200ms completion-centered comparison window
+   (±100ms) to reduce misleading correlations from slow requests
+   inherently spanning longer periods.
+
+**Limitations:** Observed time intersection cannot establish
+causality, lock waits, scheduler stalls or CPU contention. A 5-second
+monitor may overlap a multi-second RPC by chance. XE completion
+events do not include per-request wait_type or execution-plan detail.
+If suspicious co-occurrence exists, a follow-on **local-only,
+permission-bounded** wait-specific test can be designed with explicit
+capture and privacy limits. Functional/UI regression remains a
+separate gate; PR #12 stays Draft.
+
+## 2026-10-20 — A XE recovered successfully from SQL 14
+
+The **repeated A** raw XEL file survived loss of the SQL 11 SSMS
+result grid. `sql/14_recover_a_xe_after_lost_ssms_result_lab_only.sql`
+read **1,612 event completions**, including **exactly 1,200 timed
+`DBPulseLabWorkload` RPCs** and two setup batches, in the bracketed
+recovery window. Observed first and last event UTC:
+**06:49:47.280–06:59:52.227**, which do **not** identify the
+original XE session START/END boundaries. A's independent client
+workload ran **06:49:52.611–06:59:52.623** (~600s), with policy
+FIXED_BASELINE_LAB_ONLY and no mode violations.
+
+**A workload RPC-only (1,200 calls):**
+- CPU **4,329 ms**; logical reads **19,813 pages**;
+  physical reads **796 pages**.
+- Mean XE request duration **9.545ms**, p50 **0.178ms**,
+  p95 **1.373ms**, p99 **220.83ms**, max **2,282.341ms**.
+- 17 requests >100ms, 3 requests >1s.
+- Two separate LAB_SETUP_BATCH completions consumed **0ms CPU
+  (at XE precision)**, 106 logical pages, 85 physical pages.
+- The independent PowerShell client mean **9.838ms**, p95
+  **1.665ms** and `comparisonEligible=true`.
+
+**Recovered A DBPulse internal raw totals, not rates:**
+
+| Category | Completed requests | CPU ms | Logical read pages | Physical read pages |
+|---|---:|---:|---:|---:|
+| OTHER_INTERNAL | 398 | 3,415 | 53,628 | 3,913 |
+| QUERY_STORE_COLLECTOR | 10 | 391 | 101,595 | 3,605 |
+| QUERY_STORE_STATE | 2 | 0 (rounded) | 3,099 | 246 |
+| **Total** | **410** | **3,806** | **158,322** | **7,764** |
+
+A 5-second monitor evidence: DBPulseCollector 116 RPCs,
+BlockingChain 116, Waits 117, Deadlocks 39, CpuSample 10,
+and DBPulseQueryStore 12 (collector 10 + state 2).
+This confirms those calls were observed, NOT correctness of
+every corresponding dashboard feature.
+
+**B vs repeated A, matched 1,200 timed RPCs only:**
+
+| Metric | Repeated A (FIXED 60s) | B (THROTTLED 120s) | Observed difference |
+|---|---:|---:|---:|
+| Timed RPC CPU ms | 4,329 | 1,421 | −67.2% |
+| Timed RPC logical pages | 19,813 | 18,439 | −6.9% |
+| Client mean ms | 9.838 | 11.380 | +15.7% |
+| Client p95 ms | 1.665 | 1.690 | +1.5% |
+| XE timed RPC mean ms | 9.545 | 11.082 | +16.1% |
+| XE timed RPC p95 ms | 1.373 | 1.339 | −2.5% |
+| Requests >100ms | 17 | 5 | −12 |
+| Requests >1s | 3 | 4 | +1 |
+
+**Interpretation and release decision:**
+The workload RPC CPU comparison is now correctly separated from
+setup batches; B had 67.2% less *observed* timed-RPC CPU than
+the repeated A trial. This does **NOT** prove self-throttling
+caused this difference: outlier latency, host variability,
+sequential non-randomized measurements, and CPU scheduling
+are uncontrolled. B mean client latency was 15.7% higher than
+this A trial and p95 was near-flat; outlier patterns differ.
+The repeated A XE duration is **unknown** because the original
+SQL 11 END output was lost, so do not normalize or directly
+compare total internal background-query rates with the B
+710-second window. Earlier A 628-second XE is a separate A run,
+not interchangeable with repeated A's XEL.
+
+**Next:** Archive the newly recovered A XEL privately,
+keeping earlier B XEL in its existing private folder;
+analyze long request stalls with timestamps and event
+co-occurrence, then verify existing monitoring functions and
+navy/midnight UI. If definitive causal claims are desired,
+use paired, time-aligned, repeated crossover runs.
+Keep PR #12 in Draft until outstanding verification gates pass.
+
+## 2026-10-20 — repeated A results received, XE output lost
+
+New A client workload ran 2026-10-20 **06:49:52.611 UTC to
+06:59:52.623 UTC** with **1,200 requests**. Process policy
+`FIXED_BASELINE_LAB_ONLY`, `NORMAL` at both ends, 10 collector
+successes, 0 failures, 0 skips, 0 mode violations, 0 API errors;
+`ComparisonEligible=true`. Client mean **9.838ms**, p95 **1.665ms**,
+JDBC wall delta **1,995ms**.
+
+SQL 09 Query Store (654 sec) returned:
+`OTHER_INTERNAL` 286 executions, 6,364.62ms CPU,
+6,633 logical pages; `QUERY_STORE_STATE` 13 executions,
+68.5ms CPU, 21,864 logical pages; `QUERY_TEXT_VIEWER` 0
+new executions; collector category absent again. It showed 14
+baseline plans and 14 current plans, with 0 invalid/disappeared
+and 0 newly observed in displayed rows. **SQL 09 is not an XE
+cost substitute, and does not prove collector was not executed.**
+
+The user lost the **SQL 11 END result grid**; do not invent
+XE collector CPU, logical reads or A RPC-only CPU. Before
+rerunning a 10-minute workload, check whether the **new A
+`D:\Projects\DBPulseLabXE\ObserverCost*.xel`** survives.
+`sql/14_recover_a_xe_after_lost_ssms_result_lab_only.sql`
+can reconstruct request-level CPU/reads, timed RPC latency
+quantiles, counts, and outlier timestamps without relying on
+the old SSMS temp table. It reads only XEL and tempdb.
+The script filters a bracket around the new A client times.
+The first/last captured events **are not exact XE START/END**;
+do not normalize collector rates from that span unless the true
+XE measurement duration can be independently established.
+
+Do not drop/delete the A XEL until reconstruction is complete.
+Older B XEL remains in a private archive separate from the root.
+
+## 2026-10-20 — XE file retention verification before repeating A
+
+Local PowerShell listing contained **one** remaining XEL:
+`ObserverCost_0_134369498078710000.xel`, 1,552,384 bytes,
+last modified **2026-10-20 15:15:17 KST**. This matches the B
+capture END at approximately 15:15:17 KST. No original A
+(~14:55:15 KST) XEL was present in the listed local directory.
+This is strong file-timestamp evidence that only the B XEL is
+retained; the actual XEL event timestamps are authoritative.
+
+**Next action:** Do NOT delete this B evidence. After confirming
+SQL 11 is stopped, run its `CLEANUP` to drop the existing session,
+then move the B `ObserverCost*.xel` file(s) to a private,
+outside-Git archive under `D:\Projects\DBPulseLabXE\archive\B_20261020`.
+The SQL 11 capture reads only the root `ObserverCost*.xel`, so
+the old B file will not contaminate the repeated A window.
+These files may contain raw SQL statements; never upload or
+commit them. Use the corrected SQL 11 for the new A capture and
+preserve its XEL separately. Do not infer an A RPC CPU from the
+old mixed 2,123 ms workload total. Consider another B capture
+with aligned measurement windows if strict workload-latency
+attribution is required. PR #12 stays Draft.
+
+## 2026-10-20 — Confirmed XE CPU time units and B workload correction
+
+The user re-ran SQL 13 and provided **actual SQL Server
+`sys.dm_xe_object_columns` metadata**. Both
+`rpc_completed.cpu_time` and `sql_batch_completed.cpu_time`
+are in **microseconds** on this server; both durations are also
+microseconds. The historical SQL 11 error multiplied batch CPU by
+1000, then treated it as microseconds.
+
+B workload corrected from **17,421 ms (INVALID)** to **1,437 ms
+(1,421 ms across 1,200 timed RPC calls + 16 ms across two setup
+batches)**. Both types are now divided by 1000 to report ms, while
+`LAB_SETUP_BATCH` is distinct from timed `LAB_WORKLOAD`.
+The earlier +720.6% A/B workload CPU claim is permanently withdrawn.
+
+Validated B timed RPC latency distribution: mean 11.082 ms,
+p50 1.076 ms, p95 1.339 ms, p99 44.457 ms, maximum
+4,180.761 ms. The four slowest requests (2.284–4.181 seconds)
+account for ~11.94 seconds of the total ~13.30 seconds of RPC
+elapsed time. XE request durations are **not** proof of a DBPulse-caused
+slowdown. The original A XE workload figure of 2,123 ms combined timed
+RPCs plus two inflated setup batches; **A timed RPC CPU is UNKNOWN**
+unless its XEL file was retained.
+
+Changes:
+- `sql/11_observer_ab_extended_events_lab_only.sql` now treats
+  both local XE CPU fields as microseconds, separates setup batches,
+  and reports workload p95 from only timed RPCs.
+- `sql/13_ab_xe_workload_spike_diagnostics_lab_only.sql` now
+  reports verified per-event CPU ms plus raw microseconds with a
+  distinct temp table name to avoid SSMS cached #temp column metadata.
+
+Next: if A's 2026-10-20 05:44:47–05:55:15 UTC XEL still exists,
+recover its timed RPC CPU (no need to rerun entire A); otherwise
+repeat a paired A/B comparison with equal XE windows. Check slow
+request outliers and normal DMV monitoring before merging PR #12.
+
+## 2026-10-20 — SQL 13 long-tail diagnosis and workload CPU correction
+
+The B XEL contains **1,200 rpc_completed** and **2 sql_batch_completed**
+events for the synthetic `DBPulseLabWorkload` application.
+**Update:** SQL Server subsequently confirmed both CPU fields in microseconds:
+the two batch events represent 16 ms CPU, not 16,000 ms.
+From the RPC events **alone**:
+- total CPU **1,421 ms**, logical reads **18,439 pages**, physical
+  reads **775 pages**;
+- mean duration **11.082 ms**, median **1.076 ms**, p95 **1.339 ms**,
+  p99 **44.457 ms**, max **4,180.761 ms**;
+- 23 calls >20ms, 5 calls >100ms, 4 calls >1s. The four slowest
+  calls (~4.181s, 3.065s, 2.412s, 2.284s) sum to **11.941s** of
+  ~13.298s total RPC elapsed time, contributing ~9.95ms to the
+  11.082ms overall mean.
+
+**Important correction:** in earlier SQL 11, the two completed
+`sql_batch_completed` records contributed **16,000 ms** to
+a mixed workload CPU figure of **17,421 ms**, despite batch mean
+duration of ~2ms. This can reflect misinterpreted XE event units
+or timer precision; **do not treat it as a 16-second SQL workload CPU
+spike**. We must check the **actual instance** metadata with
+`sys.dm_xe_object_columns`, and inspect the two unconverted raw
+`cpu_time` values without viewing SQL text. The corrected SQL 13
+reports RPC-only CPU, raw batch CPU separately, and XE metadata; the
+revised SQL 11 labels `LAB_SETUP_BATCH` separately from the
+1,200 timed `LAB_WORKLOAD` RPC calls.
+
+A's earlier aggregate mixed **2,123 ms** for 1,202 events, so a
+valid **A RPC-only CPU baseline is absent** unless the original A XEL
+still exists. No valid A/B workload SQL CPU percentage can be reported
+from these two mixed totals. The observed A/B client mean and p95
+latency changes remain genuine data, but **causality remains unknown**.
+
+Do not merge PR #12 yet. First re-run corrected SQL 13 on the
+retained B XEL and inspect event unit metadata; then recover
+A RPC-only cost if original A XEL exists or remeasure under paired
+and crossover windows. Avoid changing customer DBs or granting
+additional permissions.
+
+
+# DBPulse v0.13 — Observer cost measurement protocol
+
+## What has and has not been confirmed
+
+The user validated `THROTTLED`, `effectiveIntervalMs=120000`
+and `skippedCycles=3`. That confirms the self-protection
+state machine is operating, **not** that SQL Server incurs less
+total CPU, logical reads or customer-query latency.
+
+This change adds:
+1. JVM process-lifetime counters to the existing read-only `/overhead`
+   API: `totalCollectorAttempts`, `successfulCollections`,
+   `failedCollections`, `cumulativeJdbcWallMs`. The React card also
+   presents these values. They reset after JVM/container restart,
+   so don't calculate deltas across a restart.
+2. A manual, read-only SQL Server Query Store delta collector:
+   `sql/09_observer_cost_window_lab_only.sql`.
+   Two snapshots use one SSMS **session-local temporary table**
+   baseline and a fixed last-4-hour cutoff to avoid a moving
+   lookback boundary. It dynamically identifies DBPulse statements
+   by SQL marker or statement shape, NEVER fixed Query/Plan IDs.
+   Query text is consulted **inside MSSQL only** and never output.
+
+## Interpreting the SQL measurements
+
+The SQL profiler calculates changes in cumulative
+`SUM(count_executions)`, weighted `SUM(avg_cpu_time * count_executions)`
+and weighted `SUM(avg_logical_io_reads * count_executions)` for Query
+Store runtime rows with `execution_type=0`. CPU results are in ms,
+logical reads in 8KB pages. Output includes *per-minute* rates to
+normalize different capture windows.
+
+The script cannot attribute workload to a client conclusively.
+A matching SQL shape or marker is a **heuristic**. Query Store stores
+aggregated intervals, may flush late, expire rows, change plans or be
+read-only, and counts don't necessarily align exactly with wall time.
+When a plan counter disappears or decreases, the script flags that
+plan as invalid rather than counting a negative delta; any such
+invalid rows should make the comparison inconclusive. Plans first appearing
+after START are also excluded from cumulative deltas (not incorrectly
+treated as entirely new resource consumption); check
+`newly_observed_plans_excluded` and do not call the A/B comparison complete
+if it is nonzero.
+This profiler itself executes Query Store SQL and adds overhead;
+run it only manually in the isolated DBPulseLab.
+
+**Unlike the 5s DMV collector**, only the 60s/120s Query Store collector
+is throttled by v0.13. Other fixed-interval DMV / wait / deadlock
+queries still run; compare **per-source** rows and total workload
+rather than expecting all DBPulse workload to halve.
+
+
+## XE preflight and 90-second smoke test (local DBPulseLab)
+
+**Actual event-file directory:** `D:\Projects\DBPulseLabXE` on
+the **SQL Server host**, not the DBPulse backend container. The
+SQL Server *database engine service account* needs Modify access to
+this folder only. Do not grant `Everyone` access or change any
+`dbpulse_monitor` server privileges. Check the exact engine
+service account with Windows-authenticated SSMS sysadmin:
+
+```sql
+SELECT servicename, service_account, status_desc
+FROM sys.dm_server_services
+WHERE servicename LIKE N'SQL Server (%';
+```
+
+Then from PowerShell inspect the folder and its ACL:
+
+```powershell
+# Check lab event-file directory without modifying anything
+$xePath = 'D:\Projects\DBPulseLabXE'
+Test-Path -LiteralPath $xePath
+
+# Show current permissions; do not change root D: ACLs
+if (Test-Path -LiteralPath $xePath) {
+    Get-Acl -LiteralPath $xePath |
+        Select-Object -ExpandProperty Access |
+        Select-Object IdentityReference, FileSystemRights, AccessControlType
+}
+
+# View local SQL Server service identity for cross-checking
+Get-CimInstance Win32_Service |
+    Where-Object { $_.Name -eq 'MSSQLSERVER' -or $_.Name -like 'MSSQL$*' } |
+    Select-Object Name, StartName, State
+```
+
+After confirming exact SQL Server service-folder access,
+open `sql/11_observer_ab_extended_events_lab_only.sql` in a NEW SSMS tab.
+Set `@Phase = 'START'`, execute, **keep the tab open**, wait 90 seconds,
+change to `'END'` and execute again in that same SSMS connection.
+Confirm `dropped_xe_events = 0` and check event category counts.
+A 90-second smoke test only verifies XE operation, **not** an A/B result.
+At the end use `@Phase = 'CLEANUP'` in the same window, then
+delete only `ObserverCost*.xel` from the dedicated event directory.
+The script reports aggregates and does not print captured statements,
+but the XEL files **can contain raw SQL** and must never be committed.
+If there are no `QUERY_STORE_COLLECTOR` records, compare with the
+JVM `successfulCollections` delta and diagnose XE capture scope rather
+than interpreting zero as a zero-cost collector. Do not execute on
+customer databases.
+
+
+## 2026-10-20 smoke-test diagnostic: 179 seconds, zero events
+
+A 179-second SQL 11 smoke capture reported `dropped_xe_events=0`,
+but **no rows** in the first results table. This does NOT establish
+zero DBPulse load or a successful A/B measurement. The first version
+listened only to `sql_statement_completed`. JDBC prepared statements
+commonly use RPC/procedure execution, so it could miss the outer call.
+
+The updated SQL 11 captures **`rpc_completed` and
+`sql_batch_completed` only** (request-level completions);
+do not sum these with nested statement-completed events. It reports
+counts per `event_name` and `app_name` before categorized totals
+and normalizes both RPC and batch CPU microseconds to displayed
+milliseconds (both confirmed by the actual SQL Server metadata). There is a separate `XE_SMOKE_PROBE` category
+for the local diagnostic client. Generic `DBPulseQueryStore` RPC calls
+without SQL text are `QUERY_STORE_UNATTRIBUTED` rather than falsely
+identified as stats or state requests.
+
+**Redo 90-second smoke test before A/B:**
+- Run `@Phase='CLEANUP'` in the original **stopped** SQL 11 SSMS
+  session; check the dedicated XE session is absent.
+- Delete only `D:\Projects\DBPulseLabXE\ObserverCost*.xel`
+  *after* confirming the previous test's results are no longer needed.
+  XELs can contain SQL text and should not enter Git.
+- Pull the revised branch, open the updated SQL 11 in a **new SSMS tab**,
+  run `START`. Use a local ADO.NET connection with
+  `Application Name=DBPulseXEProbe` and a parameterized
+  `SELECT @value` call, which exercises the RPC path.
+- Wait at least 90 seconds, then run `END` in **that same new tab**.
+  Check `rpc_completed`/application rows, `XE_SMOKE_PROBE`,
+  `QUERY_STORE_COLLECTOR` or `QUERY_STORE_UNATTRIBUTED`, and
+  `dropped_xe_events=0`. Absence of expected probe events remains
+  a hard block on proceeding to the 10-minute benchmark.
+- Compare DBPulse JVM `successfulCollections` between START and END
+  before drawing any conclusion about a missing collector row.
+
+## 2026-10-20 — successful corrected XE smoke measurement (120 seconds)
+
+After replacing statement-only capture with request-level `rpc_completed` /
+`sql_batch_completed`, the user ran an actual **120-second** local XE
+smoke test against DBPulseLab. The report contained **81 RPC completions**,
+with **zero reported dropped XE events**:
+
+| App | RPC completions |
+|---|---:|
+| DBPulseBlockingChain | 23 |
+| DBPulseCollector | 23 |
+| DBPulseCpuSample | 2 |
+| DBPulseDeadlocks | 7 |
+| DBPulseQueryStore | 1 |
+| DBPulseQueryText | 1 |
+| DBPulseWaits | 23 |
+| DBPulseXEProbe | 1 |
+
+| Classified XE category | Calls | CPU ms | Logical read pages | Physical read pages | Avg duration ms |
+|---|---:|---:|---:|---:|---:|
+| OTHER_INTERNAL | 79 | 235 | 11,403 | 863 | 34.95 |
+| QUERY_STORE_COLLECTOR | 1 | 47 | 12,447 | 483 | 4,011.07 |
+| XE_SMOKE_PROBE | 1 | 0 | 0 | 0 | 0.19 |
+
+**Interpretation:** Real DBPulse collector RPC was observed, addressing
+the zero-event blind spot in the earlier XE configuration. The
+Query Store-only 598-second report had `QUERY_STORE_COLLECTOR=0`, but
+that was **not** proof of zero collector calls. The corrected XE capture
+recorded one collector completion with nonzero CPU and reads. One
+request's ~4-second elapsed duration is not the same as 47 ms of CPU
+and is insufficient to determine the source of the remaining time.
+The result proves that the instrumentation sees this query, **not** that
+adaptive scheduling reduces total cost or customer query latency.
+
+**Next:** After copying these aggregate numbers, `CLEANUP` the stopped
+XE session and remove only its dedicated XEL files; perform 10-minute
+A=fixed and B=continuous THROTTLED measurements with matching workloads.
+Keep PR #12 Draft until measured results and regression checks pass.
+
+## Required A/B synthetic table (before either measurement window)
+
+The local `DBPulseLab.dbo.Accounts` table is **not created by DBPulse startup**.
+The original `sql/03_prepare_load_test_data.sql` also modifies Query Store
+configuration, so **do not rerun SQL 03 during v0.13 benchmarking**.
+Use the isolated `sql/12_prepare_ab_accounts_lab_only.sql` instead,
+through a Windows-authenticated SSMS session, **before opening the A/B
+START windows**. It creates the missing table and seeds 20,000 synthetic
+rows only when empty, verifies IDs 1..20000, and leaves Query Store
+configuration and other DBPulse tables untouched.
+
+Check that the current SSMS connection is on local DBPulseLab.
+If either SQL 09 or SQL 11 START has already been executed without the
+fixture, invalidate/cancel that interval and restart cleanly after
+creating the table. Do not measure setup/index build inside A or B.
+The PowerShell workload now checks the fixture before its timed loop
+and fails with an actionable message if the table is missing.
+
+## 2026-10-20 — A baseline: fixed 60s, 10-minute workload (measured)
+
+The user completed the **A** run with \`policy=FIXED_BASELINE_LAB_ONLY\`,
+\`mode=NORMAL\` throughout, **1,200 synthetic client calls** in exactly
+~600 seconds, mean client latency **5.975 ms**, p95 **1.624 ms**,
+\`successfulCollectorDelta=9\`, \`failedCollectorDelta=0\`,
+\`skippedCycleDelta=0\`, \`JdbcWallMsDelta=2926\`,
+\`modeViolationSamples=0\`, \`apiStatusErrors=0\`,
+\`comparisonEligible=true\`.
+
+**Primary server-side XE baseline (628 seconds; 0 dropped events):**
+
+| XE category | Requests | CPU ms | Logical read pages | Physical read pages | Mean duration ms |
+|---|---:|---:|---:|---:|---:|
+| LAB_WORKLOAD (mixed RPC + 2 setup batches; **CPU not a valid timed-RPC baseline**) | 1,202 | 2,123 (mixed; provisional) | 19,053 | 563 | 5.67 |
+| OTHER_INTERNAL | 397 | 2,827 | 65,008 | 3,348 | 125.8 |
+| QUERY_STORE_COLLECTOR | 11 | 467 | 119,662 | 4,437 | 180.34 |
+| QUERY_STORE_STATE | 3 | 0 (rounded) | 6,366 | 287 | 83.94 |
+| **DBPulse internal sum** | **411** | **3,294** | **191,036** | **8,072** | — |
+
+The XE workload total includes **1,200 RPC + 2 completed SQL batches**,
+which is why the measured SQL request count is 1,202 while the scripted
+workload executed 1,200 timed client calls. The 628-second XE window
+started ~16 seconds before and ended ~12 seconds after the 600-second
+client-load window. This also explains why **11 XE Query Store requests
+must not be naively equated with the JVM's 9 completed polls over its
+shorter window**. For B, preserve the same timing and compare normalized
+per-minute XE rates: A internal ~314.7 CPU ms/min,
+~18,251.8 logical-read pages/min, ~39.27 calls/min;
+A Query Store collector ~44.62 CPU ms/min,
+~11,433 logical-read pages/min, ~1.05 calls/min.
+
+**Secondary SQL 09 Query Store baseline (634 seconds; incomplete):**
+\`OTHER_INTERNAL\` 266 executions, 4,829.11 ms CPU, 7,070 logical
+pages; \`QUERY_STORE_STATE\` 12 executions, 74.2 ms CPU, 26,732
+logical pages; \`QUERY_STORE_COLLECTOR\` 0 newly observed executions.
+\`invalid_or_disappeared_plans=0\` but
+\`newly_observed_plans_excluded=1\` for state. These results are **not
+strictly comparable to the XE totals**, and the missing Query Store
+collector row does not cancel the observed 11 XE calls.
+Do **not** claim successful Query Store-based A/B validation yet.
+
+**Latency caveat:** measured mean client/server duration exceeds p95,
+which can happen if a small number of extreme slow requests raises the
+mean. A/B results should report this distribution anomaly and avoid
+claiming a latency improvement from these summary metrics alone.
+No customer-production safety claim is supported.
+
+**Remaining gate:** Run **B** with the same code and scripted workload,
+wait for stable \`policy=ADAPTIVE\`, \`mode=THROTTLED\`,
+\`effectiveIntervalMs=120000\` *before* XE/SQL 09 START, and verify it
+remains so throughout the 10-minute client load. Do not modify fixture,
+Query Store settings, or SQL 11 instrumentation between A and B.
+
+
+## 2026-10-20 — B adaptive 120s A/B comparison (measured, release held)
+
+The user completed B with the same v0.13 app and same 1,200 timed
+read-only synthetic queries over 600 seconds:
+\`policy=ADAPTIVE\` and \`mode=THROTTLED\` at start and end,
+\`successfulCollectorDelta=5\`, \`failedCollectorDelta=0\`,
+\`skippedCycleDelta=5\`, \`JdbcWallMsDelta=1289\`,
+\`modeViolationSamples=0\`, \`apiStatusErrors=0\`,
+\`comparisonEligible=true\`. Client mean latency **11.38 ms** and
+p95 **1.69 ms** (A: 5.975 ms and 1.624 ms).
+
+**XE B (710 seconds; 0 dropped events; vs A: 628 seconds):**
+
+| XE class | B completed requests | B total CPU ms | B logical pages | B physical pages | B mean duration ms |
+|---|---:|---:|---:|---:|---:|
+| LAB_WORKLOAD (mixed; **CPU invalid for timed-RPC comparison**) | 1,202 | 17,421 (mixed, not timed-RPC CPU) | 18,545 | 860 | 11.07 |
+| OTHER_INTERNAL | 460 | 3,547 | 68,151 | 4,353 | 82.22 |
+| QUERY_STORE_COLLECTOR | 6 | 299 | 64,697 | 2,414 | 120.95 |
+| QUERY_STORE_STATE | 2 | 15 | 5,150 | 308 | 31.07 |
+| **DBPulse internal total (not workload)** | **468** | **3,861** | **137,998** | **7,075** | — |
+
+**Per-minute comparison** (computed as value × 60 / XE elapsed seconds):
+
+| Metric / minute | A 628s | B 710s | Change B vs A |
+|---|---:|---:|---:|
+| Query Store collector completed requests | 1.051 | 0.507 | **−51.8%** |
+| Query Store collector CPU ms | 44.62 | 25.27 | **−43.4%** |
+| Query Store collector logical-read pages | 11,433 | 5,467 | **−52.2%** |
+| ALL DBPulse internal CPU ms | 314.71 | 326.28 | **+3.7%** |
+| ALL DBPulse internal logical-read pages | 18,252 | 11,662 | **−36.1%** |
+| ALL DBPulse internal calls | 39.27 | 39.55 | **+0.7%** |
+| OTHER_INTERNAL CPU ms | 270.10 | 299.75 | **+11.0%** |
+
+**User workload risk:**
+A client mean 5.975 ms → B 11.38 ms (**+90.5%**);
+client p95 1.624 ms → B 1.69 ms (**+4.1%**).
+XE workload mean 5.67 ms → 11.07 ms (**+95.2%**) and
+XE workload p95 1.31 ms → 1.35 ms (**+3.1%**).
+**CORRECTION — The earlier +720.6% workload CPU claim is INVALID.**
+SQL 13 shows that the B total of 17,421 ms comprises only **1,421 ms
+for 1,200 timed RPCs** and **16,000 ms assigned to two setup-batch
+events by the XE normalization logic**. Batch duration is only ~2.042
+ms mean, making the batch CPU scaling suspicious; confirm on-server
+XE metadata before interpreting those two batch CPU values.
+The A mixed total 2,123 ms also combines 1,200 RPCs and 2 setup
+batches; its *RPC-only CPU* is not available from the previously
+shared aggregate. Therefore A-vs-B timed workload CPU % change is
+**UNKNOWN**, NOT +720.6%. An increased mean with near-stable p95
+is consistent with the observed long-tail outliers.
+**Do not claim user-query performance protection or improvement.**
+
+The B SQL 09 Query Store counter view still did not display a
+\`QUERY_STORE_COLLECTOR\` category, despite 6 actual XE completions,
+and is **inconclusive for collector attribution**. B secondary
+OTHER_INTERNAL: 311 calls / 6,434.1 ms CPU / 8,688 logical pages;
+QUERY_STORE_STATE: 8 calls / 48.17 ms CPU / 15,105 pages.
+Do not merge or add these values to XE totals.
+
+**Confounders:** XE A covered 628 s and B 710 s, while each client load
+ran ~600 s. Normalize *background-collector* comparisons by their own
+XE windows; do not treat XE per-minute workload counts as the
+actual scripted load rate. These are two single nonrandomized sequential
+lab runs, not a controlled proof of production observer impact.
+Repeat with closely matched capture windows and a crossover order
+(A-B-B-A or B-A-A-B) if attribution is needed.
+
+**Next blocking investigation:** Keep B
+\`D:\\Projects\\DBPulseLabXE\\ObserverCost*.xel\` files, and run
+\`sql/13_ab_xe_workload_spike_diagnostics_lab_only.sql\` in Windows-auth
+local SSMS master to split RPC vs 2 batch costs and show only numeric
+p50/p95/p99/max latency and largest 15 event durations; it emits
+**no statement text or parameters**. If B XEL files are already deleted,
+the diagnostic cannot recover them; remeasure rather than invent values.
+Retain Draft PR #12 until workload regression, Query Store/XE attribution,
+5-second incident monitoring and both dark themes are reviewed.
+
+
+## Two comparable A/B windows (local lab only)
+
+1. Do not run high-volume SQL load, edit indexes or change the data
+   between windows. Use the same baseline workload; ideally a repeatable
+   scripted representative workload after separate approval.
+2. **A: fixed baseline 60s, SAME v0.13 binary**: set
+   `DBPULSE_QUERY_ANALYTICS_INTERVAL_MS=60000` and
+   `DBPULSE_QUERY_ANALYTICS_ADAPTIVE_ENABLED=false` for the *isolated lab*
+   backend; rebuild only `backend`. The `/overhead` response must show
+   `policy=FIXED_BASELINE_LAB_ONLY`, `mode=NORMAL`, interval 60000.
+   Do NOT disable adaptive protection in a customer environment.
+   This avoids comparing unrelated v0.12 and v0.13 feature changes.
+3. In SSMS DBPulseLab, open
+   `sql/09_observer_cost_window_lab_only.sql`; execute with
+   `@Phase='START'`. Wait ~10 minutes without closing the tab.
+   Change to `@Phase='END'`; execute **in the same connection**.
+   Record only aggregated per-minute counts/CPU/reads.
+4. **B: adaptive 120s**, using the **same v0.13 build**:
+   set `DBPULSE_QUERY_ANALYTICS_ADAPTIVE_ENABLED=true`; rebuild only
+   `backend` (leave DBPulseLab and PostgreSQL data untouched). Only START
+   after API reports `policy=ADAPTIVE`, `mode=THROTTLED`, and
+   `effectiveIntervalMs=120000`.
+   Then run START/END again over the same 10-minute period in the
+   same SSMS tab, while `THROTTLED` holds.
+5. Compare matched category rates `QUERY_STORE_STATE`,
+   `QUERY_STORE_COLLECTOR`, `QUERY_TEXT_VIEWER`,
+   `OTHER_INTERNAL`, plus sum of all rows. Compare *at least*
+   Query Store collector CPU/read cost **per minute**, not per-execution
+   average only. If modes switch within B, record the transition; this
+   invalidates a controlled 120s window.
+6. Optionally query `/overhead` at start/end to see differences
+   in `totalCollectorAttempts`, `skippedCycles` and
+   `cumulativeJdbcWallMs`; it requires **no additional MSSQL
+   query**. Do not compare process counters across a JVM restart.
+7. Alongside these totals, capture SQL Server user-query response
+   time, CPU, wait durations and physical read I/O for comparable
+   workloads; Query Store's total CPU isn't server utilization.
+8. Report `A` vs `B` as **an estimate under observed lab conditions**.
+   Re-run under a representative workload before calling it a proven
+   production reduction. No external customer deployment.
+
+### Commands
+
+```powershell
+# DBPulse API endpoints do not read SQL Server; no secrets in these responses
+$base = "http://127.0.0.1:18081/api/v1/targets/local-mssql"
+$before = Invoke-RestMethod "$base/query-performance/overhead"
+
+# After a measurement interval WITHOUT restarting the backend
+$after = Invoke-RestMethod "$base/query-performance/overhead"
+[pscustomobject]@{
+    StartedMode = $before.mode
+    EndMode = $after.mode
+    CompletedPolls = $after.successfulCollections - $before.successfulCollections
+    FailedPolls = $after.failedCollections - $before.failedCollections
+    SkippedTicks = $after.skippedCycles - $before.skippedCycles
+    JdbcWallMs = $after.cumulativeJdbcWallMs - $before.cumulativeJdbcWallMs
+} | Format-List
+```
+
+## Release gate
+
+v0.13 remains Draft PR #12 until local A/B measurement and Query
+Store freshness/regression checks. A SQL comparison with a changed
+load, negative deltas, absent internal SQL, or an unknown
+`THROTTLED` duration must be labelled **inconclusive**.
+
+
+## Why QUERY_STORE_COLLECTOR can be 0 in the 598-second report
+
+The Java `MssqlQueryStoreCollector.collect()` uses the
+`DBPULSE_INTERNAL_QSTORE_STATS_V1` query. A successful JVM
+`successfulCollections` delta is evidence that this method returned
+successfully. The historical Query Store report is **not** a direct
+recording of JDBC executions: capture mode `AUTO`, Query Store read-only
+mode, visibility/flush delay, plan turnover and our SQL fingerprint
+heuristics can all produce missing rows. The supplied 598-second sample
+has no guard counters from START/END, so **its 60s/120s mode is UNKNOWN**.
+
+Run `sql/10_query_store_collector_capture_diagnostics_lab_only.sql`
+in SSMS to inspect `actual_state_desc`, `query_capture_mode_desc`,
+collector marker/shape presence in Query Store, and (if authorized)
+independent cached-plan execution data in `sys.dm_exec_query_stats`.
+Zero rows are still not proof of zero calls. Never alter the database's
+Query Store settings simply to manufacture capture during an A/B window.
+
+## Stronger local A/B evidence: XEvents + fixed synthetic workload
+
+The historic Query Store counter script is a cross-check, not the
+primary quantitative signal while the collector is unobserved.
+`sql/11_observer_ab_extended_events_lab_only.sql` can use a **local
+server-side Extended Events** `rpc_completed` and `sql_batch_completed` event session
+filtered to client app names `DBPulse%`. It sums statement CPU in
+microseconds (reported in milliseconds), logical and physical 8KB
+pages, execution counts and call rate by SQL type; the experimental
+Query Store collector is identified by application name and SQL shape.
+It does **not** double-count `rpc_completed` and
+`sql_statement_completed`. Extra non-collector internal SQL stays
+in a separate category.
+
+**Safety:** administrator-only, DBPulseLab only. Event files live at
+`D:\Projects\DBPulseLabXE\ObserverCost*.xel` and may **contain SQL statements**,
+even though reports expose only aggregated numbers. Set up the
+directory and SQL Server service-account file permissions manually,
+delete any old matching XEL *before* each START and securely remove the
+XEL after aggregating. Do not commit any XEL. The session incurs its
+own instrumentation cost (identical on A/B). If XE cannot see the
+collector while the JVM reports successful calls, the comparison is
+**inconclusive**, not zero overhead.
+
+The repeatable **synthetic** SQL client, `tools/run_observer_ab_workload_lab.ps1`,
+uses `dbo.Accounts` from `sql/12_prepare_ab_accounts_lab_only.sql`,
+read-only indexed range queries through a local
+`Application Name=DBPulseLabWorkload` session, Windows integrated
+authentication, fixed input sequence and 500ms pacing over 10 minutes.
+It measures client-perceived average/p95 latency and counts
+collector attempts, failures and skipped ticks at both ends. It also
+samples mode every 15 seconds: an unexpected mode transition, API
+failure, backend restart or different execution counts disqualifies
+a clean controlled comparison.
+
+### Lab protocol per window
+
+1. Run the capture diagnostics in SSMS, ensure Query Store state is
+   stable, and check the 20,000-row `dbo.Accounts` lab fixture.
+2. Prepare A/B backend policy (see below), wait for Query Store ONLINE.
+   Verify status `/overhead` and existing incident/wait APIs before START.
+3. In **SSMS tab #1**, `sql/09...` at START to cross-check Query Store
+   summary. In **SSMS tab #2**, `sql/11...` at START to create/start XE.
+   Keep both tabs/connections open; do not interchange their START/END.
+4. In PowerShell run `tools/run_observer_ab_workload_lab.ps1 -Mode A`
+   (or `-Mode B`). Do not issue extra UI queries/plan opens between runs.
+   Maintain **identical workload** for both 10-minute windows.
+5. End the XEvent capture using `@Phase='END'` in tab #2 and then end
+   Query Store window with `@Phase='END'` in tab #1. Record both
+   category totals **and** the PowerShell aggregate JSON.
+6. In tab #2 use `@Phase='CLEANUP'`; securely delete only the
+   dedicated XE output files. Complete A before restarting backend for B.
+7. Confirm A `policy=FIXED_BASELINE_LAB_ONLY` and B
+   `policy=ADAPTIVE`, uninterrupted `THROTTLED`. Run B after
+   similar warm-up. If throttling recovers mid-window, re-run B under
+   stable conditions; **never claim an adaptive 120s measurement from
+   a mixed-mode window**.
+
+### PowerShell examples
+
+```powershell
+# Select the existing v0.13 PR branch; preserve any uncommitted work.
+Set-Location D:\Projects\dbpulse-platform
+git status --short
+git fetch origin
+git switch feature/monitoring-overhead-v0.13
+git pull --ff-only origin feature/monitoring-overhead-v0.13
+
+# A: exactly the same v0.13 binary, with lab-only fixed polling.
+# Environment variables override Docker Compose .env for this invocation.
+$env:DBPULSE_QUERY_ANALYTICS_INTERVAL_MS='60000'
+$env:DBPULSE_QUERY_ANALYTICS_ADAPTIVE_ENABLED='false'
+docker compose up -d --build --force-recreate backend
+Invoke-RestMethod 'http://127.0.0.1:18081/api/v1/targets/local-mssql/query-performance/overhead' |
+  Format-List policy,mode,effectiveIntervalMs,totalCollectorAttempts
+
+# After XE and Query Store START, generate comparable A workload.
+.\tools\run_observer_ab_workload_lab.ps1 -Mode A
+
+# B: complete A and cleanup first. Re-enable v0.13 adaptive protection.
+$env:DBPULSE_QUERY_ANALYTICS_ADAPTIVE_ENABLED='true'
+docker compose up -d --build --force-recreate backend
+# Wait until it is genuinely THROTTLED; never assume elapsed time proves it.
+Invoke-RestMethod 'http://127.0.0.1:18081/api/v1/targets/local-mssql/query-performance/overhead' |
+  Format-List policy,mode,effectiveIntervalMs,skippedCycles
+
+# After XE and Query Store START for B, run identical load.
+.\tools\run_observer_ab_workload_lab.ps1 -Mode B
+```
+
+The PowerShell harness saves **aggregates only** to
+`$env:TEMP\DBPulse_AB_A.json` and `DBPulse_AB_B.json`.
+Do not publish credentials, SQL statement XEL files or customer data.
+
+### Comparison acceptance
+
+Require both:
+- Server-side XE rows for `QUERY_STORE_COLLECTOR` (or verified JDBC
+  evidence plus an explicitly stated XE attribution limitation), with
+  comparable per-minute collector CPU, reads and calls.
+- LAB_WORKLOAD sample counts/rates within a chosen tolerance (recommend
+  within 5%), client p95 and average latency, XE statement p95 and
+  overall SQL Server resource trends without meaningful regression.
+
+Calculate `(A_rate - B_rate)/A_rate*100` separately for collector CPU,
+reads, and calls. Do not mix XE and Query Store totals (overlapping
+measurements), and do not claim a reduction if the A rate is zero.
+Keep the 5s collector workload in an independent category; its
+frequency should remain unchanged. Check Query Store diagnostics, API
+regressions, query text/plan views and dark UI. Local evidence supports
+only a LAB release, not production-safe customer monitoring.

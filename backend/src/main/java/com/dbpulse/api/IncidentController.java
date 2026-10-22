@@ -39,6 +39,7 @@ public class IncidentController {
                                       @RequestParam(defaultValue = "30") int limit) {
         requireTarget(id);
         if (limit < 1 || limit > 100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (!target.isEnabled()) return List.of();
         return repository.latest(id, limit);
     }
     private void requireTarget(String id) {

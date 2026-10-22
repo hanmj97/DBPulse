@@ -67,8 +67,19 @@ public class MssqlQueryStoreCollector {
                 AND qt.query_sql_text LIKE N'%DATALENGTH%'
                 AND qt.query_sql_text LIKE N'%original_bytes%'
               THEN 'DBPULSE_PATTERN'
+              WHEN qt.query_sql_text LIKE N'%sys.dm_os_ring_buffers%'
+                AND qt.query_sql_text LIKE N'%RING_BUFFER_SCHEDULER_MONITOR%'
+                AND qt.query_sql_text LIKE N'%ProcessUtilization%'
+              THEN 'DBPULSE_PATTERN'
               WHEN qt.query_sql_text LIKE N'%sys.database_query_store_options%'
                 AND qt.query_sql_text LIKE N'%actual_state_desc%'
+              THEN 'DBPULSE_PATTERN'
+              -- v0.19 introduced a CPU aggregate SQL that was not matched
+              -- by the original runtime stats fingerprint. Limit this to
+              -- DBPulse-specific aliases, not every Query Store stats query.
+              WHEN qt.query_sql_text LIKE N'%sys.query_store_runtime_stats%'
+                AND qt.query_sql_text LIKE N'%recorded_cpu_ms%'
+                AND qt.query_sql_text LIKE N'%recorded_executions%'
               THEN 'DBPULSE_PATTERN'
               WHEN qt.query_sql_text LIKE N'%sys.query_store_runtime_stats%'
                 AND qt.query_sql_text LIKE N'%avg_logical_io_reads%'
@@ -126,6 +137,22 @@ public class MssqlQueryStoreCollector {
         ORDER BY last_executed_at DESC, query_id DESC, plan_id DESC
         """;
 
+    // Query Store CPU for the SELECTED database only. SQL Server Query Store
+    // aggregates completed executions in runtime intervals. This is CPU
+    // time, NOT an instantaneous per-database CPU utilization percentage.
+    // Runtime intervals can extend outside the 15-minute last-execution filter.
+    // No SQL text, plans or customer data are fetched.
+    private static final String DATABASE_CPU_SQL = """
+        /* DBPULSE_INTERNAL_QSTORE_DB_CPU_V1 */
+        SELECT
+          COALESCE(SUM(CAST(rs.avg_cpu_time AS float) *
+                       CAST(rs.count_executions AS float)) / 1000.0, 0) AS recorded_cpu_ms,
+          COALESCE(SUM(CAST(rs.count_executions AS bigint)), 0) AS recorded_executions
+        FROM sys.query_store_runtime_stats rs
+        WHERE rs.execution_type = 0
+          AND rs.last_execution_time >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
+        """;
+
     private static final java.time.Duration STATE_CACHE_TTL = java.time.Duration.ofMinutes(5);
     private volatile StateSnapshot cachedState;
 
@@ -152,6 +179,23 @@ public class MssqlQueryStoreCollector {
 
     public MssqlQueryStoreCollector(MssqlTargetProperties props) {
         this.props = props;
+        // A cached Query Store OFF/READ_WRITE state belongs to ONE DB only.
+        props.onTargetChanged(() -> cachedState = null);
+    }
+
+    /**
+     * A stable, safe diagnostic stage plus a SQL Server numeric error code
+     * tells operators which read-only step failed without exposing query text,
+     * connection strings, driver messages, passwords or DB contents.
+     */
+    public static final class StageFailure extends SQLException {
+        private final String stage;
+        public StageFailure(String stage, SQLException cause) {
+            super("QUERY_STORE_" + stage + "_FAILED", cause.getSQLState(),
+                cause.getErrorCode(), cause);
+            this.stage = stage;
+        }
+        public String stage() { return stage; }
     }
 
     public QueryStoreResult collect() throws SQLException {
@@ -169,14 +213,17 @@ public class MssqlQueryStoreCollector {
         Properties auth = new Properties();
         auth.setProperty("user", props.getUsername());
         auth.setProperty("password", props.getPassword());
+        String stage = "CONNECT";
         try (Connection conn = DriverManager.getConnection(url, auth)) {
             conn.setReadOnly(true);
+            stage = "STATE";
             String state = readStateIfNeeded(conn);
             if (!"READ_WRITE".equals(state) && !"READ_ONLY".equals(state)) {
                 return new QueryStoreResult("QUERY_STORE_DISABLED", List.of());
             }
             Instant collectedAt = Instant.now();
             List<QueryPerformanceSnapshot> rows = new ArrayList<>();
+            stage = "STATS";
             try (PreparedStatement stmt = conn.prepareStatement(QUERY_STATS_SQL)) {
                 stmt.setQueryTimeout(8);
                 try (ResultSet rs = stmt.executeQuery()) {
@@ -194,13 +241,35 @@ public class MssqlQueryStoreCollector {
                     }
                 }
             }
-            return new QueryStoreResult(state.equals("READ_ONLY") ? "QUERY_STORE_READ_ONLY" : "ONLINE", rows);
+            Double databaseCpuMs = null;
+            Long databaseExecutions = null;
+            // Optional lightweight aggregate. A failure must not erase the
+            // captured query list. Never log SQL text or JDBC messages.
+            try (PreparedStatement cpu = conn.prepareStatement(DATABASE_CPU_SQL)) {
+                cpu.setQueryTimeout(5);
+                try (ResultSet summary = cpu.executeQuery()) {
+                    if (summary.next()) {
+                        databaseCpuMs = summary.getDouble("recorded_cpu_ms");
+                        databaseExecutions = summary.getLong("recorded_executions");
+                    }
+                }
+            } catch (SQLException ignored) {
+                // CPU estimate is unavailable, but original query history remains.
+            }
+            return new QueryStoreResult(
+                state.equals("READ_ONLY") ? "QUERY_STORE_READ_ONLY" : "ONLINE",
+                rows, databaseCpuMs, databaseExecutions);
         } catch (SQLException failure) {
             // Refresh Query Store state on the next poll if a stats read fails.
             cachedState = null;
-            throw failure;
+            throw new StageFailure(stage, failure);
         }
     }
 
-    public record QueryStoreResult(String status, List<QueryPerformanceSnapshot> rows) {}
+    public record QueryStoreResult(String status, List<QueryPerformanceSnapshot> rows,
+                                   Double databaseCpuMs, Long databaseExecutions) {
+        public QueryStoreResult(String status, List<QueryPerformanceSnapshot> rows) {
+            this(status, rows, null, null);
+        }
+    }
 }

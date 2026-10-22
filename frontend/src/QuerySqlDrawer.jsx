@@ -22,7 +22,8 @@ export default function QuerySqlDrawer({targetId,selection,onClose}) {
       try {
         const url=`/api/v1/targets/${encodeURIComponent(targetId)}/query-performance/query-text/${selection.queryId}/${selection.planId}`;
         const response=await fetch(url,{
-          cache:'no-store',credentials:'same-origin',signal:abort.signal
+          cache:'no-store',credentials:'same-origin',signal:abort.signal,
+          headers:{'X-DBPulse-Local-Request':'1'}
         });
         if(!response.ok) throw new Error(String(response.status));
         const data=await response.json();
@@ -30,9 +31,9 @@ export default function QuerySqlDrawer({targetId,selection,onClose}) {
       } catch(e) {
         if(abort.signal.aborted) return;
         const message = e.message==='403'
-          ? '보안 보호를 위해 SQL 원문 조회가 비활성화되어 있습니다. 로컬 .env에서 DBPULSE_QUERY_TEXT_ENABLED=true로 허용한 다음 백엔드를 재생성해 주세요.'
+          ? '이 실행 환경에서는 SQL 원문 조회가 차단되어 있습니다. Windows 설치형 앱을 로컬에서 실행해 주세요.'
           : e.message==='404'
-            ? '선택한 쿼리가 현재 Query Store 수집 대상에 없습니다. 다음 수집 주기 후 다시 확인해 주세요.'
+            ? '선택한 Query/Plan이 최근 수집 이력에 없거나 SQL Server Query Store에서 더 이상 보관되지 않을 수 있습니다.'
             : e.message==='503'
               ? '현재 Query Store를 조회할 수 없습니다. 수집 상태나 MSSQL 계정의 Query Store 읽기 권한을 확인해 주세요.'
               : 'SQL 원문 조회에 실패했습니다. 백엔드 로그와 연결 상태를 확인해 주세요.';

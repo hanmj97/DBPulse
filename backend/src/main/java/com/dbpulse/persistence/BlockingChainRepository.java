@@ -11,6 +11,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class BlockingChainRepository {
     private final JdbcTemplate jdbc;
+    private volatile Boolean sqliteDialect;
+    private boolean sqlite() {
+        Boolean value = sqliteDialect;
+        if (value == null) {
+            value = MetadataTimestampValue.isSqlite(jdbc);
+            sqliteDialect = value;
+        }
+        return value;
+    }
+
 
     public BlockingChainRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -22,7 +32,7 @@ public class BlockingChainRepository {
         Long id = jdbc.queryForObject("""
             INSERT INTO blocking_chain_samples (target_id, collected_at, edge_count)
             VALUES (?, ?, ?) RETURNING id
-            """, Long.class, targetId, Timestamp.from(sample.collectedAt()), sample.edges().size());
+            """, Long.class, targetId, MetadataTimestampValue.value(sqlite(), sample.collectedAt()), sample.edges().size());
         if (id == null) throw new IllegalStateException("SAMPLE_ID_NOT_RETURNED");
         if (!sample.edges().isEmpty()) {
             jdbc.batchUpdate("""
@@ -88,7 +98,7 @@ public class BlockingChainRepository {
              ORDER BY s.collected_at DESC, e.wait_ms DESC
              LIMIT ?
             """, (rs, i) -> new BlockingHistoryEntry(
-                rs.getTimestamp("collected_at").toInstant(),
+                ImportedTimestampReader.instant(rs, "collected_at"),
                 new BlockingEdge(
                     rs.getInt("blocked_session_id"), rs.getInt("blocking_session_id"),
                     rs.getString("wait_type"), rs.getLong("wait_ms"),
@@ -105,7 +115,8 @@ public class BlockingChainRepository {
         // Child rows cascade-delete automatically.
         return jdbc.update("""
             DELETE FROM blocking_chain_samples
-             WHERE collected_at < now() - interval '7 days'
-            """);
+             WHERE collected_at < ?
+            """, MetadataTimestampValue.value(sqlite(), java.time.Instant.now().minus(7,
+                java.time.temporal.ChronoUnit.DAYS)));
     }
 }
