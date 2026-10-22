@@ -9,6 +9,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -98,7 +99,7 @@ public final class DesktopSqliteFirstRun {
                 StandardCharsets.US_ASCII, StandardOpenOption.CREATE_NEW);
             System.out.println("DBPULSE_FRESH_USER_SQLITE_INITIALIZED");
             return true;
-        } catch (IOException | RuntimeException failure) {
+        } catch (IOException | SQLException | RuntimeException failure) {
             // No raw filesystem/SQL exception details are exposed.
             throw new IllegalStateException("DESKTOP_SQLITE_FIRST_RUN_FAILED");
         } finally {
