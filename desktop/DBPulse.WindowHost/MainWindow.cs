@@ -99,6 +99,7 @@ internal sealed class MainWindow : Form
                 ? error.Message : "WINDOW_STARTUP_FAILED";
             if (code.Length > 72 || !System.Text.RegularExpressions.Regex.IsMatch(
                 code, "^[A-Z0-9_]+$")) code = "WINDOW_STARTUP_FAILED";
+            WindowHostDiagnostics.Record("WINDOW_START_FAILED");
             message.Text = "DBPulse 앱을 시작할 수 없습니다.\n\n" + code
                 + "\n\n기존 DBPulse.exe는 변경되지 않았습니다.";
             waiting.Visible = true;

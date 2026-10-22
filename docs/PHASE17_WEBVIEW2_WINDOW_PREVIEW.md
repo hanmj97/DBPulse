@@ -51,3 +51,31 @@ If the window displays PORT_18081_OCCUPIED_BY_UNKNOWN_SERVICE:
 3. If another process is listening, inspect its process ID/name and the health/page match flags. The tool never reads SQL secrets and never terminates a process.
 4. If the process is an old known DBPulse.exe/Java console, close the old application normally and retry the host. If unknown or its health/title do not match, **stop** and investigate; do not automatically accept or kill the occupant.
 5. Phase17 WebView2 host now bypasses system proxies for 127.0.0.1 identity checks and retries startup identity briefly. This does not relax the DBPulse health+UI identity requirement.
+
+
+## Window-host self-diagnostics for prelaunch port errors
+
+The window host writes **status codes only** to
+`%LOCALAPPDATA%\DBPulse\logs\window-host-status.txt`, overwriting on each
+launch. It excludes passwords, SQL, HTTP response contents, usernames, process
+arguments and exception messages. It distinguishes an actually refused TCP
+connection, a TCP connect timeout, unexpected API status/content-type,
+DBPulse API identity mismatch, malformed/oversized API response, React title
+mismatch, and failure to reach an HTTP service after TCP connects.
+
+When the app shows `PORT_18081_OCCUPIED_BY_UNKNOWN_SERVICE`, **leave the
+error window open** and run:
+
+```powershell
+# Read bounded diagnostic *codes*, not private SQL Server data.
+$log = Join-Path $env:LOCALAPPDATA 'DBPulse\logs\window-host-status.txt'
+if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 35 }
+# Also inspect port ownership while the window is still open.
+Get-NetTCPConnection -LocalPort 18081 -State Listen -ErrorAction SilentlyContinue |
+  Select-Object LocalPort,OwningProcess
+```
+
+The current error code is generated **before launching the bundled Java backend**
+when the initial 18081 probe cannot identify a trustworthy DBPulse server.
+Do not delete the SQLite file, DPAPI credentials or PostgreSQL volumes, or kill
+unrelated processes to work around it.

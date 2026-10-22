@@ -15,6 +15,7 @@ internal static class Program
             return;
         }
 
+        WindowHostDiagnostics.Reset();
         ApplicationConfiguration.Initialize();
         Application.Run(new MainWindow());
     }

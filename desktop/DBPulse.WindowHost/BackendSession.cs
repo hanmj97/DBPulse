@@ -30,15 +30,24 @@ internal sealed class BackendSession : IDisposable
         // Another DBPulse may have bound its TCP port before Spring starts
         // serving health and React. Retry briefly but NEVER trust an unknown
         // service merely because the port is open.
+        WindowHostDiagnostics.Record("PREFLIGHT_BEGIN");
         ProbeResult existing = await ProbeAsync(cancellationToken);
         for (int attempt = 0; existing == ProbeResult.UnknownService && attempt < 6; attempt++)
         {
             await Task.Delay(500, cancellationToken);
             existing = await ProbeAsync(cancellationToken);
         }
-        if (existing == ProbeResult.Ready) return new BackendSession(null);
+        if (existing == ProbeResult.Ready)
+        {
+            WindowHostDiagnostics.Record("PREFLIGHT_REUSED_EXISTING_DBPULSE");
+            return new BackendSession(null);
+        }
         if (existing == ProbeResult.UnknownService)
+        {
+            WindowHostDiagnostics.Record("PREFLIGHT_FAILED_UNIDENTIFIED_PORT");
             throw new InvalidOperationException("PORT_18081_OCCUPIED_BY_UNKNOWN_SERVICE");
+        }
+        WindowHostDiagnostics.Record("PREFLIGHT_PORT_FREE");
 
         string bundledExe = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "DBPulse.exe"));
@@ -61,6 +70,7 @@ internal sealed class BackendSession : IDisposable
         {
             child = Process.Start(start);
             if (child is null) throw new InvalidOperationException("DBPULSE_BACKEND_FAILED_TO_START");
+            WindowHostDiagnostics.Record("OWNED_JAVA_PROCESS_STARTED");
             // A jpackage console-mode exe can be hosted without a visible console.
             // The backend only exits when the host closes its stdin or fails.
             for (int attempt = 0; attempt < 90; attempt++)
@@ -69,7 +79,11 @@ internal sealed class BackendSession : IDisposable
                 if (child.HasExited)
                     throw new InvalidOperationException("DBPULSE_BACKEND_EXITED_BEFORE_READY");
                 var result = await ProbeAsync(cancellationToken);
-                if (result == ProbeResult.Ready) return new BackendSession(child);
+                if (result == ProbeResult.Ready)
+                {
+                    WindowHostDiagnostics.Record("OWNED_JAVA_READY");
+                    return new BackendSession(child);
+                }
                 await Task.Delay(500, cancellationToken);
             }
             throw new InvalidOperationException("DBPULSE_BACKEND_STARTUP_TIMEOUT");
@@ -95,10 +109,12 @@ internal sealed class BackendSession : IDisposable
         }
         catch (SocketException)
         {
+            WindowHostDiagnostics.Record("PROBE_TCP_CONNECTION_REFUSED");
             return ProbeResult.Free;
         }
         catch (TimeoutException)
         {
+            WindowHostDiagnostics.Record("PROBE_TCP_CONNECT_TIMEOUT");
             return ProbeResult.UnknownService;
         }
 
@@ -115,9 +131,16 @@ internal sealed class BackendSession : IDisposable
                 HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (health.StatusCode != HttpStatusCode.OK ||
                 health.Content.Headers.ContentType?.MediaType != "application/json")
+            {
+                WindowHostDiagnostics.Record("PROBE_HEALTH_HTTP_OR_CONTENT_TYPE_UNEXPECTED");
                 return ProbeResult.UnknownService;
+            }
             var json = await ReadBoundedAsync(health.Content, 4096, cancellationToken);
-            if (json is null) return ProbeResult.UnknownService;
+            if (json is null)
+            {
+                WindowHostDiagnostics.Record("PROBE_HEALTH_RESPONSE_TOO_LARGE");
+                return ProbeResult.UnknownService;
+            }
             using var document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
             if (!root.TryGetProperty("service", out var service) ||
@@ -125,16 +148,28 @@ internal sealed class BackendSession : IDisposable
                 !root.TryGetProperty("status", out var status) ||
                 status.GetString() != "UP" ||
                 !root.TryGetProperty("phase", out var phase) ||
-                phase.GetInt32() != 14) return ProbeResult.UnknownService;
+                phase.GetInt32() != 14)
+            {
+                WindowHostDiagnostics.Record("PROBE_HEALTH_IDENTITY_MISMATCH");
+                return ProbeResult.UnknownService;
+            }
 
             using var page = await http.GetAsync(
                 HostPolicy.BaseUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (page.StatusCode != HttpStatusCode.OK ||
                 page.Content.Headers.ContentType?.MediaType != "text/html")
+            {
+                WindowHostDiagnostics.Record("PROBE_REACT_HTTP_OR_CONTENT_TYPE_UNEXPECTED");
                 return ProbeResult.UnknownService;
+            }
             string? html = await ReadBoundedAsync(page.Content, 8192, cancellationToken);
-            return html is not null && html.Contains("<title>DBPulse", StringComparison.Ordinal)
-                ? ProbeResult.Ready : ProbeResult.UnknownService;
+            if (html is null || !html.Contains("<title>DBPulse", StringComparison.Ordinal))
+            {
+                WindowHostDiagnostics.Record("PROBE_REACT_TITLE_UNEXPECTED");
+                return ProbeResult.UnknownService;
+            }
+            WindowHostDiagnostics.Record("PROBE_DBPULSE_IDENTITY_VERIFIED");
+            return ProbeResult.Ready;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -144,6 +179,8 @@ internal sealed class BackendSession : IDisposable
             exception is HttpRequestException or TaskCanceledException
                 or JsonException or InvalidOperationException)
         {
+            WindowHostDiagnostics.Record(exception is JsonException
+                ? "PROBE_HEALTH_JSON_INVALID" : "PROBE_HTTP_REQUEST_FAILED");
             return ProbeResult.UnknownService;
         }
     }
