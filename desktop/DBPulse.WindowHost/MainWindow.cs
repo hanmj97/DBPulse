@@ -54,6 +54,23 @@ internal sealed class MainWindow : Form
     }
 
 
+    // The second shortcut launch sends this registered message rather than
+    // creating another window or reconnecting to SQL Server.
+    protected override void WndProc(ref Message m)
+    {
+        if (Program.ActivationMessage != 0 && m.Msg == Program.ActivationMessage)
+        {
+            if (WindowState == FormWindowState.Minimized)
+                WindowState = FormWindowState.Normal;
+            Show();
+            Activate();
+            BringToFront();
+            m.Result = IntPtr.Zero;
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
     internal static Rectangle ComputeInitialBounds(Rectangle usable)
     {
         int availableWidth = Math.Max(1, usable.Width);
