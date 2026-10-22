@@ -12,7 +12,10 @@ internal static class Program
         // No UI or Windows profile access during the CI self-test.
         if (args.Length == 1 && args[0] == "--self-test")
         {
-            Environment.ExitCode = HostPolicy.SelfTest() && BackendSession.SelfTestPortInspection() ? 0 : 2;
+            // Distinct codes let CI differentiate policy from OS port-table
+            // self-test failures without printing any user or network data.
+            Environment.ExitCode = !HostPolicy.SelfTest() ? 20
+                : !BackendSession.SelfTestPortInspection() ? 21 : 0;
             return;
         }
 

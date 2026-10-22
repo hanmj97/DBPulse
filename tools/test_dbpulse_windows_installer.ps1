@@ -22,8 +22,15 @@ try {
         -not (Test-Path -LiteralPath $runtime -PathType Container)) {
         throw 'INSTALLED_BUNDLE_INCOMPLETE'
     }
+    # Ensure installation preserved the actual EXE, not a truncated / different binary.
+    $originalHost = Join-Path (Get-Location).Path 'backend/target/windows-ci/DBPulse/window/DBPulse.WindowHost.exe'
+    $installedHash = (Get-FileHash -LiteralPath $hostExe -Algorithm SHA256).Hash
+    $sourceHash = (Get-FileHash -LiteralPath $originalHost -Algorithm SHA256).Hash
+    if ($installedHash -ne $sourceHash) { throw 'INSTALLED_EXE_HASH_DIFFERS_FROM_SOURCE' }
+    Write-Host 'DBPULSE_INSTALLED_EXE_SHA256_VERIFIED'
     & $hostExe --self-test
-    if ($LASTEXITCODE -ne 0) { throw 'INSTALLED_WINDOW_SELF_TEST_FAILED' }
+    $selfTestExit = $LASTEXITCODE
+    if ($selfTestExit -ne 0) { throw "INSTALLED_WINDOW_SELF_TEST_EXIT_$selfTestExit" }
     Write-Host 'DBPULSE_INSTALLER_SILENT_INSTALL_OK'
     $uninstaller = Join-Path $dir 'unins000.exe'
     if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) { throw 'UNINSTALLER_MISSING' }

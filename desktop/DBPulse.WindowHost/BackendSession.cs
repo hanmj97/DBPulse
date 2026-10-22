@@ -127,7 +127,14 @@ internal sealed class BackendSession : IDisposable
         {
             testListener.Stop();
         }
-        return !HasListeningPort(ephemeralPort);
+        // On Windows, the TCP table may briefly retain a just-closed socket.
+        // Retry only in CI self-test; production probe remains fail-closed.
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            if (!HasListeningPort(ephemeralPort)) return true;
+            Thread.Sleep(75);
+        }
+        return false;
     }
 
     private static async Task<ProbeResult> ProbeAsync(CancellationToken cancellationToken)
