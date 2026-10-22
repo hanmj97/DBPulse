@@ -63,12 +63,16 @@ public class QueryPerformanceService {
             repository.save(target.getId(), result.rows());
             overheadGuard.recordSuccess(jdbcMs, result.rows(), Instant.now());
             Instant sampledAt = result.rows().isEmpty() ? Instant.now() : result.rows().get(0).collectedAt();
-            state.set(new AnalysisState(result.status(), sampledAt, result.rows().size(), null));
+            state.set(new AnalysisState(result.status(), sampledAt,
+                result.rows().size(), null, result.databaseCpuMs(), result.databaseExecutions()));
         } catch (SQLException ex) {
             overheadGuard.recordFailure(Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis(), Instant.now());
             // Never log passwords or raw SQL here; do not return driver messages to the UI.
             log.warn("Query Store read failed. SQLState={}, vendorCode={}", ex.getSQLState(), ex.getErrorCode());
-            state.set(new AnalysisState("OFFLINE", state.get().lastCollectedAt(), 0, "QUERY_STORE_COLLECTION_FAILED"));
+            state.set(new AnalysisState(
+                isPermissionFailure(ex) ? "PERMISSION_DENIED" : "OFFLINE",
+                null, 0, isPermissionFailure(ex) ? "QUERY_STORE_PERMISSION_DENIED"
+                    : "QUERY_STORE_COLLECTION_FAILED"));
         } catch (Exception ex) {
             overheadGuard.recordFailure(Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis(), Instant.now());
             log.warn("Query Store analysis failed ({})", ex.getClass().getSimpleName());
@@ -88,6 +92,13 @@ public class QueryPerformanceService {
         }
     }
 
+    private static boolean isPermissionFailure(SQLException failure) {
+        for (SQLException current = failure; current != null; current = current.getNextException()) {
+            if (current.getErrorCode() == 229 || current.getErrorCode() == 297) return true;
+        }
+        return false;
+    }
+
     public AnalysisState state() { return state.get(); }
     public QueryStoreOverheadGuard.Snapshot overhead() { return overheadGuard.snapshot(); }
 
@@ -96,5 +107,12 @@ public class QueryPerformanceService {
         return sampledAt != null && Duration.between(sampledAt, Instant.now()).toMillis() <= overheadGuard.allowedAgeMs();
     }
 
-    public record AnalysisState(String status, Instant lastCollectedAt, int sampledQueries, String errorCode) {}
+    public record AnalysisState(
+        String status, Instant lastCollectedAt, int sampledQueries, String errorCode,
+        Double databaseCpuMs, Long databaseExecutions
+    ) {
+        public AnalysisState(String status, Instant lastCollectedAt, int sampledQueries, String errorCode) {
+            this(status, lastCollectedAt, sampledQueries, errorCode, null, null);
+        }
+    }
 }

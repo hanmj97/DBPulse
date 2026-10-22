@@ -15,6 +15,7 @@ import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
 import QueryObserverOverheadPanel from './QueryObserverOverheadPanel.jsx';
 import InstanceCpuPanel from './InstanceCpuPanel.jsx';
+import SelectedDatabaseCpuPanel from './SelectedDatabaseCpuPanel.jsx';
 import QuerySqlDrawer from './QuerySqlDrawer.jsx';
 import { filterQuerySources } from './queryCandidateFilters.js';
 
@@ -404,7 +405,7 @@ function App() {
     {error && <div className="banner error"><AlertCircle size={18}/>{error}</div>}
     {page === 'overview' && <OverviewDashboard target={target} history={history}
       incidents={incidents} incidentError={incidentError}
-      queryAnalysis={queryAnalysis} sampleLimit={sampleLimit}
+      queryAnalysis={queryAnalysis} queryState={queryState} sampleLimit={sampleLimit}
       onNavigate={setPage} onInvestigate={investigate}/>}
     {(page === 'incidents' || page === 'investigation') &&
       <div id={page === 'incidents' ? 'incidents' : 'investigation'} className="rev-detail-content">
@@ -503,6 +504,7 @@ function App() {
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
       <QueryObserverOverheadPanel targetId={target?.id}/>
+      <SelectedDatabaseCpuPanel queryState={queryState} databaseName={target?.databaseName}/>
       <InstanceCpuPanel targetId={target?.id}/>
       <div className="rev-query-source-filter">
         <div>
@@ -524,11 +526,14 @@ function App() {
             <span className="small-pill">60s 기본 · 자동 완화</span>
           </div>
           <div className="query-state">
-            분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
+            분석 상태: <strong>{({ONLINE:'수집 중', QUERY_STORE_READ_ONLY:'읽기 전용', QUERY_STORE_DISABLED:'Query Store 비활성', NOT_CONFIGURED:'설정 필요', OFFLINE:'수집 실패', PERMISSION_DENIED:'DB 조회 권한 부족', INITIALIZING:'초기화 중'})[queryState?.status] || '확인 중'}</strong>
             {queryState?.lastCollectedAt && <span>마지막 분석 {timeFmt(queryState.lastCollectedAt)}</span>}
           </div>
           {queryError && <div className="banner error"><AlertCircle size={16}/>{queryError}</div>}
-          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>선택한 DB에서 Query Store를 활성화해야 완료된 쿼리 통계를 분석할 수 있어요.</div>}
+          {queryState?.status === 'QUERY_STORE_DISABLED' && <div className="banner info"><Terminal size={16}/>선택한 DB의 Query Store가 비활성화되어 있어 쿼리 내역과 선택 DB CPU 시간이 표시되지 않습니다. DB 관리자가 상태를 확인해 주세요.</div>}
+          {queryState?.status === 'PERMISSION_DENIED' && <div className="banner info"><ShieldAlert size={16}/>해당 DB의 Query Store 조회 권한이 부족합니다. 관리자 권한을 자동 부여하지 않습니다.</div>}
+          {queryState?.status === 'OFFLINE' && <div className="banner info"><ShieldAlert size={16}/>Query Store 수집에 실패했습니다. 개요·대기 분석과 별개로 조회 권한과 수집 로그를 확인해 주세요.</div>}
+          {queryState?.status === 'ONLINE' && queryState.sampledQueries===0 && <div className="banner info"><Terminal size={16}/>Query Store는 활성 상태이지만 최근 집계에 해당하는 쿼리 기록이 없습니다. Query Store 포착 정책과 분석 주기(기본 60초)를 확인해 주세요.</div>}
           <div className="rev-query-table-toolbar">
             <label htmlFor="dbpulse-query-table-sort">기존 Query Store 표 정렬</label>
             <select id="dbpulse-query-table-sort" value={queryTableSort}

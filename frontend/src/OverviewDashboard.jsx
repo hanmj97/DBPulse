@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {nonZeroSegments} from './chartVisibility.js';
+import SelectedDatabaseCpuPanel from './SelectedDatabaseCpuPanel.jsx';
 import {
   Activity, ArrowRight, Bell, CircleAlert, CheckCircle2,
   Clock3, Database, GitBranch, LockKeyhole, Search, ShieldAlert, Sparkles,
@@ -307,22 +308,23 @@ function CpuTrendPanel({cpuState}) {
   </article>;
 }
 
-function TrendChart({history,sampleLimit,cpuState,databaseName}) {
+function TrendChart({history,sampleLimit,queryState,databaseName}) {
   return <div className="rev-ops-split-charts" aria-label="요청 수 및 CPU 성능 그래프">
     <RequestTrendPanel history={history} sampleLimit={sampleLimit}
       databaseName={databaseName}/>
-    <CpuTrendPanel cpuState={cpuState}/>
+    <SelectedDatabaseCpuPanel queryState={queryState} databaseName={databaseName} compact/>
   </div>;
 }
 
 export default function OverviewDashboard({
- target, history, incidents, incidentError, queryAnalysis,
+ target, history, incidents, incidentError, queryAnalysis, queryState,
  sampleLimit, onNavigate, onInvestigate
 }) {
   const [feed, setFeed] = useState(INITIAL_FEED);
   const [historyView,setHistoryView] = useState('table');
   const targetId = target?.id;
-  const cpuState = useOverviewCpuSamples(targetId);
+  // DB CPU is sourced from the selected DB's Query Store status, not the
+  // optional SQL Server process-wide scheduler ring buffer.
   useEffect(() => {
     if (!targetId) return undefined;
     let active = true;
@@ -441,7 +443,7 @@ export default function OverviewDashboard({
     </section>
 
     <section className="rev-ops-wide-chart" aria-label="데이터베이스 성능">
-      <TrendChart history={online ? history : []} sampleLimit={sampleLimit} cpuState={cpuState} databaseName={target?.databaseName}/>
+      <TrendChart history={online ? history : []} sampleLimit={sampleLimit} queryState={queryState} databaseName={target?.databaseName}/>
     </section>
 
     <section className="rev-panel rev-ops-unified-board" aria-label="운영 진단 요약">

@@ -130,6 +130,22 @@ public class MssqlQueryStoreCollector {
         ORDER BY last_executed_at DESC, query_id DESC, plan_id DESC
         """;
 
+    // Query Store CPU for the SELECTED database only. SQL Server Query Store
+    // aggregates completed executions in runtime intervals. This is CPU
+    // time, NOT an instantaneous per-database CPU utilization percentage.
+    // Runtime intervals can extend outside the 15-minute last-execution filter.
+    // No SQL text, plans or customer data are fetched.
+    private static final String DATABASE_CPU_SQL = """
+        /* DBPULSE_INTERNAL_QSTORE_DB_CPU_V1 */
+        SELECT
+          COALESCE(SUM(CAST(rs.avg_cpu_time AS float) *
+                       CAST(rs.count_executions AS float)) / 1000.0, 0) AS recorded_cpu_ms,
+          COALESCE(SUM(CAST(rs.count_executions AS bigint)), 0) AS recorded_executions
+        FROM sys.query_store_runtime_stats rs
+        WHERE rs.execution_type = 0
+          AND rs.last_execution_time >= DATEADD(MINUTE, -15, SYSDATETIMEOFFSET())
+        """;
+
     private static final java.time.Duration STATE_CACHE_TTL = java.time.Duration.ofMinutes(5);
     private volatile StateSnapshot cachedState;
 
@@ -156,6 +172,8 @@ public class MssqlQueryStoreCollector {
 
     public MssqlQueryStoreCollector(MssqlTargetProperties props) {
         this.props = props;
+        // A cached Query Store OFF/READ_WRITE state belongs to ONE DB only.
+        props.onTargetChanged(() -> cachedState = null);
     }
 
     public QueryStoreResult collect() throws SQLException {
@@ -198,7 +216,24 @@ public class MssqlQueryStoreCollector {
                     }
                 }
             }
-            return new QueryStoreResult(state.equals("READ_ONLY") ? "QUERY_STORE_READ_ONLY" : "ONLINE", rows);
+            Double databaseCpuMs = null;
+            Long databaseExecutions = null;
+            // Optional lightweight aggregate. A failure must not erase the
+            // captured query list. Never log SQL text or JDBC messages.
+            try (PreparedStatement cpu = conn.prepareStatement(DATABASE_CPU_SQL)) {
+                cpu.setQueryTimeout(5);
+                try (ResultSet summary = cpu.executeQuery()) {
+                    if (summary.next()) {
+                        databaseCpuMs = summary.getDouble("recorded_cpu_ms");
+                        databaseExecutions = summary.getLong("recorded_executions");
+                    }
+                }
+            } catch (SQLException ignored) {
+                // CPU estimate is unavailable, but original query history remains.
+            }
+            return new QueryStoreResult(
+                state.equals("READ_ONLY") ? "QUERY_STORE_READ_ONLY" : "ONLINE",
+                rows, databaseCpuMs, databaseExecutions);
         } catch (SQLException failure) {
             // Refresh Query Store state on the next poll if a stats read fails.
             cachedState = null;
@@ -206,5 +241,10 @@ public class MssqlQueryStoreCollector {
         }
     }
 
-    public record QueryStoreResult(String status, List<QueryPerformanceSnapshot> rows) {}
+    public record QueryStoreResult(String status, List<QueryPerformanceSnapshot> rows,
+                                   Double databaseCpuMs, Long databaseExecutions) {
+        public QueryStoreResult(String status, List<QueryPerformanceSnapshot> rows) {
+            this(status, rows, null, null);
+        }
+    }
 }

@@ -56,7 +56,8 @@ public class QueryPerformanceController {
         if (!"ONLINE".equals(service.state().status())
             && !"QUERY_STORE_READ_ONLY".equals(service.state().status())) return List.of();
         var analysisState = service.state();
-        if (analysisState.sampledQueries() == 0 || analysisState.lastCollectedAt() == null) return List.of();
+        if (analysisState.sampledQueries() == 0 || analysisState.lastCollectedAt() == null
+            || !service.isFresh(analysisState.lastCollectedAt())) return List.of();
         return repository.latest(id, analysisState.lastCollectedAt(), limit);
     }
 

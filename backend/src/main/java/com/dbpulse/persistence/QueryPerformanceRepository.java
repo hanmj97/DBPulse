@@ -51,7 +51,7 @@ public class QueryPerformanceRepository {
             MetadataTimestampValue.value(sqlite(), java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
     }
 
-    /** Only fresh rows from the most recent successful run; no stale 'live' values. */
+    /** Rows from one exact collection snapshot; controller enforces adaptive freshness. */
     public List<QueryPerformanceSnapshot> latest(String targetId, java.time.Instant sampledAt, int limit) {
         return jdbc.query("""
             SELECT collected_at, query_id, plan_id, execution_count, avg_duration_ms,
@@ -59,7 +59,6 @@ public class QueryPerformanceRepository {
             FROM query_performance_snapshots
             WHERE target_id = ?
               AND collected_at = ?
-              AND collected_at > ? 
             ORDER BY avg_duration_ms DESC
             LIMIT ?
             """, (rs, i) -> new QueryPerformanceSnapshot(
@@ -69,7 +68,6 @@ public class QueryPerformanceRepository {
                 rs.getDouble("avg_cpu_ms"), rs.getDouble("avg_logical_reads_pages"),
                 ImportedTimestampReader.instant(rs, "last_executed_at"),
                 rs.getString("diagnosis_code"), rs.getString("source_category")
-            ), targetId, MetadataTimestampValue.value(sqlite(), sampledAt),
-               MetadataTimestampValue.value(sqlite(), java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.MINUTES)), limit);
+            ), targetId, MetadataTimestampValue.value(sqlite(), sampledAt), limit);
     }
 }
