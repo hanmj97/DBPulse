@@ -1,4 +1,29 @@
-# DBPulse — Real-time Database Monitoring, Recovery & Optimization Platform
+# DBPulse — SQL Server Monitoring & Diagnostics
+
+**Latest public Windows release: [v0.21.2](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.2)** · Windows x64 · Unsigned installer · Local desktop application
+
+DBPulse is a Windows-local SQL Server monitoring and DBA diagnostic application. Connect to an authorized SQL Server, monitor active requests and blocking, examine deadlock/wait/incident evidence, and analyze Query Store history, query plans and tuning candidates. The packaged version opens a native desktop window and stores local application data in SQLite.
+
+**[Download Windows installer](https://github.com/hanmj97/DBPulse/releases/download/v0.21.2/DBPulse-Setup-v0.21.2.exe)** · [Installation & data protection](docs/USER_INSTALL_GUIDE_V021.md) · [Current release overview & architecture](docs/RELEASE_OVERVIEW_V0212.md) · [Known validation limits](docs/RELEASE_READINESS_V021.md)
+
+> **Release disclosure:** This installer is unsigned; Microsoft Edge WebView2 Runtime is required. The 60-minute continuous stability test was deliberately skipped and no 24-hour soak or independent security audit is claimed. Selected-database Query Store CPU is a one-core-equivalent workload indicator, **not exact per-database CPU percentage**. Do not publicly expose the local API or provide access to SQL Server systems you are not authorized to monitor.
+
+### Current Windows desktop capabilities
+
+- SQL Server target registration, explicit connection selection and disconnection, with Windows DPAPI credential protection
+- Live DMV-based request, blocking and long-running query indicators
+- Deadlock, wait and incident evidence with investigation views
+- Query Store performance/plan analysis, query history, read-only SQL text on explicit request, and tuning candidates
+- Local SQLite history, backup/recovery tooling, installer upgrades designed to preserve user data
+- Navy/midnight monitoring dashboard and Windows application icon with adaptive initial window sizing
+
+**Important:** This is a local diagnostic and analysis tool, not a production-certified autonomous recovery system. The project contains historical development documentation below; earlier Docker, PostgreSQL and Vite instructions do **not** describe the recommended end-user Windows installation path.
+
+---
+
+<details>
+<summary><strong>Historical development README (v0.1–v0.21 implementation notes)</strong></summary>
+
 
 > **실제 DB 운영 서비스**를 목표로 개발하는 프로젝트. MSSQL 우선 구현 후 다른 DBMS 지원 확장.
 
@@ -548,3 +573,5 @@ docker compose up -d
 - `DBPULSE_SQLSERVER_CPU_ENABLED=true` 로컬 명시 허용 시에만, 60초마다 진단 DMV를 조회. 기본 OFF, 권한 부족/데이터 미지원 시 수치 추측 금지.
 - Microsoft는 `sys.dm_os_ring_buffers.record`의 내부 XML 호환성을 보장하지 않으므로 실험적 로컬 기능으로 제한; 상용 서비스에는 지원되는 호스트 CPU 메트릭 도입 필요.
 - [기능·권한·보안·검증 방법](docs/PHASE13_SQLSERVER_CPU_METRICS.md)
+
+</details>
