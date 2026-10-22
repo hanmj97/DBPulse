@@ -30,6 +30,17 @@ try {
         -not (Test-Path -LiteralPath $runtime -PathType Container)) {
         throw 'INSTALLED_BUNDLE_INCOMPLETE'
     }
+    # Seven-size branded icon is packaged and remains usable by shortcuts.
+    $icon = Join-Path $dir 'window\DBPulse.ico'
+    if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
+        throw 'INSTALLED_DBPULSE_ICON_MISSING'
+    }
+    $sourceIcon = Join-Path (Get-Location).Path 'assets/DBPulse.ico'
+    if ((Get-FileHash -LiteralPath $icon -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $sourceIcon -Algorithm SHA256).Hash) {
+        throw 'INSTALLED_DBPULSE_ICON_MISMATCH'
+    }
+    Write-Host 'DBPULSE_INSTALLED_APP_ICON_VERIFIED'
     # Ensure installation preserved the actual EXE, not a truncated / different binary.
     $originalHost = Join-Path (Get-Location).Path 'backend/target/windows-ci/DBPulse/window/DBPulse.WindowHost.exe'
     $installedHash = (Get-FileHash -LiteralPath $hostExe -Algorithm SHA256).Hash

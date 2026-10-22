@@ -15,7 +15,8 @@ internal static class Program
             // Distinct codes let CI differentiate policy from OS port-table
             // self-test failures without printing any user or network data.
             Environment.ExitCode = !HostPolicy.SelfTest() ? 20
-                : !BackendSession.SelfTestPortInspection() ? 21 : 0;
+                : !BackendSession.SelfTestPortInspection() ? 21
+                : !MainWindow.SelfTestSizing() ? 22 : 0;
             return;
         }
 

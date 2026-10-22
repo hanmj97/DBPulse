@@ -34,6 +34,12 @@ $appDir=$javaExe.Directory.FullName
 if (-not (Test-Path (Join-Path $appDir 'runtime'))) {
     throw 'BUNDLED_JAVA_RUNTIME_MISSING'
 }
+$iconFile=Join-Path $root 'assets\DBPulse.ico'
+if (-not (Test-Path -LiteralPath $iconFile -PathType Leaf)) {
+    py -3 (Join-Path $root 'tools\build_dbpulse_icon.py')
+    if ($LASTEXITCODE -ne 0) { throw 'DBPULSE_ICON_BUILD_FAILED' }
+}
+if (-not (Test-Path -LiteralPath $iconFile -PathType Leaf)) { throw 'DBPULSE_ICON_MISSING' }
 $windowDir=Join-Path $appDir 'window'
 if (Test-Path -LiteralPath $windowDir) {
     throw 'WINDOW_PREVIEW_ALREADY_EXISTS_NO_OVERWRITE'
@@ -43,6 +49,7 @@ if (Test-Path -LiteralPath $windowDir) {
 $project=Join-Path $root 'desktop\DBPulse.WindowHost\DBPulse.WindowHost.csproj'
 & dotnet publish $project -c Release -r win-x64 --self-contained true -o $windowDir -p:PublishSingleFile=false
 if ($LASTEXITCODE -ne 0) { throw 'WINDOW_WEBVIEW2_PUBLISH_FAILED' }
+Copy-Item -LiteralPath $iconFile -Destination (Join-Path $windowDir 'DBPulse.ico') -ErrorAction Stop
 
 $hostExe=Join-Path $windowDir 'DBPulse.WindowHost.exe'
 if (-not (Test-Path -LiteralPath $hostExe -PathType Leaf)) {
