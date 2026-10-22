@@ -24,6 +24,13 @@ public class QueryPerformanceRepository {
 
     public void save(String targetId, List<QueryPerformanceSnapshot> rows) {
         if (rows.isEmpty()) return;
+        // IMPORTANT: resolve the JDBC dialect BEFORE starting batchUpdate.
+        // The batch setter runs while Hikari holds its only SQLite connection
+        // (maximum-pool-size=1 on Windows). sqlite() internally uses JdbcTemplate
+        // to inspect metadata; calling it inside the setter would request a
+        // SECOND connection and eventually time out. SingleConnectionDataSource
+        // tests masked this cold-start deadlock.
+        final boolean sqliteBatch = sqlite();
         jdbc.batchUpdate("""
             INSERT INTO query_performance_snapshots
               (target_id, collected_at, query_id, plan_id, execution_count,
@@ -32,14 +39,14 @@ public class QueryPerformanceRepository {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, rows, rows.size(), (ps, row) -> {
                 ps.setString(1, targetId);
-                ps.setObject(2, MetadataTimestampValue.value(sqlite(), row.collectedAt()));
+                ps.setObject(2, MetadataTimestampValue.value(sqliteBatch, row.collectedAt()));
                 ps.setLong(3, row.queryId());
                 ps.setLong(4, row.planId());
                 ps.setLong(5, row.executionCount());
                 ps.setDouble(6, row.avgDurationMs());
                 ps.setDouble(7, row.avgCpuMs());
                 ps.setDouble(8, row.avgLogicalReadsPages());
-                ps.setObject(9, MetadataTimestampValue.value(sqlite(), row.lastExecutedAt()));
+                ps.setObject(9, MetadataTimestampValue.value(sqliteBatch, row.lastExecutedAt()));
                 ps.setString(10, row.diagnosisCode());
                 ps.setString(11, row.sourceCategory());
             });

@@ -49,3 +49,37 @@ The Phase19 installer has `AppVersion=0.19.0`, GitHub Actions artifact
 unchanged so it upgrades the same per-user install. Sidebar footer displays
 `v0.19.0-preview` to distinguish this release from previously distributed
 v0.18 packages. Data in `%LOCALAPPDATA%\\DBPulse` is unchanged.
+
+## Phase19.1 — cold-start single-connection SQLite Query Store fix
+
+User-confirmed SQL Server is version 17, Query Store READ_WRITE with capture=ALL,
+VIEW DATABASE PERFORMANCE STATE=1 under the tested login, and 42 recently
+executed runtime stats rows. DBPulse Phase19.0 reported
+`QUERY_STORE_LOCAL_SNAPSHOT_STORE_FAILED` after successful MSSQL Query Store
+collection, so the failure occurs in **local JDBC SQLite persistence**.
+
+Root cause in code: `QueryPerformanceRepository.save` called `sqlite()`
+inside `jdbc.batchUpdate`'s row setter. When the dialect cache was empty,
+`sqlite()` called `MetadataTimestampValue.isSqlite(jdbc)` and attempted
+to borrow another Hikari connection **while the batch writer already held
+the only connection** (`maximum-pool-size=1`). This can time out or fail.
+Earlier SQLite repository tests used `SingleConnectionDataSource` and did
+not reproduce a pooled cold-start deadlock.
+
+Correction: detect SQLite dialect once BEFORE `batchUpdate`, then reuse
+the boolean inside both timestamp setters. Adds a real `HikariDataSource`
+max-one-connection cold-start regression test with two Query Store rows,
+persist+read. No SQL Server data or existing SQLite files are modified by the
+test. Already persisted Query Store rows are not deleted or migrated.
+
+Phase19.1 uses a uniquely named installer artifact
+`DBPulse-v0.19.1-Windows-Setup-preview`, EXE
+`DBPulse-Setup-v0.19.1-preview.exe`, and version in the app footer.
+Inno AppId is unchanged, so the update targets the existing per-user
+installation. DO NOT delete or manually reset the user's SQLite database.
+Close DBPulse, keep the verified backup, install the update, then verify
+Query Store collection and selected DB CPU time after a polling interval.
+
+Warning: this is an identified code defect and focused fix. It still
+requires user Windows acceptance to confirm there are no other independent
+local persistence errors.
