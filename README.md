@@ -1,10 +1,10 @@
 # DBPulse — SQL Server Monitoring & Diagnostics
 
-**Latest public Windows release: [v0.21.2](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.2)** · Windows x64 · Unsigned installer · Local desktop application
+**Windows release target (CI verification required): [v0.21.3](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.3)** · Windows x64 · Unsigned installer · Local desktop application
 
 DBPulse is a Windows-local SQL Server monitoring and DBA diagnostic application. Connect to an authorized SQL Server, monitor active requests and blocking, examine deadlock/wait/incident evidence, and analyze Query Store history, query plans and tuning candidates. The packaged version opens a native desktop window and stores local application data in SQLite.
 
-**[Download Windows installer](https://github.com/hanmj97/DBPulse/releases/download/v0.21.2/DBPulse-Setup-v0.21.2.exe)** · [Installation & data protection](docs/USER_INSTALL_GUIDE_V021.md) · [Current release overview & architecture](docs/RELEASE_OVERVIEW_V0212.md) · [Known validation limits](docs/RELEASE_READINESS_V021.md)
+**[Download Windows installer](https://github.com/hanmj97/DBPulse/releases/download/v0.21.3/DBPulse-Setup-v0.21.3.exe)** · [Installation & data protection](docs/USER_INSTALL_GUIDE_V021.md) · [Current release overview & architecture](docs/RELEASE_OVERVIEW_V0212.md) · [Known validation limits](docs/RELEASE_READINESS_V021.md)
 
 > **Release disclosure:** This installer is unsigned; Microsoft Edge WebView2 Runtime is required. The 60-minute continuous stability test was deliberately skipped and no 24-hour soak or independent security audit is claimed. Selected-database Query Store CPU is a one-core-equivalent workload indicator, **not exact per-database CPU percentage**. Do not publicly expose the local API or provide access to SQL Server systems you are not authorized to monitor.
 
@@ -27,7 +27,7 @@ DBPulse is a Windows-local SQL Server monitoring and DBA diagnostic application.
 
 > **실제 DB 운영 서비스**를 목표로 개발하는 프로젝트. MSSQL 우선 구현 후 다른 DBMS 지원 확장.
 
-## 현재 상태 — v0.21.2 Windows 아이콘 및 시작 창 크기 개선 (2026-10-22)
+## 현재 상태 — v0.21.3 Windows 중복 실행 방지 (2026-10-22)
 
 **v0.21.1부터 GitHub Releases를 통한 Windows x64 공개 다운로드를 제공합니다. 미서명 설치 파일이며, 보안 감사·장시간 수집·별도 새 PC 검증은 미완료이므로 운영 DB에 대한 무중단·안전성을 보증하지 않습니다.**
 최신 검증 대상은 **Windows x64 로컬 WebView2 프로그램 + Java 21 + Spring Boot/React + SQLite**입니다.
@@ -45,13 +45,13 @@ DBPulse is a Windows-local SQL Server monitoring and DBA diagnostic application.
 - 아직 필요한 작업: 장시간 부하/안정성 검증, 보안 검토,
   새 PC 최초 실행 검증, WebView2 사전 설치 확인, 코드 서명 및 운영 적합성 추가 검증.
 
-**[최신 Windows 다운로드 (v0.21.2)](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.2)** ·
-**[v0.21.2 릴리스 노트](docs/releases/v0.21.2.md)** ·
+**[최신 Windows 다운로드 (v0.21.3)](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.3)** ·
+**[v0.21.3 릴리스 노트](docs/releases/v0.21.3.md)** ·
 **[안정화/미검증 항목](docs/RELEASE_READINESS_V021.md)** ·
 **[설치 및 사용자 데이터 보호 가이드](docs/USER_INSTALL_GUIDE_V021.md)** ·
 **[현재 작업 Draft PR 목록](https://github.com/hanmj97/DBPulse/pulls)**
 
-> v0.21.2: DBPulse DB+Pulse 전용 네이비 아이콘, 바탕화면·시작메뉴·작업표시줄·설치파일 아이콘 통일, 시작 시 모니터 작업 영역에 맞춰 더 큰 창으로 표시합니다.
+> v0.21.3: DBPulse DB+Pulse 전용 네이비 아이콘, 바탕화면·시작메뉴·작업표시줄·설치파일 아이콘 통일, 시작 시 모니터 작업 영역에 맞춰 더 큰 창으로 표시합니다.
 >
 > 아래 Phase 13–16 설명은 **당시의 개발 이력**으로 남겨둔 문서입니다.
 > 현재 설치 절차로 따라하지 말고 위 최신 가이드를 우선하세요.
