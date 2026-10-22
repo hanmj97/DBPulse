@@ -44,8 +44,9 @@ Windows deployment and SQL Server lab acceptance have completed.
       real customer database changes or unsafe automatic remediation.
 - [ ] SQL text local UI security/privacy audit; no private SQL or DPAPI in logs.
 - [ ] WAL hard crash/low disk and recovery on actual Windows machine.
-- [ ] Fresh-PC first-run metadata setup; currently requires pre-existing
-      validated SQLite DB and opt-in marker, so installer alone is insufficient.
+- [ ] Fresh-user SQLite initialization now coded but NOT tested on an actual
+      clean Windows account or after interrupted bootstrap. A completely new
+      user profile receives a blank DB; existing files are never reset.
 - [ ] WebView2 prerequisite/bootstrap, SmartScreen and signing policy.
 - [ ] Choose repository license/redistribution terms for third-party release.
 - [ ] Review stacked Draft PRs 12–19 and hardening PR in dependency order.
@@ -81,9 +82,17 @@ official, signed, secure-for-external-users product release.
 
 ## Version metadata alignment (stabilization)
 
-- Windows Inno Setup AppVersion 0.21.0 and UI footer v0.21.0-preview
-  now match Java Maven project version 0.21.0, npm package version 0.21.0,
-  .NET WinForms assembly/file version 0.21.0, and jpackage version 0.21.0.
+- Windows Inno Setup AppVersion 0.21.1 and UI footer v0.21.1-preview
+  now match Java Maven project version 0.21.1, npm package version 0.21.1,
+  .NET WinForms assembly/file version 0.21.1, and jpackage version 0.21.1.
 - The unpacked Windows app-image GitHub artifact also uses a v0.21 label.
 - Version alignment is packaging hygiene only, not proof of compatibility
   or production readiness. No new SQL Server or SQLite schema migration.
+
+## User-selected stability-test deferral
+
+The 60-minute soak was intentionally SKIPPED at the current tester's request.
+This is not a passing result. Do not treat the six successful CI jobs or
+SQLite restore as equivalent evidence of long-running collector health.
+Proceed with independent fresh-profile verification and distribution gating;
+keep long-running durability/SQL Server observer overhead as open blockers.

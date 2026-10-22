@@ -6,10 +6,11 @@
   the release-hardening branch. No official signed GitHub Release yet.
 - Java runtime and .NET WebView2 window host are bundled. Microsoft
   Edge WebView2 Runtime must exist separately on Windows.
-- The installer **does not** provision the local SQLite metadata file or
-  activate the SQLite desktop mode on a fresh machine. The developer preview
-  is suitable for the existing verified DBPulseLab PC with the prior
-  Phase15/16 SQLite migration completed. General public setup is BLOCKED.
+- On a **pristine Windows user profile** (only DBPulse's startup diagnostic
+  log permitted), v0.21.1 initializes an empty SQLite schema and local
+  activation marker. It does NOT migrate or overwrite existing data.
+  A pre-existing database, DPAPI secret, migration state or unexpected files
+  disable first-run initialization. Clean Windows acceptance is still OPEN.
 
 ## Data and privacy
 
@@ -55,7 +56,7 @@ while the app is running.
 ## Download integrity: SHA256SUMS.txt
 
 Each GitHub Actions build now packages these two files together:
-- DBPulse-Setup-v0.21.0-preview.exe
+- DBPulse-Setup-v0.21.1-preview.exe
 - SHA256SUMS.txt
 
 Use this in PowerShell after extracting the artifact ZIP to a private
@@ -63,7 +64,7 @@ Downloads folder:
 
     # Set the actual extraction directory; do not invent a location
     $dir = "C:\PATH\TO\EXTRACTED\ARTIFACT"
-    $exe = Join-Path $dir "DBPulse-Setup-v0.21.0-preview.exe"
+    $exe = Join-Path $dir "DBPulse-Setup-v0.21.1-preview.exe"
     $manifest = Join-Path $dir "SHA256SUMS.txt"
 
     # Compare installed binary SHA-256 to the published artifact manifest
@@ -103,7 +104,7 @@ or Windows DPAPI secret files.
 
 ## Not yet guaranteed
 
-- Fresh empty Windows account onboarding without an existing SQLite DB.
+- Real clean Windows account onboarding and interrupted-bootstrap recovery.
 - Zero downtime upgrades, automatic repair, automatic updates, code signing.
 - Strong multi-user/local malicious process isolation for SQL text viewing.
 - Database-specific exact CPU utilization percentage or full SQL audit log.

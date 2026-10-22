@@ -51,7 +51,7 @@ test('query views retain observer status, advisor, plan and SQL drawer',()=>{
 });
 
 test('Phase19 footer identifies current installer while preserving adaptive polling',()=>{
-  assert.ok(shell.includes('v0.21.0-preview · 로컬 단일 대상'));
+  assert.ok(shell.includes('v0.21.1-preview · 로컬 단일 대상'));
   assert.doesNotMatch(shell,/v0\.13\.0-alpha · 로컬 단일 대상/);
   assert.ok(app.includes('60s 기본 · 자동 완화'));
   assert.ok(advisor.includes('SQL Tuning Advisor <small>Query Store</small>'));

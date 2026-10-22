@@ -157,6 +157,11 @@ public final class WindowsDesktopBoot {
         // Explicit local opt-in; an invalid marker or file fails before boot.
         // Without the marker, the historical PostgreSQL mode is unchanged.
         Path dbpulseDirectory = directory().getParent();
+        // Fresh Windows user only: create a validated EMPTY local SQLite
+        // database. The known startup status log is allowed; any existing
+        // data/desktop/credential files disable this path. Existing users
+        // keep their prior SQLite marker or historic PostgreSQL setup.
+        DesktopSqliteFirstRun.initializeIfPristine(dbpulseDirectory);
         if (DesktopSqliteStorage.isOptedIn(dbpulseDirectory)) {
             DesktopSqliteStorage.configure(dbpulseDirectory, props);
         } else {

@@ -59,7 +59,7 @@ if ($LASTEXITCODE -ne 0 -or
 $jpackageArgs=@(
     '--type','app-image',
     '--name','DBPulse',
-    '--app-version','0.21.0',
+    '--app-version','0.21.1',
     '--vendor','DBPulse',
     '--description','Local SQL Server monitoring dashboard',
     '--input',$inputDir,
