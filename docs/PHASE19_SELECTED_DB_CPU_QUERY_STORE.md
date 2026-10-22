@@ -20,3 +20,22 @@
 - Confirm selected-DB CPU time and query rows appear, and the instance CPU metric is not confused with these values.
 - For high-frequency real-time per-database CPU **percentage**, SQL Server on-premises does not supply an exact isolated DB CPU% from Query Store. A separately labeled approximate request-based CPU share would require sampling design and validation; do not display false accuracy.
 - Keep installer deployment in Draft. Earlier SQL Server collection overhead and security release gates remain open.
+
+
+## Phase 19 follow-up: OFFLINE failure stage, Windows installer screenshots
+
+User-confirmed symptoms: Overview/Incidents/Waits ONLINE, Query Store observer 0 successful / 1 failed, SQL Tuning Advisor OFFLINE, optional SQL Server INSTANCE CPU panel DISABLED. These are independent features; do not enable DBPULSE_SQLSERVER_CPU_ENABLED merely to display a selected DB CPU metric.
+
+Stage-specific, safe API status now returns errors like:
+- QUERY_STORE_CONNECT_SQL_0 — dedicated Query Store JDBC connection failed.
+- QUERY_STORE_STATE_SQL_229 — Query Store mode query permission issue.
+- QUERY_STORE_STATS_SQL_207 — query statistics SQL invalid column error.
+- QUERY_STORE_LOCAL_SNAPSHOT_STORE_FAILED — SQLite snapshot persistence layer exception.
+
+Only fixed stage words and SQL Server numeric vendor codes appear; SQL text, raw JDBC driver message, passwords, DB data, and connection URI remain hidden. This helps distinguish a collector error from the healthy 5-second DMV diagnostics.
+
+The optional instance-wide CPU panel has been removed from the *Queries* page to avoid showing a disabled unrelated metric next to the selected database CPU time. The CPU collection service is not changed or force-enabled.
+
+To inspect the exact SQL Server side without changing state: execute
+`sql/13_query_store_failure_diagnosis_readonly.sql`
+from SSMS under the *same restricted DBPulse monitoring login*, against the selected DB. Do not grant privileges or enable Query Store without reviewing results.

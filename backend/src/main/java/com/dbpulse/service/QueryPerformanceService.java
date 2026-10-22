@@ -52,6 +52,7 @@ public class QueryPerformanceService {
         // This does NOT affect the independent five-second DMV incident monitor.
         if (overheadGuard.shouldSkipScheduledTick()) return;
         long started = System.nanoTime();
+        String stage = "QUERY_STORE_READ";
         try {
             var result = queryStore.collect();
             long jdbcMs = Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis();
@@ -60,6 +61,7 @@ public class QueryPerformanceService {
                 state.set(new AnalysisState("QUERY_STORE_DISABLED", null, 0, "QUERY_STORE_DISABLED"));
                 return;
             }
+            stage = "LOCAL_SNAPSHOT_STORE";
             repository.save(target.getId(), result.rows());
             overheadGuard.recordSuccess(jdbcMs, result.rows(), Instant.now());
             Instant sampledAt = result.rows().isEmpty() ? Instant.now() : result.rows().get(0).collectedAt();
@@ -69,14 +71,15 @@ public class QueryPerformanceService {
             overheadGuard.recordFailure(Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis(), Instant.now());
             // Never log passwords or raw SQL here; do not return driver messages to the UI.
             log.warn("Query Store read failed. SQLState={}, vendorCode={}", ex.getSQLState(), ex.getErrorCode());
+            String errorCode = safeSqlFailureCode(ex);
             state.set(new AnalysisState(
                 isPermissionFailure(ex) ? "PERMISSION_DENIED" : "OFFLINE",
-                null, 0, isPermissionFailure(ex) ? "QUERY_STORE_PERMISSION_DENIED"
-                    : "QUERY_STORE_COLLECTION_FAILED"));
+                null, 0, errorCode));
         } catch (Exception ex) {
             overheadGuard.recordFailure(Duration.ofNanos(Math.max(0L, System.nanoTime() - started)).toMillis(), Instant.now());
             log.warn("Query Store analysis failed ({})", ex.getClass().getSimpleName());
-            state.set(new AnalysisState("OFFLINE", state.get().lastCollectedAt(), 0, "QUERY_STORE_COLLECTION_FAILED"));
+            state.set(new AnalysisState("OFFLINE", null, 0,
+                "QUERY_STORE_" + stage + "_FAILED"));
         }
     
         });
@@ -90,6 +93,15 @@ public class QueryPerformanceService {
         } catch (Exception ex) {
             log.warn("Failed to prune old Query Store samples ({})", ex.getClass().getSimpleName());
         }
+    }
+
+    static String safeSqlFailureCode(SQLException failure) {
+        String stage = failure instanceof MssqlQueryStoreCollector.StageFailure wrapped
+            ? wrapped.stage() : "UNCLASSIFIED";
+        if (!List.of("CONNECT", "STATE", "STATS").contains(stage)) stage = "UNCLASSIFIED";
+        int code = Math.max(0, failure.getErrorCode());
+        // Numeric SQL Server vendor error only. Never relay driver messages.
+        return "QUERY_STORE_" + stage + "_SQL_" + code;
     }
 
     private static boolean isPermissionFailure(SQLException failure) {

@@ -176,6 +176,21 @@ public class MssqlQueryStoreCollector {
         props.onTargetChanged(() -> cachedState = null);
     }
 
+    /**
+     * A stable, safe diagnostic stage plus a SQL Server numeric error code
+     * tells operators which read-only step failed without exposing query text,
+     * connection strings, driver messages, passwords or DB contents.
+     */
+    public static final class StageFailure extends SQLException {
+        private final String stage;
+        public StageFailure(String stage, SQLException cause) {
+            super("QUERY_STORE_" + stage + "_FAILED", cause.getSQLState(),
+                cause.getErrorCode(), cause);
+            this.stage = stage;
+        }
+        public String stage() { return stage; }
+    }
+
     public QueryStoreResult collect() throws SQLException {
         if (props.getUsername() == null || props.getUsername().isBlank()
                 || props.getPassword() == null || props.getPassword().isBlank()) {
@@ -191,14 +206,17 @@ public class MssqlQueryStoreCollector {
         Properties auth = new Properties();
         auth.setProperty("user", props.getUsername());
         auth.setProperty("password", props.getPassword());
+        String stage = "CONNECT";
         try (Connection conn = DriverManager.getConnection(url, auth)) {
             conn.setReadOnly(true);
+            stage = "STATE";
             String state = readStateIfNeeded(conn);
             if (!"READ_WRITE".equals(state) && !"READ_ONLY".equals(state)) {
                 return new QueryStoreResult("QUERY_STORE_DISABLED", List.of());
             }
             Instant collectedAt = Instant.now();
             List<QueryPerformanceSnapshot> rows = new ArrayList<>();
+            stage = "STATS";
             try (PreparedStatement stmt = conn.prepareStatement(QUERY_STATS_SQL)) {
                 stmt.setQueryTimeout(8);
                 try (ResultSet rs = stmt.executeQuery()) {
@@ -237,7 +255,7 @@ public class MssqlQueryStoreCollector {
         } catch (SQLException failure) {
             // Refresh Query Store state on the next poll if a stats read fails.
             cachedState = null;
-            throw failure;
+            throw new StageFailure(stage, failure);
         }
     }
 
