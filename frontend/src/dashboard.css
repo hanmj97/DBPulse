@@ -1894,3 +1894,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 @media(max-width:670px){
   .rev-db-cpu-card .rev-cpu-panel-grid{grid-template-columns:1fr}
 }
+
+/* Distinct current 15m Query Store view and persisted 7-day history. */
+.rev-query-history-mode{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 14px;
+ border:1px solid var(--t-line);border-radius:9px;background:var(--t-card)}
+.rev-query-history-mode button{padding:9px 12px;border:1px solid var(--t-line);border-radius:6px;
+ background:var(--t-inner);color:var(--t-text);cursor:pointer;font-weight:650}
+.rev-query-history-mode button.active{border-color:var(--t-accent);color:var(--t-accent);
+ background:var(--t-accent-soft)}
+.rev-query-history-mode span{font-size:11px;color:var(--t-muted)}

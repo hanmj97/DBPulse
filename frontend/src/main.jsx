@@ -227,6 +227,9 @@ function App() {
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
   const [queryAnalysis, setQueryAnalysis] = useState([]);
+  const [queryHistory, setQueryHistory] = useState([]);
+  const [queryHistoryError,setQueryHistoryError] = useState('');
+  const [queryView,setQueryView] = useState('live');
   const [queryTableSort,setQueryTableSort] = useState('recent');
   const [querySourceFilter,setQuerySourceFilter] = useState('exclude-dbpulse');
   const [sqlSelection,setSqlSelection] = useState(null);
@@ -298,6 +301,9 @@ function App() {
   // SQL text, or query statistics selected from the previous database.
   useEffect(() => {
     setQueryAnalysis([]);
+    setQueryHistory([]);
+    setQueryView('live');
+    setQueryHistoryError('');
     setQueryState(null);
     setSelectedDbCpuTrend([]);
     setQueryError('');
@@ -338,6 +344,27 @@ function App() {
     setSelectedDbCpuTrend(prev =>
       appendSelectedDbCpuSample(prev,queryState,target?.id));
   }, [target?.id,queryState?.lastCollectedAt,queryState?.databaseCpuMs,queryState?.status]);
+
+  // Locally stored history is distinct from the latest 15-minute Query Store window.
+  useEffect(() => {
+    if (!target?.id || queryView !== 'history') return undefined;
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/targets/${encodeURIComponent(target.id)}/query-performance/history?limit=100`,
+          {cache:'no-store'});
+        if (!response.ok) throw Error('history unavailable');
+        const rows = await response.json();
+        if (active) {setQueryHistory(rows);setQueryHistoryError('');}
+      } catch {
+        if (active) setQueryHistoryError('저장된 쿼리 이력을 조회하지 못했습니다.');
+      }
+    };
+    load();
+    const timer=setInterval(load,30000);
+    return () => {active=false;clearInterval(timer);};
+  }, [target?.id,queryView]);
 
   // Separate from provisional signals; this shows persisted incident episodes.
   useEffect(() => {
@@ -529,9 +556,28 @@ function App() {
       </div>
       <QueryTuningAdvisorPanel targetId={target?.id} sourceFilter={querySourceFilter}
         onShowSql={(queryId,planId)=>setSqlSelection({queryId,planId})}/>
+
+        <div className="rev-query-history-mode" role="group" aria-label="쿼리 표시 기간">
+          <button type="button" className={queryView==='live'?'active':''}
+            aria-pressed={queryView==='live'} onClick={()=>setQueryView('live')}>
+            최신 수집 · 최근 15분
+          </button>
+          <button type="button" className={queryView==='history'?'active':''}
+            aria-pressed={queryView==='history'} onClick={()=>setQueryView('history')}>
+            저장 이력 · 최근 7일
+          </button>
+          <span>Query Store와 DBPulse 로컬 보관 이력을 구분합니다.</span>
+        </div>
+        {queryView==='history' && <div className="banner info">
+          과거 이력은 DBPulse가 수집해 저장한 Query/Plan별 마지막 통계입니다.
+          DBPulse가 수집하지 않은 쿼리는 표시되지 않습니다.
+        </div>}
+        {queryView==='history' && queryHistoryError && <div className="banner error">
+          {queryHistoryError}
+        </div>}
         <section id="query-performance" className="card query-panel">
           <div className="section-heading">
-            <div><h2>쿼리 성능 분석</h2><p>최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개</p></div>
+            <div><h2>쿼리 성능 분석</h2><p>{queryView==='history'?'저장 이력 최근 7일 · Query/Plan별 마지막 수집값':'최근 15분 Query Store 집계 · 일반 패턴 최대 40개 + DBPulse 수집 패턴 최대 10개'}</p></div>
             <span className="small-pill">60s 기본 · 자동 완화</span>
           </div>
           <div className="query-state">
@@ -557,8 +603,8 @@ function App() {
           <div className="query-table-scroll"><table className="query-table"><thead><tr>
             <th>Query ID / Plan</th><th>최근 실행</th><th>실행 횟수*</th><th>평균 시간</th><th>평균 CPU</th><th>CPU 총량 추정*</th><th>논리 읽기</th><th>분석 신호</th>
           </tr></thead><tbody>
-          {filterQuerySources(queryAnalysis, querySourceFilter).length ?
-            filterQuerySources(queryAnalysis, querySourceFilter).sort((a,b)=>
+          {filterQuerySources(queryView==='history'?queryHistory:queryAnalysis, querySourceFilter).length ?
+            filterQuerySources(queryView==='history'?queryHistory:queryAnalysis, querySourceFilter).sort((a,b)=>
             queryTableSort==='duration' ? Number(b.avgDurationMs)-Number(a.avgDurationMs)
             : queryTableSort==='reads' ? Number(b.avgLogicalReadsPages)-Number(a.avgLogicalReadsPages)
             : queryTableSort==='cpu' ? Number(b.avgCpuMs)-Number(a.avgCpuMs)

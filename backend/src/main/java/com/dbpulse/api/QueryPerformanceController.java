@@ -61,6 +61,20 @@ public class QueryPerformanceController {
         return repository.latest(id, analysisState.lastCollectedAt(), limit);
     }
 
+    /** Stored numerical summaries: de-duplicated by query/plan, last 7 days.
+     * Deliberately distinct from the latest live Query Store API. */
+    @GetMapping("/history")
+    public List<QueryPerformanceSnapshot> history(@PathVariable String id,
+            @RequestParam(defaultValue = "50") int limit) {
+        requireTarget(id);
+        if (!target.isEnabled()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (limit < 1 || limit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "limit must be between 1 and 100");
+        }
+        return repository.history(id, limit);
+    }
+
     private void requireTarget(String id) {
         if (!target.getId().equals(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }

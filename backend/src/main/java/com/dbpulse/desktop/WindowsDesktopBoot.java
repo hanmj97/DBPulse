@@ -170,6 +170,11 @@ public final class WindowsDesktopBoot {
         props.put("dbpulse.local-targets.allowed-hosts","localhost,127.0.0.1,host.docker.internal");
         props.put("dbpulse.local-targets.allow-self-signed-lab",developerSelfSignedAllowed());
         props.put("dbpulse.mssql.enabled",false);
+        // The installed Windows app is bound to loopback only. SQL text is
+        // fetched only when the operator clicks an individual Query/Plan.
+        // Non-desktop Java/Docker deployments retain their default OFF state.
+        props.put("dbpulse.query-text.enabled",
+            !"false".equalsIgnoreCase(System.getenv("DBPULSE_QUERY_TEXT_ENABLED")));
         springApp.addInitializers(context ->
             context.getEnvironment().getPropertySources().addFirst(
                 new MapPropertySource("dbpulse-windows-desktop",props)));

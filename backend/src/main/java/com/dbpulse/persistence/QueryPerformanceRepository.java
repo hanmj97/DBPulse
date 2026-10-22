@@ -77,4 +77,55 @@ public class QueryPerformanceRepository {
                 rs.getString("diagnosis_code"), rs.getString("source_category")
             ), targetId, MetadataTimestampValue.value(sqlite(), sampledAt), limit);
     }
+    /**
+     * At most one saved snapshot per query_id/plan_id over the last 7 days.
+     * No SQL Server read; only previously persisted numeric Query Store summaries.
+     * Old vanished executions are historical snapshots, not ongoing activity.
+     */
+    public List<QueryPerformanceSnapshot> history(String targetId, int limit) {
+        return jdbc.query("""
+            SELECT collected_at, query_id, plan_id, execution_count, avg_duration_ms,
+                   avg_cpu_ms, avg_logical_reads_pages, last_executed_at,
+                   diagnosis_code, source_category
+            FROM (
+                SELECT collected_at, query_id, plan_id, execution_count,
+                       avg_duration_ms, avg_cpu_ms, avg_logical_reads_pages,
+                       last_executed_at, diagnosis_code, source_category,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY query_id, plan_id ORDER BY collected_at DESC
+                       ) AS snapshot_rank
+                FROM query_performance_snapshots
+                WHERE target_id = ? AND collected_at >= ?
+            ) saved
+            WHERE snapshot_rank = 1
+            ORDER BY last_executed_at DESC, collected_at DESC
+            LIMIT ?
+            """, (rs, i) -> new QueryPerformanceSnapshot(
+                ImportedTimestampReader.instant(rs, "collected_at"),
+                rs.getLong("query_id"), rs.getLong("plan_id"),
+                rs.getLong("execution_count"), rs.getDouble("avg_duration_ms"),
+                rs.getDouble("avg_cpu_ms"), rs.getDouble("avg_logical_reads_pages"),
+                ImportedTimestampReader.instant(rs, "last_executed_at"),
+                rs.getString("diagnosis_code"), rs.getString("source_category")
+            ), targetId,
+            MetadataTimestampValue.value(sqlite(),
+                java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)),
+            limit);
+    }
+
+    /** A stored (queryId, planId) can be requested on-demand while it is retained.
+     * Never grant SQL text access solely from arbitrary caller-supplied IDs. */
+    public boolean hasRecentPlan(String targetId, long queryId, long planId) {
+        Integer exists = jdbc.queryForObject("""
+            SELECT EXISTS(
+              SELECT 1 FROM query_performance_snapshots
+              WHERE target_id = ? AND query_id = ? AND plan_id = ?
+                AND collected_at >= ?
+            )
+            """, Integer.class, targetId, queryId, planId,
+            MetadataTimestampValue.value(sqlite(),
+                java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)));
+        return exists != null && exists != 0;
+    }
+
 }

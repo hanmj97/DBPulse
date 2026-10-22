@@ -74,6 +74,13 @@ public class MssqlQueryStoreCollector {
               WHEN qt.query_sql_text LIKE N'%sys.database_query_store_options%'
                 AND qt.query_sql_text LIKE N'%actual_state_desc%'
               THEN 'DBPULSE_PATTERN'
+              -- v0.19 introduced a CPU aggregate SQL that was not matched
+              -- by the original runtime stats fingerprint. Limit this to
+              -- DBPulse-specific aliases, not every Query Store stats query.
+              WHEN qt.query_sql_text LIKE N'%sys.query_store_runtime_stats%'
+                AND qt.query_sql_text LIKE N'%recorded_cpu_ms%'
+                AND qt.query_sql_text LIKE N'%recorded_executions%'
+              THEN 'DBPULSE_PATTERN'
               WHEN qt.query_sql_text LIKE N'%sys.query_store_runtime_stats%'
                 AND qt.query_sql_text LIKE N'%avg_logical_io_reads%'
                 AND qt.query_sql_text LIKE N'%last_executed_epoch%'
