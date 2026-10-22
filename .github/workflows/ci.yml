@@ -297,7 +297,7 @@ jobs:
         shell: pwsh
         run: |
           .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.18.0-preview.exe'
-          if ($LASTEXITCODE -ne 0) { throw 'Phase18 installer smoke failed' }
+          # The PowerShell test throws on failure; do not inspect a stale $LASTEXITCODE.
       - name: Upload unsigned Windows Setup preview
         uses: actions/upload-artifact@v4
         with:
