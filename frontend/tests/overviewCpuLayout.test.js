@@ -36,7 +36,7 @@ test('DMV requests and Query Store CPU are distinct measurements',()=>{
   assert.match(overview,/function TrendChart\(/);
   assert.match(overview,/className="rev-ops-split-charts"/);
   assert.match(overview,/<RequestTrendPanel history=\{history\} sampleLimit=\{sampleLimit\}/);
-  assert.match(overview,/<SelectedDatabaseCpuPanel queryState=\{queryState\} databaseName=\{databaseName\} compact\/>/);
+  assert.match(overview,/<SelectedDatabaseCpuPanel queryState=\{queryState\} databaseName=\{databaseName\} trend=\{selectedDbCpuTrend\} compact\/>/);
   assert.match(overview,/REQUEST_SERIES/);
   assert.match(overview,/nonZeroSegments\(/);
   assert.match(overview,/단위: 건/);

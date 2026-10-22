@@ -15,6 +15,7 @@ import WaitDiagnostics from './WaitDiagnostics.jsx';
 import QueryTuningAdvisorPanel from './QueryTuningAdvisorPanel.jsx';
 import QueryObserverOverheadPanel from './QueryObserverOverheadPanel.jsx';
 import SelectedDatabaseCpuPanel from './SelectedDatabaseCpuPanel.jsx';
+import {appendSelectedDbCpuSample} from './selectedDbCpuTrend.js';
 import QuerySqlDrawer from './QuerySqlDrawer.jsx';
 import { filterQuerySources } from './queryCandidateFilters.js';
 
@@ -230,6 +231,7 @@ function App() {
   const [querySourceFilter,setQuerySourceFilter] = useState('exclude-dbpulse');
   const [sqlSelection,setSqlSelection] = useState(null);
   const [queryState, setQueryState] = useState(null);
+  const [selectedDbCpuTrend,setSelectedDbCpuTrend] = useState([]);
   const [queryError, setQueryError] = useState('');
   const [incidents, setIncidents] = useState([]);
   const [incidentError, setIncidentError] = useState('');
@@ -297,6 +299,7 @@ function App() {
   useEffect(() => {
     setQueryAnalysis([]);
     setQueryState(null);
+    setSelectedDbCpuTrend([]);
     setQueryError('');
     setIncidents([]);
     setSelectedIncidentId(null);
@@ -327,6 +330,14 @@ function App() {
     const timer = setInterval(fetchAnalysis, 15000);
     return () => { active = false; clearInterval(timer); };
   }, [target?.id]);
+
+  // The CPU chart is a session-only derived series (no extra SQL Server reads
+  // or persistent DB writes). Only NEW Query Store snapshot stamps create a
+  // point. The first point is a baseline with no invented CPU percentage.
+  useEffect(() => {
+    setSelectedDbCpuTrend(prev =>
+      appendSelectedDbCpuSample(prev,queryState,target?.id));
+  }, [target?.id,queryState?.lastCollectedAt,queryState?.databaseCpuMs,queryState?.status]);
 
   // Separate from provisional signals; this shows persisted incident episodes.
   useEffect(() => {
@@ -404,7 +415,7 @@ function App() {
     {error && <div className="banner error"><AlertCircle size={18}/>{error}</div>}
     {page === 'overview' && <OverviewDashboard target={target} history={history}
       incidents={incidents} incidentError={incidentError}
-      queryAnalysis={queryAnalysis} queryState={queryState} sampleLimit={sampleLimit}
+      queryAnalysis={queryAnalysis} queryState={queryState} selectedDbCpuTrend={selectedDbCpuTrend} sampleLimit={sampleLimit}
       onNavigate={setPage} onInvestigate={investigate}/>}
     {(page === 'incidents' || page === 'investigation') &&
       <div id={page === 'incidents' ? 'incidents' : 'investigation'} className="rev-detail-content">
@@ -503,7 +514,7 @@ function App() {
     {page === 'queries' && <div className="rev-detail-content">
       {detailIntro('queries')}
       <QueryObserverOverheadPanel targetId={target?.id}/>
-      <SelectedDatabaseCpuPanel queryState={queryState} databaseName={target?.databaseName}/>
+      <SelectedDatabaseCpuPanel queryState={queryState} databaseName={target?.databaseName} trend={selectedDbCpuTrend}/>
       <div className="rev-query-source-filter">
         <div>
           <strong>표시할 쿼리</strong>

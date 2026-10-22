@@ -11,7 +11,7 @@ test('DBPulse request graph cannot be mistaken for selected database CPU time',(
   assert.match(overview,/function TrendChart\(/);
   assert.match(overview,/className="rev-ops-split-charts"/);
   assert.match(overview,/실시간 요청 현황/);
-  assert.match(overview,/<SelectedDatabaseCpuPanel queryState=\{queryState\} databaseName=\{databaseName\} compact\/>/);
+  assert.match(overview,/<SelectedDatabaseCpuPanel queryState=\{queryState\} databaseName=\{databaseName\} trend=\{selectedDbCpuTrend\} compact\/>/);
   assert.match(overview,/단위: 건/);
   assert.match(overview,/REQUEST_SERIES\.flatMap\(series=>segments\(series\.key\)\.map/);
   assert.match(overview,/stroke=\{series\.color\}/);

@@ -30,7 +30,7 @@ export default function QuerySqlDrawer({targetId,selection,onClose}) {
       } catch(e) {
         if(abort.signal.aborted) return;
         const message = e.message==='403'
-          ? '보안 보호를 위해 SQL 원문 조회가 비활성화되어 있습니다. 로컬 .env에서 DBPULSE_QUERY_TEXT_ENABLED=true로 허용한 다음 백엔드를 재생성해 주세요.'
+          ? '보안 보호를 위해 SQL 원문 조회가 비활성화되어 있습니다. 앱을 종료한 뒤 PowerShell에서 $env:DBPULSE_QUERY_TEXT_ENABLED='true' 를 설정하고 설치된 DBPulse.WindowHost.exe를 같은 창에서 실행해 주세요. 조회를 마치면 앱을 닫고 변수를 해제해 주세요.'
           : e.message==='404'
             ? '선택한 쿼리가 현재 Query Store 수집 대상에 없습니다. 다음 수집 주기 후 다시 확인해 주세요.'
             : e.message==='503'

@@ -159,16 +159,16 @@ function RequestTrendPanel({history,sampleLimit,databaseName}) {
   </article>;
 }
 
-function TrendChart({history,sampleLimit,queryState,databaseName}) {
+function TrendChart({history,sampleLimit,queryState,databaseName,selectedDbCpuTrend}) {
   return <div className="rev-ops-split-charts" aria-label="요청 수 및 CPU 성능 그래프">
     <RequestTrendPanel history={history} sampleLimit={sampleLimit}
       databaseName={databaseName}/>
-    <SelectedDatabaseCpuPanel queryState={queryState} databaseName={databaseName} compact/>
+    <SelectedDatabaseCpuPanel queryState={queryState} databaseName={databaseName} trend={selectedDbCpuTrend} compact/>
   </div>;
 }
 
 export default function OverviewDashboard({
- target, history, incidents, incidentError, queryAnalysis, queryState,
+ target, history, incidents, incidentError, queryAnalysis, queryState, selectedDbCpuTrend,
  sampleLimit, onNavigate, onInvestigate
 }) {
   const [feed, setFeed] = useState(INITIAL_FEED);
@@ -294,7 +294,7 @@ export default function OverviewDashboard({
     </section>
 
     <section className="rev-ops-wide-chart" aria-label="데이터베이스 성능">
-      <TrendChart history={online ? history : []} sampleLimit={sampleLimit} queryState={queryState} databaseName={target?.databaseName}/>
+      <TrendChart history={online ? history : []} sampleLimit={sampleLimit} queryState={queryState} selectedDbCpuTrend={selectedDbCpuTrend} databaseName={target?.databaseName}/>
     </section>
 
     <section className="rev-panel rev-ops-unified-board" aria-label="운영 진단 요약">

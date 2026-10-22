@@ -1865,3 +1865,32 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
     min-height:0;
   }
 }
+
+
+/* Phase20: restore a distinct SQL Query Store per-DB CPU chart.
+   Keep both approved Navy/Midnight themes via inherited color tokens. */
+.rev-db-cpu-card-compact,.rev-db-cpu-card{
+  min-width:0; display:flex; flex-direction:column; gap:0;
+}
+.rev-db-cpu-card-compact{padding:15px 17px}
+.rev-db-cpu-card-compact .rev-cpu-panel-heading h3,
+.rev-db-cpu-card .rev-cpu-panel-heading h3{display:flex;align-items:center;gap:7px;margin:0 0 7px;font-size:14px}
+.rev-db-cpu-card-compact .rev-cpu-panel-heading h3 small,
+.rev-db-cpu-card .rev-cpu-panel-heading h3 small{color:var(--t-accent);font-size:10px}
+.rev-db-cpu-card-compact .rev-cpu-panel-heading p{color:var(--t-secondary);font-size:11px}
+.rev-db-cpu-card-compact .rev-cpu-panel-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.rev-db-cpu-card-compact .rev-cpu-panel-grid>div{padding:10px 11px}
+.rev-db-cpu-card-compact .rev-cpu-panel-grid strong{font-size:18px;margin:6px 0}
+.rev-db-cpu-card .rev-cpu-panel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rev-cpu-rate{color:#ffbd60 !important;font-variant-numeric:tabular-nums}
+.rev-db-cpu-graph{width:100%;min-width:0;margin-top:11px}
+.rev-db-cpu-graph-title{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+ font-size:11px;color:var(--t-secondary);margin:5px 0}
+.rev-db-cpu-graph-title span{font-weight:700;color:var(--t-text)}
+.rev-db-cpu-graph-title small{font-size:10px;color:var(--t-muted)}
+.rev-db-cpu-graph svg{display:block;width:100%;height:auto;aspect-ratio:560/210;
+ max-width:620px;margin:0 auto;overflow:visible}
+.rev-db-cpu-card-compact .rev-cpu-panel-limitation{font-size:10px;margin-top:8px;padding-top:8px}
+@media(max-width:670px){
+  .rev-db-cpu-card .rev-cpu-panel-grid{grid-template-columns:1fr}
+}
