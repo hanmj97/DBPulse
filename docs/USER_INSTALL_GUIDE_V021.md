@@ -1,9 +1,9 @@
-# DBPulse v0.21 Preview — Windows install and local data safety
+# DBPulse v0.21.1 Public Windows Release — Install and Data Safety
 
 ## What is distributed
 
-- Unsigned Windows x64 Inno Setup preview, built by GitHub Actions from
-  the release-hardening branch. No official signed GitHub Release yet.
+- Unsigned Windows x64 Inno Setup public download, built by GitHub Actions from
+  the integrated main branch. Official GitHub Release is unsigned.
 - Java runtime and .NET WebView2 window host are bundled. Microsoft
   Edge WebView2 Runtime must exist separately on Windows.
 - On a **pristine Windows user profile** (only DBPulse's startup diagnostic
@@ -56,7 +56,7 @@ while the app is running.
 ## Download integrity: SHA256SUMS.txt
 
 Each GitHub Actions build now packages these two files together:
-- DBPulse-Setup-v0.21.1-preview.exe
+- DBPulse-Setup-v0.21.1.exe
 - SHA256SUMS.txt
 
 Use this in PowerShell after extracting the artifact ZIP to a private
@@ -64,7 +64,7 @@ Downloads folder:
 
     # Set the actual extraction directory; do not invent a location
     $dir = "C:\PATH\TO\EXTRACTED\ARTIFACT"
-    $exe = Join-Path $dir "DBPulse-Setup-v0.21.1-preview.exe"
+    $exe = Join-Path $dir "DBPulse-Setup-v0.21.1.exe"
     $manifest = Join-Path $dir "SHA256SUMS.txt"
 
     # Compare installed binary SHA-256 to the published artifact manifest

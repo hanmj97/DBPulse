@@ -1,8 +1,8 @@
-# DBPulse v0.21 — Release Readiness (PREVIEW, NOT RELEASED)
+# DBPulse v0.21.1 — Public Release Transparency / Continuing Hardening
 
-Status: 2026-10-22, feature freeze and release hardening.
-Do not add feature modules or merge stacked Draft PRs until the real
-Windows deployment and SQL Server lab acceptance have completed.
+Status: 2026-10-22, user-approved public GitHub Release while feature freeze and
+hardening continue. This release is NOT claimed to be enterprise-production ready.
+Unverified items stay explicitly open after publication.
 
 ## Verified evidence, not production claims
 
@@ -29,7 +29,7 @@ Windows deployment and SQL Server lab acceptance have completed.
 - CI provides SHA256SUMS.txt for the Windows unsigned Setup EXE. The checksum
   detects accidental corruption but is NOT a publisher signature.
 
-## Release blockers (do not check without observed evidence)
+## Outstanding tests and hardening (public release does not imply pass)
 
 - [ ] Real installed Windows upgrade, start/stop/restart, no SQLite loss.
 - [ ] Verify app local storage by read-only preflight before/after test.
@@ -50,7 +50,7 @@ Windows deployment and SQL Server lab acceptance have completed.
 - [ ] WebView2 prerequisite/bootstrap, SmartScreen and signing policy.
 - [ ] Choose repository license/redistribution terms for third-party release.
 - [ ] Review stacked Draft PRs 12–19 and hardening PR in dependency order.
-- [ ] Tag/promote only once all release-critical blockers are resolved.
+- [ ] Future production-suitability certification requires remaining critical tests. The public downloadable v0.21.1 release is not such certification.
 
 ## Windows acceptance procedure (authorized DBPulseLab only)
 
@@ -77,8 +77,7 @@ Windows deployment and SQL Server lab acceptance have completed.
 8. Stop release on failure. Preserve source SQLite and PostgreSQL volumes.
    Never use docker compose down --volumes.
 
-This document records readiness and limitations; it does not publish any
-official, signed, secure-for-external-users product release.
+GitHub Releases distributes the unsigned Windows installer for voluntary evaluation. This document does not claim any code signing, independent security assessment or long-run operating guarantee.
 
 ## Version metadata alignment (stabilization)
 

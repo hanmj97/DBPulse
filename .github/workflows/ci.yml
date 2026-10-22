@@ -304,19 +304,19 @@ jobs:
         run: |
           .\tools\build_dbpulse_windows_installer.ps1 -AppImagePath 'backend/target/windows-ci/DBPulse' -OutputDirectory 'backend/target/windows-ci/setup'
           if ($LASTEXITCODE -ne 0) { throw 'Phase18 Setup EXE build failed' }
-          if (-not (Test-Path 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1-preview.exe')) {
+          if (-not (Test-Path 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1.exe')) {
             throw 'Phase18 Setup EXE missing'
           }
       - name: Silent setup, window self-test, uninstall, user data preservation
         shell: pwsh
         run: |
-          .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1-preview.exe'
+          .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1.exe'
           # The PowerShell test throws on failure; do not inspect a stale $LASTEXITCODE.
       - name: Create and self-verify SHA256 checksum for unsigned setup
         shell: pwsh
         run: |
           $folder = 'backend/target/windows-ci/setup'
-          $setup = Join-Path $folder 'DBPulse-Setup-v0.21.1-preview.exe'
+          $setup = Join-Path $folder 'DBPulse-Setup-v0.21.1.exe'
           if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) {
             throw 'UNSIGNED_SETUP_NOT_FOUND'
           }
@@ -331,20 +331,20 @@ jobs:
           }
           Write-Host 'DBPULSE_SETUP_SHA256_MANIFEST_VERIFIED'
 
-      - name: Upload unsigned Windows Setup preview
+      - name: Upload tested unsigned Windows Setup for public release
         uses: actions/upload-artifact@v4
         with:
-          name: DBPulse-v0.21.1-Windows-Setup-preview
+          name: DBPulse-v0.21.1-Windows-Setup
           path: |
-            backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1-preview.exe
+            backend/target/windows-ci/setup/DBPulse-Setup-v0.21.1.exe
             backend/target/windows-ci/setup/SHA256SUMS.txt
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: error
 
-      - name: Upload unpacked unsigned Windows preview
+      - name: Upload tested unpacked Windows app-image
         uses: actions/upload-artifact@v4
         with:
-          name: DBPulse-v0.21.1-Windows-app-image-preview
+          name: DBPulse-v0.21.1-Windows-app-image
           path: backend/target/windows-ci/DBPulse/
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: error

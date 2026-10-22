@@ -2,9 +2,9 @@
 
 > **실제 DB 운영 서비스**를 목표로 개발하는 프로젝트. MSSQL 우선 구현 후 다른 DBMS 지원 확장.
 
-## 현재 상태 — v0.21 Windows 설치형 미리보기 (2026-10-22)
+## 현재 상태 — v0.21.1 Windows 최초 공개 배포 (2026-10-22)
 
-**기능 동결 후 안정화·배포 검증 중입니다. 정식/서명된 릴리스가 아닙니다.**
+**v0.21.1부터 GitHub Releases를 통한 Windows x64 공개 다운로드를 제공합니다. 미서명 설치 파일이며, 보안 감사·장시간 수집·별도 새 PC 검증은 미완료이므로 운영 DB에 대한 무중단·안전성을 보증하지 않습니다.**
 최신 검증 대상은 **Windows x64 로컬 WebView2 프로그램 + Java 21 + Spring Boot/React + SQLite**입니다.
 구형 개발 설명과 달리, 현재 테스트 PC에서는 Docker PostgreSQL 없이 로컬 SQLite를 사용할 수 있으나
 **v0.21.1에서는 완전히 새로운 Windows 사용자에게만 빈 SQLite를 초기 구성하도록 추가했습니다. 기존 로컬/DPAPI/DB 메타데이터는 덮어쓰지 않습니다. 실제 새 PC 설치 검증은 남아 있습니다.**
@@ -17,10 +17,12 @@
   포함될 수 있으므로 화면 캡처/공개 로그 공유를 피하세요. 외부 공개 서버로 사용하지 마세요.
 - 배포: 사용자별 unsigned Inno Setup 설치 EXE, 시작 메뉴/선택적 바탕화면 바로가기,
   일반 종료 시 Java 백엔드 정리. 언인스톨은 프로그램 파일만 삭제하도록 설계되어 있습니다.
-- 아직 필요한 작업: SQLite 백업·복원 실기기 검증, 장시간 부하/안정성 검증, 보안 검토,
-  새 PC 최초 실행 검증, WebView2 사전 설치 확인, 코드 서명 및 정식 릴리스 결정.
+- 아직 필요한 작업: 장시간 부하/안정성 검증, 보안 검토,
+  새 PC 최초 실행 검증, WebView2 사전 설치 확인, 코드 서명 및 운영 적합성 추가 검증.
 
-**[최신 안정화/릴리스 판정 체크리스트](docs/RELEASE_READINESS_V021.md)** ·
+**[v0.21.1 Windows 다운로드](https://github.com/hanmj97/DBPulse/releases/tag/v0.21.1)** ·
+**[릴리스 노트](docs/releases/v0.21.1.md)** ·
+**[안정화/미검증 항목](docs/RELEASE_READINESS_V021.md)** ·
 **[설치 및 사용자 데이터 보호 가이드](docs/USER_INSTALL_GUIDE_V021.md)** ·
 **[현재 작업 Draft PR 목록](https://github.com/hanmj97/DBPulse/pulls)**
 

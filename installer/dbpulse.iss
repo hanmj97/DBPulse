@@ -9,7 +9,7 @@
 [Setup]
 AppId={{F1A69B42-279C-4B32-99B5-84BED5A93BCD}
 AppName=DBPulse
-AppVerName=DBPulse 0.21.1 Preview
+AppVerName=DBPulse 0.21.1
 AppVersion=0.21.1
 AppPublisher=DBPulse
 VersionInfoVersion=0.21.1.0
@@ -19,7 +19,7 @@ PrivilegesRequired=lowest
 UsePreviousAppDir=yes
 UninstallDisplayName=DBPulse
 UninstallDisplayIcon={app}\window\DBPulse.WindowHost.exe
-OutputBaseFilename=DBPulse-Setup-v0.21.1-preview
+OutputBaseFilename=DBPulse-Setup-v0.21.1
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
