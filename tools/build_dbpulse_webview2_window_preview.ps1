@@ -48,8 +48,8 @@ $hostExe=Join-Path $windowDir 'DBPulse.WindowHost.exe'
 if (-not (Test-Path -LiteralPath $hostExe -PathType Leaf)) {
     throw 'WINDOW_WEBVIEW2_EXE_NOT_FOUND'
 }
-& $hostExe --self-test
-if ($LASTEXITCODE -ne 0) { throw 'WINDOW_HOST_POLICY_TEST_FAILED' }
+$check = Start-Process -FilePath $hostExe -ArgumentList '--self-test' -PassThru -Wait
+if ($check.ExitCode -ne 0) { throw 'WINDOW_HOST_POLICY_TEST_FAILED' }
 
 Write-Host 'DBPULSE_WEBVIEW2_WINDOW_PREVIEW_READY'
 Write-Host ('NEW_WINDOW_EXE: ' + $hostExe)

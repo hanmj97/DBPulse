@@ -267,8 +267,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'WebView2 host publish failed' }
           $shellExe = Join-Path $target 'DBPulse.WindowHost.exe'
           if (-not (Test-Path $shellExe)) { throw 'WebView2 host EXE missing' }
-          & $shellExe --self-test
-          if ($LASTEXITCODE -ne 0) { throw 'WebView2 origin and navigation policy self-test failed' }
+          $check = Start-Process -FilePath $shellExe -ArgumentList '--self-test' -PassThru -Wait
+          if ($check.ExitCode -ne 0) { throw 'WebView2 origin and navigation policy self-test failed' }
           if (-not (Test-Path 'backend/target/windows-ci/DBPulse/DBPulse.exe')) {
             throw 'Backend Java EXE missing from app bundle'
           }

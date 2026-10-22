@@ -28,8 +28,9 @@ try {
     $sourceHash = (Get-FileHash -LiteralPath $originalHost -Algorithm SHA256).Hash
     if ($installedHash -ne $sourceHash) { throw 'INSTALLED_EXE_HASH_DIFFERS_FROM_SOURCE' }
     Write-Host 'DBPULSE_INSTALLED_EXE_SHA256_VERIFIED'
-    & $hostExe --self-test
-    $selfTestExit = $LASTEXITCODE
+    # WinExe is a GUI subsystem executable. Wait explicitly for exit code.
+    $check = Start-Process -FilePath $hostExe -ArgumentList '--self-test' -PassThru -Wait
+    $selfTestExit = $check.ExitCode
     if ($selfTestExit -ne 0) { throw "INSTALLED_WINDOW_SELF_TEST_EXIT_$selfTestExit" }
     Write-Host 'DBPULSE_INSTALLER_SILENT_INSTALL_OK'
     $uninstaller = Join-Path $dir 'unins000.exe'
