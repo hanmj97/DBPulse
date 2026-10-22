@@ -229,7 +229,7 @@ jobs:
           $args = @(
             '--type','app-image',
             '--name','DBPulse',
-            '--app-version','0.14.0',
+            '--app-version','0.21.0',
             '--vendor','DBPulse',
             '--input','backend/target/windows-ci/input',
             '--dest','backend/target/windows-ci',
@@ -344,7 +344,7 @@ jobs:
       - name: Upload unpacked unsigned Windows preview
         uses: actions/upload-artifact@v4
         with:
-          name: DBPulse-v0.14-Windows-app-image-preview
+          name: DBPulse-v0.21-Windows-app-image-preview
           path: backend/target/windows-ci/DBPulse/
           retention-days: 7
           if-no-files-found: error

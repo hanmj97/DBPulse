@@ -78,3 +78,12 @@ Windows deployment and SQL Server lab acceptance have completed.
 
 This document records readiness and limitations; it does not publish any
 official, signed, secure-for-external-users product release.
+
+## Version metadata alignment (stabilization)
+
+- Windows Inno Setup AppVersion 0.21.0 and UI footer v0.21.0-preview
+  now match Java Maven project version 0.21.0, npm package version 0.21.0,
+  .NET WinForms assembly/file version 0.21.0, and jpackage version 0.21.0.
+- The unpacked Windows app-image GitHub artifact also uses a v0.21 label.
+- Version alignment is packaging hygiene only, not proof of compatibility
+  or production readiness. No new SQL Server or SQLite schema migration.
