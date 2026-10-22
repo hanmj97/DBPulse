@@ -20,10 +20,23 @@ internal sealed class MainWindow : Form
     public MainWindow()
     {
         Text = "DBPulse — Database Operations";
-        StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(900, 600);
-        Size = new Size(1440, 900);
+        // Open ~92% of usable display width / 90% of its height without
+        // covering the taskbar. The original 1440x900 clipped many panels.
+        // Clamp on small laptops and cap on ultrawide/multi-monitor setups.
+        StartPosition = FormStartPosition.Manual;
+        var working = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1440, 900);
+        MinimumSize = new Size(Math.Min(900, Math.Max(480, working.Width - 24)),
+                               Math.Min(600, Math.Max(360, working.Height - 24)));
+        Bounds = ComputeInitialBounds(working);
         BackColor = Color.FromArgb(10, 22, 42);
+
+        // The embedded app icon also appears in the title bar / taskbar.
+        // A packaged ICO is included in the window directory for shortcuts.
+        string iconFile = Path.Combine(AppContext.BaseDirectory, "DBPulse.ico");
+        if (File.Exists(iconFile))
+        {
+            Icon = new Icon(iconFile);
+        }
 
         browser = new WebView2 { Dock = DockStyle.Fill, Visible = false };
         waiting = new Panel { Dock = DockStyle.Fill, BackColor = BackColor };
@@ -38,6 +51,32 @@ internal sealed class MainWindow : Form
         waiting.Controls.Add(message);
         Controls.Add(browser);
         Controls.Add(waiting);
+    }
+
+
+    internal static Rectangle ComputeInitialBounds(Rectangle usable)
+    {
+        int availableWidth = Math.Max(1, usable.Width);
+        int availableHeight = Math.Max(1, usable.Height);
+        int width = Math.Min(1800, Math.Max(1, (int)Math.Round(availableWidth * 0.92)));
+        int height = Math.Min(1100, Math.Max(1, (int)Math.Round(availableHeight * 0.90)));
+        // Leave a small visible edge even with a particularly small display.
+        width = Math.Min(width, Math.Max(1, availableWidth - Math.Min(24, availableWidth / 12)));
+        height = Math.Min(height, Math.Max(1, availableHeight - Math.Min(24, availableHeight / 12)));
+        return new Rectangle(usable.Left + (availableWidth - width) / 2,
+                             usable.Top + (availableHeight - height) / 2,
+                             width, height);
+    }
+
+    internal static bool SelfTestSizing()
+    {
+        var large = ComputeInitialBounds(new Rectangle(0, 0, 1920, 1040));
+        var smallWorking = new Rectangle(120, 50, 1280, 680);
+        var small = ComputeInitialBounds(smallWorking);
+        return large.Width >= 1600 && large.Height > 900 &&
+               large.Bottom <= 1040 && large.Right <= 1920 &&
+               smallWorking.Contains(small) && small.Width > 1000 &&
+               small.Height < smallWorking.Height;
     }
 
     protected override async void OnShown(EventArgs e)

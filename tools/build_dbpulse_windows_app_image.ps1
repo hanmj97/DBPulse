@@ -54,13 +54,25 @@ if ($LASTEXITCODE -ne 0 -or
     throw 'Java JAR does not contain the React production dashboard.'
 }
 
+# Generate the approved seven-resolution native app icon when absent.
+# This only writes a build artifact under assets/; it never edits user data.
+$iconFile=Join-Path $root 'assets\DBPulse.ico'
+if (-not (Test-Path -LiteralPath $iconFile -PathType Leaf)) {
+    py -3 (Join-Path $root 'tools\build_dbpulse_icon.py')
+    if ($LASTEXITCODE -ne 0) { throw 'DBPULSE_ICON_BUILD_FAILED' }
+}
+if (-not (Test-Path -LiteralPath $iconFile -PathType Leaf)) {
+    throw 'DBPULSE_ICON_MISSING'
+}
+
 # Nonmodular Spring Boot nested JARs are not fully analyzable by jdeps.
 # Include the complete JDK module set for this first preview for safety.
 $jpackageArgs=@(
     '--type','app-image',
     '--name','DBPulse',
-    '--app-version','0.21.1',
+    '--app-version','0.21.2',
     '--vendor','DBPulse',
+    '--icon',$iconFile,
     '--description','Local SQL Server monitoring dashboard',
     '--input',$inputDir,
     '--dest',$buildDir,

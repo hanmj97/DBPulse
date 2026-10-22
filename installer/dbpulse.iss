@@ -9,20 +9,21 @@
 [Setup]
 AppId={{F1A69B42-279C-4B32-99B5-84BED5A93BCD}
 AppName=DBPulse
-AppVerName=DBPulse 0.21.1
-AppVersion=0.21.1
+AppVerName=DBPulse 0.21.2
+AppVersion=0.21.2
 AppPublisher=DBPulse
-VersionInfoVersion=0.21.1.0
+VersionInfoVersion=0.21.2.0
 DefaultDirName={localappdata}\Programs\DBPulse
 DefaultGroupName=DBPulse
 PrivilegesRequired=lowest
 UsePreviousAppDir=yes
 UninstallDisplayName=DBPulse
-UninstallDisplayIcon={app}\window\DBPulse.WindowHost.exe
-OutputBaseFilename=DBPulse-Setup-v0.21.1
+UninstallDisplayIcon={app}\window\DBPulse.ico
+OutputBaseFilename=DBPulse-Setup-v0.21.2
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\assets\DBPulse.ico
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 CloseApplications=no
@@ -41,8 +42,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#AppImage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{userprograms}\DBPulse"; Filename: "{app}\window\DBPulse.WindowHost.exe"; WorkingDir: "{app}\window"
-Name: "{userdesktop}\DBPulse"; Filename: "{app}\window\DBPulse.WindowHost.exe"; WorkingDir: "{app}\window"; Tasks: desktopicon
+Name: "{userprograms}\DBPulse"; Filename: "{app}\window\DBPulse.WindowHost.exe"; WorkingDir: "{app}\window"; IconFilename: "{app}\window\DBPulse.ico"
+Name: "{userdesktop}\DBPulse"; Filename: "{app}\window\DBPulse.WindowHost.exe"; WorkingDir: "{app}\window"; IconFilename: "{app}\window\DBPulse.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\window\DBPulse.WindowHost.exe"; Description: "Launch DBPulse"; Flags: nowait postinstall skipifsilent
