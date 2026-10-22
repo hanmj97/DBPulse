@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -99,22 +100,56 @@ internal sealed class BackendSession : IDisposable
         }
     }
 
-    private static async Task<ProbeResult> ProbeAsync(CancellationToken cancellationToken)
+    internal static bool HasListeningPort(int port)
     {
-        using var socket = new TcpClient(AddressFamily.InterNetwork);
+        if (port < 1 || port > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+        // Operating-system listener snapshot, no socket connection or DB access.
+        // Covers processes bound to IPv4 loopback, IPv6, or all interfaces.
+        foreach (var endpoint in IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners())
+        {
+            if (endpoint.Port == port) return true;
+        }
+        return false;
+    }
+
+    // Windows CI can verify both the LISTEN and closed states without
+    // requiring a live MSSQL database, WebView2 UI or port 18081.
+    internal static bool SelfTestPortInspection()
+    {
+        var testListener = new TcpListener(IPAddress.Loopback, 0);
+        testListener.Start();
+        int ephemeralPort = ((IPEndPoint)testListener.LocalEndpoint).Port;
         try
         {
-            await socket.ConnectAsync(IPAddress.Loopback, 18081, cancellationToken)
-                .AsTask().WaitAsync(TimeSpan.FromMilliseconds(900), cancellationToken);
+            if (!HasListeningPort(ephemeralPort)) return false;
         }
-        catch (SocketException)
+        finally
         {
-            WindowHostDiagnostics.Record("PROBE_TCP_CONNECTION_REFUSED");
-            return ProbeResult.Free;
+            testListener.Stop();
         }
-        catch (TimeoutException)
+        return !HasListeningPort(ephemeralPort);
+    }
+
+    private static async Task<ProbeResult> ProbeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // Inspect Windows' LISTEN table, not an outbound TCP connection attempt.
+        // On some Windows systems ConnectAsync to an unbound loopback port
+        // times out rather than rejecting immediately. That must NOT be
+        // interpreted as proof that an unknown process occupies the port.
+        // Treat any IPv4/IPv6 listener on the port as occupied (fail closed).
+        try
         {
-            WindowHostDiagnostics.Record("PROBE_TCP_CONNECT_TIMEOUT");
+            if (!HasListeningPort(18081))
+            {
+                WindowHostDiagnostics.Record("PROBE_PORT_NO_LISTENER");
+                return ProbeResult.Free;
+            }
+            WindowHostDiagnostics.Record("PROBE_PORT_LISTENER_PRESENT");
+        }
+        catch (NetworkInformationException)
+        {
+            WindowHostDiagnostics.Record("PROBE_PORT_TABLE_UNAVAILABLE");
             return ProbeResult.UnknownService;
         }
 

@@ -79,3 +79,28 @@ The current error code is generated **before launching the bundled Java backend*
 when the initial 18081 probe cannot identify a trustworthy DBPulse server.
 Do not delete the SQLite file, DPAPI credentials or PostgreSQL volumes, or kill
 unrelated processes to work around it.
+
+
+## 2026-10-22 — Windows loopback connect timeout correction
+
+Local lab evidence (collected while the error dialog remained open):
+- PowerShell `Get-NetTCPConnection -LocalPort 18081 -State Listen` returned no listener.
+- Seven consecutive preflight `PROBE_TCP_CONNECT_TIMEOUT` diagnostics appeared in
+  `window-host-status.txt`. The host misclassified this as an occupied port,
+  and **never launched the bundled Java process**.
+- This does not establish a real unknown process occupying the port, a
+  SQLite failure, or a SQL Server problem.
+
+Phase17 now uses `IPGlobalProperties.GetActiveTcpListeners()` to inspect
+the actual Windows TCP LISTEN table instead of attempting `TcpClient.ConnectAsync`
+to an unused 127.0.0.1 port. No listener -> launch bundled Java. A listener
+on 18081 -> require DBPulse HTTP health and React identity before reusing.
+Failure to inspect the OS listener table -> fail closed. No TCP connection
+is attempted merely to detect a vacant port.
+
+Windows app-image CI's `--self-test` checks both a temporarily LISTENing
+loopback endpoint and the same port after it is closed. The existing browser,
+SQLite storage, DPAPI credentials and PostgreSQL data are unchanged.
+
+This is a targeted fix based on local diagnostics. Real GUI launch and Java
+backend shutdown still require a user Windows PC smoke test.
