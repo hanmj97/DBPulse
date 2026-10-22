@@ -291,19 +291,19 @@ jobs:
         run: |
           .\tools\build_dbpulse_windows_installer.ps1 -AppImagePath 'backend/target/windows-ci/DBPulse' -OutputDirectory 'backend/target/windows-ci/setup'
           if ($LASTEXITCODE -ne 0) { throw 'Phase18 Setup EXE build failed' }
-          if (-not (Test-Path 'backend/target/windows-ci/setup/DBPulse-Setup-v0.19.1-preview.exe')) {
+          if (-not (Test-Path 'backend/target/windows-ci/setup/DBPulse-Setup-v0.20.0-preview.exe')) {
             throw 'Phase18 Setup EXE missing'
           }
       - name: Silent setup, window self-test, uninstall, user data preservation
         shell: pwsh
         run: |
-          .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.19.1-preview.exe'
+          .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.20.0-preview.exe'
           # The PowerShell test throws on failure; do not inspect a stale $LASTEXITCODE.
       - name: Upload unsigned Windows Setup preview
         uses: actions/upload-artifact@v4
         with:
-          name: DBPulse-v0.19.1-Windows-Setup-preview
-          path: backend/target/windows-ci/setup/DBPulse-Setup-v0.19.1-preview.exe
+          name: DBPulse-v0.20.0-Windows-Setup-preview
+          path: backend/target/windows-ci/setup/DBPulse-Setup-v0.20.0-preview.exe
           retention-days: 7
           if-no-files-found: error
 
