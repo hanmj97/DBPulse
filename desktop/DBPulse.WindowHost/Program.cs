@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace DBPulse.WindowHost;
@@ -15,6 +16,9 @@ internal static class Program
             return;
         }
 
+        // Setup/Uninstall checks this named mutex to avoid replacing running
+        // window-host binaries. The mutex is NOT a single-instance lock.
+        using var installGuard = new Mutex(false, @"Local\DBPulse.WindowHost.InstallGuard");
         WindowHostDiagnostics.Reset();
         ApplicationConfiguration.Initialize();
         Application.Run(new MainWindow());

@@ -142,7 +142,9 @@ jobs:
             'tools/provision_dbpulse_windows_app.ps1',
             'tools/diagnose_dbpulse_windows_app.ps1',
             'tools/build_dbpulse_webview2_window_preview.ps1',
-            'tools/diagnose_dbpulse_webview2_port.ps1'
+            'tools/diagnose_dbpulse_webview2_port.ps1',
+            'tools/build_dbpulse_windows_installer.ps1',
+            'tools/test_dbpulse_windows_installer.ps1'
           )
           $allErrors = @()
           foreach ($file in $files) {
@@ -270,6 +272,40 @@ jobs:
           if (-not (Test-Path 'backend/target/windows-ci/DBPulse/DBPulse.exe')) {
             throw 'Backend Java EXE missing from app bundle'
           }
+
+      - name: Provision Inno Setup 6 compiler on CI runner
+        shell: pwsh
+        run: |
+          $pf86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $existing = Join-Path $pf86 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $existing) -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler install failed' }
+          }
+          if (-not (Test-Path $existing) -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            throw 'ISCC_NOT_AVAILABLE'
+          }
+      - name: Create per-user unsigned Windows Setup EXE (Phase 18)
+        shell: pwsh
+        run: |
+          .\tools\build_dbpulse_windows_installer.ps1 -AppImagePath 'backend/target/windows-ci/DBPulse' -OutputDirectory 'backend/target/windows-ci/setup'
+          if ($LASTEXITCODE -ne 0) { throw 'Phase18 Setup EXE build failed' }
+          if (-not (Test-Path 'backend/target/windows-ci/setup/DBPulse-Setup-v0.18.0-preview.exe')) {
+            throw 'Phase18 Setup EXE missing'
+          }
+      - name: Silent setup, window self-test, uninstall, user data preservation
+        shell: pwsh
+        run: |
+          .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.18.0-preview.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'Phase18 installer smoke failed' }
+      - name: Upload unsigned Windows Setup preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: DBPulse-v0.18-Windows-Setup-preview
+          path: backend/target/windows-ci/setup/DBPulse-Setup-v0.18.0-preview.exe
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Upload unpacked unsigned Windows preview
         uses: actions/upload-artifact@v4
         with:
