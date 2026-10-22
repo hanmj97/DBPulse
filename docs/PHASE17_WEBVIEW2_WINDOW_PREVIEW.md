@@ -41,3 +41,13 @@ Alternatively, the GitHub Actions job named Windows DBPulse.exe preview + native
 - External links/popups are blocked in this first preview (fail closed).
 - GitHub Windows CI compilation is not the same as real WebView2 runtime and SQL Server user acceptance testing.
 - Prior unresolved Phase13/14 observer overhead + security release gates remain open. Keep this PR Draft; do not merge main yet.
+
+
+## 18081 port collision / false-unknown diagnosis
+
+If the window displays PORT_18081_OCCUPIED_BY_UNKNOWN_SERVICE:
+1. Close the failed **window only**. Run \`.\tools\diagnose_dbpulse_webview2_port.ps1\` in PowerShell.
+2. If \`PORT_18081_FREE\`, open the new host again.
+3. If another process is listening, inspect its process ID/name and the health/page match flags. The tool never reads SQL secrets and never terminates a process.
+4. If the process is an old known DBPulse.exe/Java console, close the old application normally and retry the host. If unknown or its health/title do not match, **stop** and investigate; do not automatically accept or kill the occupant.
+5. Phase17 WebView2 host now bypasses system proxies for 127.0.0.1 identity checks and retries startup identity briefly. This does not relax the DBPulse health+UI identity requirement.

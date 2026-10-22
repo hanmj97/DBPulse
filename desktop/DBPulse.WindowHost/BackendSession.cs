@@ -27,7 +27,15 @@ internal sealed class BackendSession : IDisposable
 
     public static async Task<BackendSession> AttachOrStartAsync(CancellationToken cancellationToken)
     {
+        // Another DBPulse may have bound its TCP port before Spring starts
+        // serving health and React. Retry briefly but NEVER trust an unknown
+        // service merely because the port is open.
         ProbeResult existing = await ProbeAsync(cancellationToken);
+        for (int attempt = 0; existing == ProbeResult.UnknownService && attempt < 6; attempt++)
+        {
+            await Task.Delay(500, cancellationToken);
+            existing = await ProbeAsync(cancellationToken);
+        }
         if (existing == ProbeResult.Ready) return new BackendSession(null);
         if (existing == ProbeResult.UnknownService)
             throw new InvalidOperationException("PORT_18081_OCCUPIED_BY_UNKNOWN_SERVICE");
@@ -96,7 +104,7 @@ internal sealed class BackendSession : IDisposable
 
         // TCP is bound, but this is not necessarily DBPulse.
         // Require the exact expected JSON identity AND the embedded React page.
-        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
         {
             Timeout = TimeSpan.FromSeconds(2)
         };
