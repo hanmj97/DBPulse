@@ -5,11 +5,19 @@ $ErrorActionPreference='Stop'
 if ($env:CI -ne 'true' -or -not $env:RUNNER_TEMP) { throw 'CI_ONLY_INSTALL_UNINSTALL_SMOKE_TEST' }
 $installer = (Resolve-Path -LiteralPath $InstallerPath).Path
 $dir = Join-Path $env:RUNNER_TEMP ('dbpulse-installer-smoke-' + [guid]::NewGuid().ToString('N'))
-$sentinelDir = Join-Path $env:LOCALAPPDATA 'DBPulse\data'
-$sentinel = Join-Path $sentinelDir ('phase18-preservation-' + [guid]::NewGuid().ToString('N') + '.txt')
-New-Item -ItemType Directory -Path $sentinelDir -Force | Out-Null
-'DO_NOT_DELETE_USER_DATA' | Set-Content -LiteralPath $sentinel -NoNewline
-$originalHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+# Check that uninstall preserves ALL independently managed user data folders.
+# Each sentinel has a unique name and only that known test file is removed.
+$sentinels = @()
+foreach ($name in @('data', 'desktop', 'credentials', 'backups', 'logs')) {
+    $dirPath = Join-Path (Join-Path $env:LOCALAPPDATA 'DBPulse') $name
+    New-Item -ItemType Directory -Path $dirPath -Force | Out-Null
+    $sentinel = Join-Path $dirPath ('phase21-uninstall-preserve-' + [guid]::NewGuid().ToString('N') + '.txt')
+    'DO_NOT_DELETE_USER_DATA' | Set-Content -LiteralPath $sentinel -NoNewline
+    $sentinels += [PSCustomObject]@{
+        Path = $sentinel
+        Hash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+    }
+}
 try {
     $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $dir + '"'))
     $p = Start-Process -FilePath $installer -ArgumentList $args -PassThru -Wait
@@ -39,12 +47,18 @@ try {
     if ($u.ExitCode -ne 0) { throw "UNINSTALL_EXIT_$($u.ExitCode)" }
     if (Test-Path -LiteralPath $hostExe) { throw 'APP_BINARY_SURVIVED_UNINSTALL' }
     Write-Host 'DBPULSE_INSTALLER_SILENT_UNINSTALL_OK'
-    if (-not (Test-Path -LiteralPath $sentinel -PathType Leaf) -or
-        (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $originalHash) {
-        throw 'USER_DATA_MODIFIED_BY_UNINSTALL'
+    foreach ($item in $sentinels) {
+        if (-not (Test-Path -LiteralPath $item.Path -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $item.Path -Algorithm SHA256).Hash -ne $item.Hash) {
+            throw 'USER_DATA_MODIFIED_BY_UNINSTALL'
+        }
     }
     Write-Host 'DBPULSE_INSTALLER_USER_DATA_PRESERVED_OK'
 }
 finally {
-    if (Test-Path -LiteralPath $sentinel) { Remove-Item -LiteralPath $sentinel -Force }
+    foreach ($item in $sentinels) {
+        if (Test-Path -LiteralPath $item.Path -PathType Leaf) {
+            Remove-Item -LiteralPath $item.Path -Force
+        }
+    }
 }

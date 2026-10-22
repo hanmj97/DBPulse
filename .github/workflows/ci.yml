@@ -10,6 +10,19 @@ permissions:
   contents: read
 
 jobs:
+  release-preflight:
+    name: Safe release-preflight and localhost soak tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test read-only SQLite preflight and no-network health probe
+        run: |
+          python -m unittest discover -s tools -p 'test_dbpulse_release_preflight.py' -v
+          python -m unittest discover -s tools -p 'test_dbpulse_local_soak_probe.py' -v
+
   backend:
     name: Java backend tests
     runs-on: ubuntu-latest
@@ -299,11 +312,32 @@ jobs:
         run: |
           .\tools\test_dbpulse_windows_installer.ps1 -InstallerPath 'backend/target/windows-ci/setup/DBPulse-Setup-v0.21.0-preview.exe'
           # The PowerShell test throws on failure; do not inspect a stale $LASTEXITCODE.
+      - name: Create and self-verify SHA256 checksum for unsigned setup
+        shell: pwsh
+        run: |
+          $folder = 'backend/target/windows-ci/setup'
+          $setup = Join-Path $folder 'DBPulse-Setup-v0.21.0-preview.exe'
+          if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) {
+            throw 'UNSIGNED_SETUP_NOT_FOUND'
+          }
+          $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          $line = '{0}  {1}' -f $hash, (Split-Path -Leaf $setup)
+          $manifest = Join-Path $folder 'SHA256SUMS.txt'
+          if (Test-Path -LiteralPath $manifest) { throw 'MANIFEST_ALREADY_EXISTS' }
+          Set-Content -LiteralPath $manifest -Value $line -NoNewline -Encoding ascii
+          $readback = (Get-Content -LiteralPath $manifest -Raw).Trim()
+          if ($readback -ne $line -or $hash.Length -ne 64) {
+            throw 'SETUP_SHA256_MANIFEST_INVALID'
+          }
+          Write-Host 'DBPULSE_SETUP_SHA256_MANIFEST_VERIFIED'
+
       - name: Upload unsigned Windows Setup preview
         uses: actions/upload-artifact@v4
         with:
           name: DBPulse-v0.21.0-Windows-Setup-preview
-          path: backend/target/windows-ci/setup/DBPulse-Setup-v0.21.0-preview.exe
+          path: |
+            backend/target/windows-ci/setup/DBPulse-Setup-v0.21.0-preview.exe
+            backend/target/windows-ci/setup/SHA256SUMS.txt
           retention-days: 7
           if-no-files-found: error
 

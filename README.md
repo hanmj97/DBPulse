@@ -2,6 +2,33 @@
 
 > **실제 DB 운영 서비스**를 목표로 개발하는 프로젝트. MSSQL 우선 구현 후 다른 DBMS 지원 확장.
 
+## 현재 상태 — v0.21 Windows 설치형 미리보기 (2026-10-22)
+
+**기능 동결 후 안정화·배포 검증 중입니다. 정식/서명된 릴리스가 아닙니다.**
+최신 검증 대상은 **Windows x64 로컬 WebView2 프로그램 + Java 21 + Spring Boot/React + SQLite**입니다.
+구형 개발 설명과 달리, 현재 테스트 PC에서는 Docker PostgreSQL 없이 로컬 SQLite를 사용할 수 있으나
+**기존에 검증된 SQLite 파일·활성화 마커가 필요합니다. 새 PC 최초 설치 마법사는 아직 미구현**입니다.
+
+- 기능: MSSQL 대상 수동 등록·연결, DMV 5초 모니터링, Blocking/Deadlock/Wait/Incident,
+  Query Store 기반 쿼리 성능·저장 이력 7일·SQL 원문 선택 조회·Tuning Advisor.
+- 선택 DB의 CPU 수치는 **Query Store CPU 시간과 1논리코어 환산 추정 지표**이며,
+  정확한 데이터베이스 CPU 점유율(%) 또는 SQL Server 전체 CPU%가 아닙니다.
+- 보안: 로컬 설치형에서 SQL 원문은 클릭할 때만 가져옵니다. 원문에는 개인정보와 토큰이
+  포함될 수 있으므로 화면 캡처/공개 로그 공유를 피하세요. 외부 공개 서버로 사용하지 마세요.
+- 배포: 사용자별 unsigned Inno Setup 설치 EXE, 시작 메뉴/선택적 바탕화면 바로가기,
+  일반 종료 시 Java 백엔드 정리. 언인스톨은 프로그램 파일만 삭제하도록 설계되어 있습니다.
+- 아직 필요한 작업: SQLite 백업·복원 실기기 검증, 장시간 부하/안정성 검증, 보안 검토,
+  새 PC 온보딩, WebView2 사전 설치 확인, 코드 서명 및 정식 릴리스 결정.
+
+**[최신 안정화/릴리스 판정 체크리스트](docs/RELEASE_READINESS_V021.md)** ·
+**[설치 및 사용자 데이터 보호 가이드](docs/USER_INSTALL_GUIDE_V021.md)** ·
+**[현재 작업 Draft PR 목록](https://github.com/hanmj97/DBPulse/pulls)**
+
+> 아래 Phase 13–16 설명은 **당시의 개발 이력**으로 남겨둔 문서입니다.
+> 현재 설치 절차로 따라하지 말고 위 최신 가이드를 우선하세요.
+
+---
+
 ## 제품 핵심 목표
 
 1. **장애 감지·원인 파악·안전한 자동복구** — Blocking/Deadlock/연결 장애 등, 위험 조치는 승인 후 실행
