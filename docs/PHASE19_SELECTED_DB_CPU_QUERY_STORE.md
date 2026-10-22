@@ -39,3 +39,13 @@ The optional instance-wide CPU panel has been removed from the *Queries* page to
 To inspect the exact SQL Server side without changing state: execute
 `sql/13_query_store_failure_diagnosis_readonly.sql`
 from SSMS under the *same restricted DBPulse monitoring login*, against the selected DB. Do not grant privileges or enable Query Store without reviewing results.
+
+
+## Unambiguous Phase19 installer identity
+
+The Phase19 installer has `AppVersion=0.19.0`, GitHub Actions artifact
+`DBPulse-v0.19-Windows-Setup-preview`, and executable filename
+`DBPulse-Setup-v0.19.0-preview.exe`. The existing Inno AppId remains
+unchanged so it upgrades the same per-user install. Sidebar footer displays
+`v0.19.0-preview` to distinguish this release from previously distributed
+v0.18 packages. Data in `%LOCALAPPDATA%\\DBPulse` is unchanged.
