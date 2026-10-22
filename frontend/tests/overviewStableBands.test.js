@@ -42,13 +42,10 @@ test('neutral shared zero baseline stays visible while real positive values keep
     [[1,2],[2,3],[3,4]]);
 });
 
-test('SQL Server instance CPU legend is bright in both themes even when CPU is zero',()=>{
-  assert.match(jsx,/className="rev-ops-cpu-legend"/);
-  assert.match(jsx,/function CpuTrendPanel\(/);
-  assert.match(jsx,/\[0,25,50,75,100\]\.map/);
-  assert.match(jsx,/SQL Server 전체 프로세스 CPU \(%\)/);
-  assert.match(css,/\.rev-ops-split-charts \.rev-chart-legend \.rev-ops-cpu-legend/);
-  assert.match(css,/background:#ffbd60 !important/);
+test('selected DB CPU panel is distinct from SQL Server process-wide CPU',()=>{
+  assert.match(jsx,/SelectedDatabaseCpuPanel/);
+  assert.match(jsx,/queryState=\{queryState\}/);
+  assert.doesNotMatch(jsx,/function CpuTrendPanel\(/);
   assert.match(css,/\.rev-ops-wide-chart \.rev-ops-split-charts/);
   assert.match(css,/@media\(max-width:670px\)/);
 });

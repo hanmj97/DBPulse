@@ -23,15 +23,15 @@ test('genuine positive samples and transitions to/from zero still render',()=>{
     x=>x.v,x=>x.t,20000),[]);
 });
 
-test('CPU zero samples remain valid 0 percent in its own chart, without any mixed request axis',()=>{
+test('selected DB Query Store CPU panel does not invent a zero-percent CPU chart',()=>{
   const values=[{v:0,t:0},{v:0,t:60000},{v:0,t:120000}];
   assert.deepEqual(nonZeroSegments(values,x=>x.v,x=>x.t,150000),[]);
-  assert.match(overview,/online && rows\.map\(\(point,index\)=>/);
-  assert.match(overview,/online && cpuSegments\.map/);
-  assert.match(overview,/function CpuTrendPanel\(/);
-  assert.match(overview,/cpuSegments\.push\(\[index-1,index\]\)/);
-  assert.match(css,/\.rev-ops-split-charts \.rev-chart-legend \.rev-ops-cpu-legend/);
-  assert.match(css,/\.rev-ops-split-charts \.rev-ops-cpu-readout/);
+  assert.match(overview,/<SelectedDatabaseCpuPanel queryState=\{queryState\}/);
+  assert.doesNotMatch(overview,/function CpuTrendPanel\(/);
+  const panel=readFileSync(new URL('../src/SelectedDatabaseCpuPanel.jsx',import.meta.url),'utf8');
+  assert.match(panel,/databaseCpuMs/);
+  assert.match(panel,/점유율/);
+  assert.doesNotMatch(panel,/sqlProcessCpuPercent/);
 });
 
 test('missing values, backward timestamps and large gaps are never colored as real measurements',()=>{
