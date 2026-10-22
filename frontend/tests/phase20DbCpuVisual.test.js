@@ -19,8 +19,8 @@ test('overview has a true selected-DB CPU timeline, not an instance CPU graph',(
   assert.match(css,/\.rev-db-cpu-graph svg/);
   assert.doesNotMatch(overview,/sqlProcessCpuPercent/);
 });
-test('SQL text remains explicit secure local-only opt-in',()=>{
-  assert.match(drawer,/DBPULSE_QUERY_TEXT_ENABLED/);
+test('desktop SQL text remains explicitly clicked and local-only guarded',()=>{
+  assert.match(drawer,/X-DBPulse-Local-Request/);
   assert.match(drawer,/cache:'no-store'/);
   assert.match(drawer,/abort\.abort\(\)/);
   assert.doesNotMatch(drawer,/console\.(log|debug)\(/);
