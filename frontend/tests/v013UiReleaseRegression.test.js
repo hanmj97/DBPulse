@@ -50,8 +50,9 @@ test('query views retain observer status, advisor, plan and SQL drawer',()=>{
   assert.match(app,/value="dbpulse-only"/);
 });
 
-test('v0.13 visible labels do not imply a fixed polling interval or old release',()=>{
-  assert.ok(shell.includes('v0.13.0-alpha · 로컬 단일 대상'));
+test('Phase19 footer identifies current installer while preserving adaptive polling',()=>{
+  assert.ok(shell.includes('v0.19.0-preview · 로컬 단일 대상'));
+  assert.doesNotMatch(shell,/v0\.13\.0-alpha · 로컬 단일 대상/);
   assert.ok(app.includes('60s 기본 · 자동 완화'));
   assert.ok(advisor.includes('SQL Tuning Advisor <small>v0.13 alpha</small>'));
   assert.doesNotMatch(shell,/v0\.8\.0/);
