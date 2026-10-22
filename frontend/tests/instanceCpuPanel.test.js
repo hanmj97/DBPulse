@@ -4,8 +4,9 @@ import {readFileSync} from 'node:fs';
 const page=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
 const advisor=readFileSync(new URL('../src/QueryTuningAdvisorPanel.jsx',import.meta.url),'utf8');
 const cpu=readFileSync(new URL('../src/InstanceCpuPanel.jsx',import.meta.url),'utf8');
-test('SQL instance CPU appears separately from Query Store costs',()=>{
-  assert.match(page,/<InstanceCpuPanel targetId=\{target\?\.id\}\s*\/>/);
+test('selected DB CPU appears in query UI without unrelated instance CPU panel',()=>{
+  assert.match(page,/<SelectedDatabaseCpuPanel queryState=\{queryState\}/);
+  assert.doesNotMatch(page,/<InstanceCpuPanel targetId=\{target\?\.id\}/);
   assert.match(cpu,/SQL Server 프로세스 CPU/);
   assert.match(cpu,/호스트 전체 CPU/);
   assert.match(cpu,/선택한 DB만의 CPU가 아닌/);
