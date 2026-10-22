@@ -6,40 +6,32 @@ import {nonZeroSegments} from '../src/chartVisibility.js';
 const overview=readFileSync(new URL('../src/OverviewDashboard.jsx',import.meta.url),'utf8');
 const css=readFileSync(new URL('../src/dashboard.css',import.meta.url),'utf8');
 
-test('DBPulse request spikes cannot be mistaken for SQL Server process CPU percent',()=>{
+test('DBPulse request graph cannot be mistaken for selected database CPU time',()=>{
   assert.match(overview,/function RequestTrendPanel\(/);
-  assert.match(overview,/function CpuTrendPanel\(/);
+  assert.match(overview,/function TrendChart\(/);
   assert.match(overview,/className="rev-ops-split-charts"/);
   assert.match(overview,/실시간 요청 현황/);
-  assert.match(overview,/SQL Server CPU 사용률/);
+  assert.match(overview,/<SelectedDatabaseCpuPanel queryState=\{queryState\} databaseName=\{databaseName\} compact\/>/);
   assert.match(overview,/단위: 건/);
-  assert.match(overview,/단위: %/);
   assert.match(overview,/REQUEST_SERIES\.flatMap\(series=>segments\(series\.key\)\.map/);
   assert.match(overview,/stroke=\{series\.color\}/);
-  assert.match(overview,/className="rev-ops-cpu-line"/);
-  assert.match(overview,/stroke="#ffbd60"/);
-  assert.match(overview,/\[0,25,50,75,100\]\.map/);
-  assert.match(overview,/특정 DB의 CPU\(%\)가 아닙니다/);
-  // Shared theme CSS colors all SVG <line>s as gridlines. Actual
-  // measurement series use paths instead, retaining their colors.
+  assert.doesNotMatch(overview,/function CpuTrendPanel\(/);
+  assert.doesNotMatch(overview,/SQL Server CPU 사용률/);
   assert.match(css,/\.rev-layout\[data-theme\] \.rev-chart-area line\{stroke:var\(--t-chart-grid\)\}/);
   assert.match(overview,/<path className="rev-ops-metric-segment"/);
-  assert.match(overview,/<path key=\{'cpu-'\+a\} className="rev-ops-cpu-line"/);
   assert.deepEqual(nonZeroSegments([0,2,0].map((v,i)=>({v,t:i*5000})),
     x=>x.v,x=>x.t,20000),[[0,1],[1,2]]);
 });
 
-test('each SVG maintains its own readable aspect ratio and independent time axis',()=>{
+test('request SVG retains readable aspect ratio and keyboard access',()=>{
   assert.match(overview,/viewBox="0 0 560 210" preserveAspectRatio="xMidYMid meet"/);
   assert.doesNotMatch(overview,/preserveAspectRatio="none"/);
   assert.match(overview,/const pickChartIndex = \(event,length\) =>/);
-  assert.match(overview,/const pickCpuIndex=event=>/);
   assert.match(css,/\.rev-ops-wide-chart \.rev-ops-split-charts \.rev-ops-chart-frame svg \{/);
   assert.match(css,/aspect-ratio:560 \/ 210/);
   assert.match(css,/max-width:620px/);
   assert.match(css,/grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
   assert.match(css,/@media\(max-width:1150px\)/);
-  assert.match(overview,/onMouseMove=\{pickCpuIndex\}/);
   assert.match(overview,/onKeyDown=\{event=>chartArrowIndex/);
 });
 
