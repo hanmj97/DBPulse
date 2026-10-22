@@ -59,7 +59,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
 }
 $destination = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
-$filename = 'DBPulse-Setup-v0.21.2.exe'
+$filename = 'DBPulse-Setup-v0.21.3.exe'
 $output = Join-Path $destination $filename
 if (Test-Path -LiteralPath $output) {
     throw 'INSTALLER_ALREADY_EXISTS_NO_OVERWRITE'
@@ -69,7 +69,7 @@ if (-not (Test-Path -LiteralPath $definition)) {
     throw 'INSTALLER_DEFINITION_MISSING'
 }
 # ISCC /D defines the known-good absolute source directory in the .iss file.
-& $compiler ("/DAppImage=" + $source) ("/O" + $destination) ("/F" + 'DBPulse-Setup-v0.21.2') $definition
+& $compiler ("/DAppImage=" + $source) ("/O" + $destination) ("/F" + 'DBPulse-Setup-v0.21.3') $definition
 if ($LASTEXITCODE -ne 0) { throw 'INNO_SETUP_COMPILATION_FAILED' }
 if (-not (Test-Path -LiteralPath $output -PathType Leaf) -or
     (Get-Item -LiteralPath $output).Length -lt 1000000) {
