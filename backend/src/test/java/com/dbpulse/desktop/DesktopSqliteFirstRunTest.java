@@ -25,6 +25,7 @@ class DesktopSqliteFirstRunTest {
                 "jdbc:sqlite:" + DesktopSqliteStorage.database(userDir))) {
             try (var check=connection.createStatement().executeQuery(
                     "SELECT COUNT(*) FROM local_target_registry")) {
+                assertTrue(check.next());
                 assertEquals(0,check.getInt(1));
             }
         }
